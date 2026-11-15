@@ -1,0 +1,131 @@
+import {
+  Component,
+  lazy,
+  Suspense,
+  type ErrorInfo,
+  type ReactNode,
+} from 'react'
+import {
+  BrowserRouter,
+  Navigate,
+  Outlet,
+  Route,
+  Routes,
+  Link,
+} from 'react-router-dom'
+import { Toaster } from 'sonner'
+import { AuthProvider, useAuth } from './contexts/AuthContext'
+import { DataProvider } from './contexts/DataContext'
+import {
+  LoadingState,
+  ErrorState,
+  Panel,
+  EmptyState,
+} from './components/common'
+import Layout from './components/Layout'
+import AuthPage from './pages/AuthPage'
+const DashboardPage = lazy(() => import('./pages/DashboardPage'))
+const ProfilePage = lazy(() => import('./pages/ProfilePage'))
+const MedicalRecordsPage = lazy(() => import('./pages/MedicalRecordsPage'))
+const MedicationsPage = lazy(() => import('./pages/MedicationsPage'))
+const HealthTrackerPage = lazy(() => import('./pages/HealthTrackerPage'))
+const SettingsPage = lazy(() => import('./pages/SettingsPage'))
+
+class ErrorBoundary extends Component<
+  { children: ReactNode },
+  { failed: boolean }
+> {
+  state = { failed: false }
+  static getDerivedStateFromError() {
+    return { failed: true }
+  }
+  componentDidCatch(error: Error, info: ErrorInfo) {
+    console.error('MediVault rendering failed', error, info.componentStack)
+  }
+  render() {
+    if (this.state.failed)
+      return (
+        <div className="mx-auto max-w-xl p-8">
+          <ErrorState
+            message="MediVault could not render this page. Reload to try again. Your saved data remains on the backend."
+            retry={() => window.location.reload()}
+          />
+        </div>
+      )
+    return this.props.children
+  }
+}
+function ProtectedRoute() {
+  const { session } = useAuth()
+  if (!session) return <Navigate to="/login" replace />
+  return (
+    <DataProvider key={session.user.id}>
+      <Outlet />
+    </DataProvider>
+  )
+}
+function AppRoutes() {
+  const { loading, error, retry, session } = useAuth()
+  if (loading)
+    return <LoadingState message="Opening your health workspace..." />
+  if (error)
+    return (
+      <div className="mx-auto max-w-xl p-8">
+        <ErrorState message={error} retry={retry} />
+      </div>
+    )
+  return (
+    <Routes>
+      <Route path="/login" element={<AuthPage />} />
+      <Route path="/register" element={<AuthPage registration />} />
+      <Route element={<ProtectedRoute />}>
+        <Route element={<Layout />}>
+          <Route path="/dashboard" element={<DashboardPage />} />
+          <Route path="/profile" element={<ProfilePage />} />
+          <Route path="/medical-records" element={<MedicalRecordsPage />} />
+          <Route path="/medications" element={<MedicationsPage />} />
+          <Route path="/health-tracker" element={<HealthTrackerPage />} />
+          <Route path="/settings" element={<SettingsPage />} />
+        </Route>
+      </Route>
+      <Route
+        path="/"
+        element={<Navigate to={session ? '/dashboard' : '/login'} replace />}
+      />
+      <Route
+        path="*"
+        element={
+          <div className="mx-auto max-w-lg p-8">
+            <Panel>
+              <EmptyState
+                title="Page not found"
+                description="This page isn't part of your health workspace."
+                action={
+                  <Link className="action-link" to="/">
+                    Back to MediVault
+                  </Link>
+                }
+              />
+            </Panel>
+          </div>
+        }
+      />
+    </Routes>
+  )
+}
+export default function App() {
+  return (
+    <ErrorBoundary>
+      <BrowserRouter>
+        <Suspense
+          fallback={<LoadingState message="Loading your workspace..." />}
+        >
+          <AuthProvider>
+            <AppRoutes />
+          </AuthProvider>
+        </Suspense>
+        <Toaster richColors position="top-right" closeButton />
+      </BrowserRouter>
+    </ErrorBoundary>
+  )
+}
