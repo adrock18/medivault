@@ -410,6 +410,7 @@ describe('development address preflight', () => {
           expect(csp['default-src']).toBe("'self'")
           expect(csp['script-src']).toBe("'self' 'wasm-unsafe-eval'")
           expect(csp['worker-src']).toBe("'self'")
+          expect(csp['img-src']).toBe("'self' data: blob:")
           expect(csp['connect-src']).toBeUndefined()
           const manifest = JSON.parse(
             await readFile(join('dist', '.vite', 'manifest.json'), 'utf8'),

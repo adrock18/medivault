@@ -84,8 +84,8 @@
   --slate-100: #e9edf6;
   --slate-200: #dce1ed;
   --slate-300: #a7b0c5;
-  --slate-400: #606b81;
-  --slate-500: #58637b;
+  --slate-400: #505d73;
+  --slate-500: #4b5870;
   --slate-600: #47516a;
   --slate-700: #343e56;
   --slate-800: #222c43;
@@ -115,7 +115,7 @@
   --secondary: #e9edf6;
   --secondary-foreground: #222c43;
   --muted: #e9edf6;
-  --muted-foreground: #606b81;
+  --muted-foreground: #505d73;
   --accent: #e9eeff;
   --accent-foreground: #243bb5;
   --destructive: #b42332;
@@ -622,7 +622,7 @@
 }
 
 .calendar-tile span:first-child {
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 600;
   opacity: 0.9;
   align-self: end;
@@ -671,16 +671,12 @@
 .dose-card {
   position: relative;
   display: grid;
-  grid-template-columns: 42px minmax(0, 1fr) auto;
+  grid-template-columns: 76px minmax(0, 1fr);
   align-items: center;
   column-gap: 16px;
   row-gap: 14px;
-  padding: 22px;
-  border: 1px solid color-mix(in srgb, var(--glass-border) 65%, transparent);
-  border-radius: 26px;
-  background-color: color-mix(in srgb, var(--dose-surface) 86%, transparent);
-  background-image: linear-gradient(120deg, var(--glass-wash), transparent 55%);
-  box-shadow: inset 0 1px 0 var(--glass-highlight);
+  padding: 24px 0;
+  border-bottom: 1px solid var(--border);
   transition:
     background 220ms,
     border-color 220ms,
@@ -689,18 +685,43 @@
 }
 
 .dose-card[data-next='true'] {
-  border-color: var(--slate-300);
-  box-shadow:
-    0 0 0 5px var(--card),
-    0 0 0 7px color-mix(in srgb, var(--slate-300) 60%, transparent);
+  border-bottom-color: var(--lavender-ink);
 }
 
-.dose-card[data-status='taken'] {
-  background-color: color-mix(
-    in srgb,
-    var(--success-soft) 55%,
-    var(--dose-surface)
-  );
+.dose-time {
+  grid-row: span 2;
+  align-self: stretch;
+  border-right: 1px solid var(--border);
+  padding-right: 10px;
+}
+
+.dose-card[data-next='true'] .dose-time {
+  border-right-color: var(--lavender-ink);
+}
+
+.daybook {
+  display: grid;
+  align-items: start;
+  gap: 24px;
+}
+
+[data-slot='card'].daybook-secondary {
+  background-image: none;
+  box-shadow: none;
+  border-color: var(--border);
+  border-radius: 20px;
+}
+
+@media (min-width: 1280px) {
+  .daybook {
+    grid-template-columns: minmax(0, 1fr) 320px;
+    grid-template-rows: auto 1fr;
+  }
+
+  .daybook-summary {
+    grid-column: 2;
+    grid-row: 1 / span 2;
+  }
 }
 
 .dose-symbol {
@@ -746,12 +767,113 @@
   gap: 16px;
 }
 
+.command-palette {
+  animation-duration: 150ms;
+}
+
+.record-preview[data-slot='dialog-content'] {
+  inset: 0 0 0 auto;
+  width: min(760px, 100vw);
+  max-width: 100vw;
+  height: 100dvh;
+  align-content: start;
+  overflow: auto;
+  transform: none;
+  border-radius: 24px 0 0 24px;
+  padding: clamp(20px, 4vw, 36px);
+  animation: preview-enter 220ms ease-out;
+}
+
+@keyframes preview-enter {
+  from {
+    opacity: 0;
+    transform: translateX(24px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@media (max-width: 767px) {
+  .record-preview[data-slot='dialog-content'] {
+    width: 100vw;
+    border-radius: 0;
+  }
+}
+
+.calendar-layout {
+  display: grid;
+  min-width: 0;
+  gap: 24px;
+}
+
+.calendar-month,
+.calendar-rail {
+  max-width: 100%;
+  overflow: auto;
+  overscroll-behavior-inline: contain;
+}
+
+.calendar-month[data-mobile-view='week'] {
+  display: none;
+}
+
+.calendar-grid {
+  display: grid;
+  min-width: 308px;
+  grid-template-columns: repeat(7, minmax(44px, 1fr));
+}
+
+.calendar-rail {
+  display: flex;
+  gap: 4px;
+}
+
+.calendar-date {
+  display: flex;
+  min-width: 44px;
+  min-height: 64px;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  border: 1px solid transparent;
+  border-radius: 12px;
+  transition:
+    background-color 150ms,
+    border-color 150ms;
+}
+
+.calendar-date[data-outside='true'] {
+  color: var(--muted-foreground);
+}
+
+.calendar-date[aria-current='date'] {
+  border-color: var(--border);
+}
+
+.calendar-date[aria-pressed='true'] {
+  border-color: var(--primary);
+  background: var(--accent);
+}
+
+@media (min-width: 768px) {
+  .calendar-month[data-mobile-view='week'] {
+    display: block;
+  }
+
+  .calendar-layout {
+    grid-template-columns: minmax(308px, 1.2fr) minmax(0, 1fr);
+  }
+}
+
 .now-marker {
   display: flex;
   align-items: center;
   gap: 10px;
   min-height: 24px;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 500;
   color: var(--muted-foreground);
 }
@@ -991,11 +1113,6 @@
       0 20px 48px -20px var(--glass-shadow);
   }
 
-  .dose-card:hover {
-    transform: translateY(-2px);
-    border-color: var(--slate-300);
-  }
-
   .quick-access:hover {
     transform: translateY(-3px);
     box-shadow: 0 8px 18px -12px var(--glass-shadow);
@@ -1055,15 +1172,6 @@
   animation-delay: 100ms;
 }
 
-@media (min-width: 1400px) {
-  .dose-card {
-    grid-template-columns: 42px minmax(0, 1fr) auto auto;
-  }
-  .dose-actions {
-    grid-column: auto;
-  }
-}
-
 @media (max-width: 479px) {
   .calendar-tile {
     width: 52px;
@@ -1071,13 +1179,12 @@
     border-radius: 17px;
   }
   .dose-actions {
-    grid-column: 1 / -1;
+    grid-column: 2 / -1;
   }
   .dose-card {
-    grid-template-columns: 28px minmax(0, 1fr) auto;
-    padding: 18px 15px;
-    column-gap: 11px;
-    border-radius: 23px;
+    grid-template-columns: 60px minmax(0, 1fr);
+    padding: 18px 0;
+    column-gap: 12px;
   }
   .routine-panel {
     border-radius: 26px;

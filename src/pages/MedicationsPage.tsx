@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { Plus, Pill, CheckCheck, Clock3, ScanLine } from 'lucide-react'
 import { subDays } from 'date-fns'
 import { useVault } from '../contexts/DataContext'
@@ -29,9 +29,11 @@ import { MedicationCard } from '../components/MedicationCard'
 import { DoseSchedule } from '../components/DoseSchedule'
 import { MedicationReminder } from '../components/MedicationReminder'
 import { PrescriptionScanner } from '../components/PrescriptionScanner'
+import { MedicationCalendar } from '../components/MedicationCalendar'
 
 export default function MedicationsPage() {
   const { medications, logs, now } = useVault()
+  const todaySchedule = useRef<HTMLDivElement>(null)
   const [params, updateParams] = useQueryParams()
   const record = params.get('record')
   const [edit, setEdit] = useState<Medication | null>(null)
@@ -137,7 +139,12 @@ export default function MedicationsPage() {
           </Button>
         </div>
       )}
-      <div className="routine-panel tint-sky mb-7">
+      <div
+        ref={todaySchedule}
+        tabIndex={-1}
+        aria-label="Today's actionable schedule"
+        className="routine-panel tint-sky mb-7"
+      >
         <SectionTitle
           title="Today's schedule"
           description={`${displayDate(today)}, in your local time. Updates while this page is open.`}
@@ -147,6 +154,11 @@ export default function MedicationsPage() {
           <MedicationReminder doses={doses} now={now} />
         </div>
       </div>
+      <MedicationCalendar
+        key={record ?? 'all'}
+        recordId={record}
+        onToday={() => todaySchedule.current?.focus()}
+      />
       <Panel className="mb-5">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
           <h2 className="font-semibold">Your medications</h2>

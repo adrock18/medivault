@@ -94,6 +94,13 @@ it('derives dashboard totals from persisted records, active schedules and exact 
   )
   const todayRegion = within(screen.getByRole('region', { name: 'Today' }))
   expect(
+    screen
+      .getByRole('navigation', { name: 'Quick actions' })
+      .compareDocumentPosition(
+        screen.getByRole('heading', { name: 'Last 7 days' }),
+      ) & Node.DOCUMENT_POSITION_FOLLOWING,
+  ).toBeTruthy()
+  expect(
     todayRegion.getByRole('img', {
       name: /^4 doses today: 1 taken, 1 skipped, 2 not yet logged\./,
     }),

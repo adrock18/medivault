@@ -18,6 +18,10 @@ import {
 import { Button } from '../components/ui/button'
 import { MedicalRecordCard } from '../components/MedicalRecordCard'
 import { UploadDialog } from '../components/UploadDialog'
+import {
+  RecordPreview,
+  type PreviewSelection,
+} from '../components/RecordPreview'
 
 export default function MedicalRecordsPage() {
   const navigate = useNavigate()
@@ -26,6 +30,7 @@ export default function MedicalRecordsPage() {
   const selected = params.get('record')
   const [edit, setEdit] = useState<MedicalRecord | null>(null)
   const [remove, setRemove] = useState<MedicalRecord | null>(null)
+  const [preview, setPreview] = useState<PreviewSelection | null>(null)
   const [search, setSearch] = useState('')
   const [category, setCategory] = useState('')
   const [order, setOrder] = useState<'newest' | 'oldest'>('newest')
@@ -131,6 +136,7 @@ export default function MedicalRecordsPage() {
             <MedicalRecordCard
               key={record.id}
               record={record}
+              onPreview={(record, trigger) => setPreview({ record, trigger })}
               onEdit={() => setEdit(record)}
               onDelete={() => setRemove(record)}
               linkedCount={
@@ -184,6 +190,14 @@ export default function MedicalRecordsPage() {
           key={edit?.id ?? 'new'}
           onClose={close}
           record={edit ?? undefined}
+        />
+      )}
+      {preview && (
+        <RecordPreview
+          key={preview.record.id}
+          selection={preview}
+          available={records.some((record) => record.id === preview.record.id)}
+          onClose={() => setPreview(null)}
         />
       )}
       <ConfirmationDialog

@@ -25,6 +25,7 @@ export function MedicalRecordCard({
   compact = false,
   onScan,
   linkedCount = 0,
+  onPreview,
 }: {
   record: MedicalRecord
   onEdit?: () => void
@@ -32,6 +33,7 @@ export function MedicalRecordCard({
   compact?: boolean
   onScan?: () => void
   linkedCount?: number
+  onPreview?: (record: MedicalRecord, trigger: HTMLButtonElement) => void
 }) {
   const [busy, setBusy] = useState<'view' | 'download' | null>(null)
   async function access(action: 'view' | 'download') {
@@ -67,7 +69,11 @@ export function MedicalRecordCard({
           size="icon"
           aria-label={`View ${record.title}`}
           disabled={!!busy}
-          onClick={() => void access('view')}
+          onClick={(event) =>
+            onPreview
+              ? onPreview(record, event.currentTarget)
+              : void access('view')
+          }
         >
           {busy ? <LoaderCircle className="animate-spin" /> : <Eye />}
         </Button>
@@ -107,7 +113,11 @@ export function MedicalRecordCard({
           variant="outline"
           aria-label={`View ${record.title}`}
           disabled={!!busy}
-          onClick={() => void access('view')}
+          onClick={(event) =>
+            onPreview
+              ? onPreview(record, event.currentTarget)
+              : void access('view')
+          }
         >
           {busy === 'view' ? (
             <LoaderCircle className="animate-spin" />

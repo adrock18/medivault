@@ -142,7 +142,7 @@ export function PageSkeleton({ variant }: { variant: PageSkeletonVariant }) {
       <Skeleton className="mt-3 mb-7 h-4 w-80 max-w-full" />
       {variant === 'dashboard' && (
         <>
-          <div className="mb-6 grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_384px]">
+          <div className="daybook mb-6">
             <Panel>
               <Skeleton className="mb-6 h-5 w-40" />
               <Skeleton className="mb-7 h-12 w-60 max-w-full rounded-full" />
@@ -150,12 +150,19 @@ export function PageSkeleton({ variant }: { variant: PageSkeletonVariant }) {
                 {[0, 1, 2].map((row) => (
                   <div key={row}>
                     <Skeleton className="mb-3 h-3 w-20" />
-                    <Skeleton className="h-36 w-full rounded-3xl" />
+                    <div className="grid grid-cols-[76px_1fr] gap-4 border-b pb-5">
+                      <Skeleton className="h-24 w-full" />
+                      <Skeleton className="h-24 w-full" />
+                    </div>
                   </div>
                 ))}
               </div>
             </Panel>
-            <Panel>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <Skeleton className="h-20 w-full" />
+              <Skeleton className="h-20 w-full" />
+            </div>
+            <Panel className="daybook-summary">
               <Skeleton className="mb-5 h-5 w-40" />
               <Skeleton className="mx-auto aspect-square w-full max-w-60 rounded-full" />
               <Skeleton className="mt-5 h-12 w-full" />

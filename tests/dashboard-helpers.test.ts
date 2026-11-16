@@ -8,6 +8,11 @@ import {
   weekBreakdown,
 } from '../src/lib/dashboard'
 import { scheduledDoses } from '../src/lib/utils'
+import {
+  calendarAgenda,
+  calendarDays,
+  shiftCalendarMonth,
+} from '../src/lib/calendar'
 import type {
   DoseLog,
   MedicalRecord,
@@ -49,6 +54,39 @@ const log = (
   updated_at: '',
 })
 const record = { title: 'Lab panel' } as MedicalRecord
+
+it('clamps local calendar months across leap February and a year boundary', () => {
+  expect(shiftCalendarMonth('2024-01-31', 1)).toBe('2024-02-29')
+  expect(shiftCalendarMonth('2025-01-31', 1)).toBe('2025-02-28')
+  expect(shiftCalendarMonth('2026-12-31', 1)).toBe('2027-01-31')
+  const days = calendarDays('2024-02-29')
+  expect(days).toHaveLength(42)
+  expect(days[0]).toBe('2024-01-29')
+  expect(days).toContain('2024-02-29')
+})
+
+it('reconciles recorded calendar coordinates and filtered projections without inventing history', () => {
+  const edited = { ...med, times: ['10:00'], end_date: '2026-03-10' }
+  const logs = [
+    log('2026-03-10', '08:00'),
+    log('2026-03-10', '10:00', 'skipped'),
+    log('2026-03-11', '08:00'),
+  ]
+  const agenda = calendarAgenda([edited], logs, '2026-03-10')
+  expect(agenda.map((dose) => [dose.time, dose.log?.status])).toEqual([
+    ['08:00', 'taken'],
+    ['10:00', 'skipped'],
+  ])
+  expect(
+    calendarAgenda([edited], logs, '2026-03-11').map((dose) => dose.time),
+  ).toEqual(['08:00'])
+  expect(calendarAgenda([], logs, '2026-03-10')).toEqual([])
+  expect(
+    calendarAgenda([edited], [], '2026-03-10').map((dose) => dose.time),
+  ).toEqual(['10:00'])
+  expect(calendarAgenda([edited], [], '2026-03-11')).toEqual([])
+  expect(calendarAgenda([edited], [], '2026-02-28')).toEqual([])
+})
 
 describe('dashboard derivations', () => {
   it('excludes days outside a medication range and keeps logs for removed times', () => {

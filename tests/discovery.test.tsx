@@ -7,20 +7,27 @@ import {
   render,
   screen,
   waitFor,
+  within,
 } from '@testing-library/react'
 import '@testing-library/jest-dom/vitest'
 import {
   MemoryRouter,
   RouterProvider,
   createMemoryRouter,
+  Outlet,
 } from 'react-router-dom'
 import MedicationsPage from '../src/pages/MedicationsPage'
 import MedicalRecordsPage from '../src/pages/MedicalRecordsPage'
 import { MedicationForm } from '../src/components/MedicationForm'
+import { CommandPalette } from '../src/components/CommandPalette'
 import type { Medication, MedicalRecord } from '../src/lib/database.types'
 
 const fixture = vi.hoisted(() => ({ vault: {} }))
-const mocks = vi.hoisted(() => ({ save: vi.fn(), update: vi.fn() }))
+const mocks = vi.hoisted(() => ({
+  save: vi.fn(),
+  update: vi.fn(),
+  file: vi.fn(),
+}))
 vi.mock('../src/contexts/DataContext', () => ({
   useVault: () => fixture.vault,
 }))
@@ -28,11 +35,12 @@ vi.mock('../src/lib/api', () => ({
   errorMessage: (error: Error) => error.message,
   api: {
     medications: { save: mocks.save },
-    records: { update: mocks.update },
+    records: { update: mocks.update, file: mocks.file },
   },
 }))
 afterEach(() => {
   cleanup()
+  vi.restoreAllMocks()
   vi.resetAllMocks()
 })
 const sourceId = '5b6f9a0e-3c1d-4e2f-8a7b-9c0d1e2f3a4b'
@@ -82,6 +90,201 @@ function vault(medications: Medication[], records: MedicalRecord[]) {
     reload: vi.fn(),
   }
 }
+
+it('browses a read-only calendar independently of list filters and returns focus to today', async () => {
+  vault([medication], [])
+  render(
+    <MemoryRouter>
+      <MedicationsPage />
+    </MemoryRouter>,
+  )
+  const calendar = screen.getByRole('region', { name: 'Medication calendar' })
+  const controls = within(calendar)
+  fireEvent.change(screen.getByLabelText('Search medications'), {
+    target: { value: 'no matching medicine' },
+  })
+  expect(controls.getByText('Alpha medicine')).toBeInTheDocument()
+  fireEvent.click(controls.getByRole('button', { name: 'Next month' }))
+  expect(controls.getByText('February 2026')).toBeInTheDocument()
+  expect(controls.getByText('Upcoming')).toBeInTheDocument()
+  fireEvent.click(
+    within(controls.getByRole('region', { name: 'Month dates' })).getByRole(
+      'button',
+      { name: /^Thursday, February 5, 2026:/ },
+    ),
+  )
+  expect(
+    controls.getByRole('heading', { name: 'Thursday, February 5' }),
+  ).toBeInTheDocument()
+  expect(
+    controls.queryByRole('button', { name: /^Mark |^Skip |^Undo / }),
+  ).not.toBeInTheDocument()
+  fireEvent.click(controls.getByRole('button', { name: 'Today' }))
+  expect(controls.getByText('January 2026')).toBeInTheDocument()
+  fireEvent.click(
+    controls.getByRole('button', { name: "Go to today's schedule" }),
+  )
+  expect(screen.getByLabelText("Today's actionable schedule")).toHaveFocus()
+  expect(mocks.save).not.toHaveBeenCalled()
+})
+
+it('resets the calendar medication filter when its source-record scope changes', async () => {
+  vault(
+    [
+      { ...medication, source_record_id: 'r1' },
+      {
+        ...medication,
+        id: 'm2',
+        name: 'Other medicine',
+        source_record_id: 'r2',
+      },
+    ],
+    [],
+  )
+  const router = createMemoryRouter(
+    [{ path: '*', element: <MedicationsPage /> }],
+    { initialEntries: ['/medications?record=r1'] },
+  )
+  render(<RouterProvider router={router} />)
+  fireEvent.click(screen.getByRole('combobox', { name: 'Calendar medication' }))
+  const option = await screen.findByRole('option', { name: 'Alpha medicine' })
+  fireEvent.pointerDown(option)
+  fireEvent.click(option)
+  expect(
+    screen.getByRole('combobox', { name: 'Calendar medication' }),
+  ).toHaveTextContent('Alpha medicine')
+  await act(async () => router.navigate('/medications?record=r2'))
+  expect(
+    screen.getByRole('combobox', { name: 'Calendar medication' }),
+  ).toHaveTextContent('All linked medications')
+  const calendar = screen.getByRole('region', { name: 'Medication calendar' })
+  expect(calendar).toHaveTextContent('Other medicine')
+  expect(calendar).not.toHaveTextContent('Alpha medicine')
+})
+it('offers a clear calendar filter when a selected prescription has no entries', async () => {
+  vault([{ ...medication, end_date: '2026-01-03' }], [])
+  render(
+    <MemoryRouter>
+      <MedicationsPage />
+    </MemoryRouter>,
+  )
+  const calendar = within(
+    screen.getByRole('region', { name: 'Medication calendar' }),
+  )
+  fireEvent.click(
+    calendar.getByRole('combobox', { name: 'Calendar medication' }),
+  )
+  const option = await screen.findByRole('option', { name: 'Alpha medicine' })
+  fireEvent.pointerDown(option)
+  fireEvent.click(option)
+  fireEvent.click(calendar.getByRole('button', { name: 'Next month' }))
+  expect(
+    calendar.getByText('No entries match this medication on this date.'),
+  ).toBeInTheDocument()
+  fireEvent.click(
+    calendar.getByRole('button', { name: 'Clear calendar filter' }),
+  )
+  expect(
+    calendar.getByRole('combobox', { name: 'Calendar medication' }),
+  ).toHaveTextContent('All medications')
+  expect(calendar.getByText('No entries on this date.')).toBeInTheDocument()
+})
+it.each(['Add medication', 'Scan prescription', 'Upload record'])(
+  'cancels the %s workflow launched through the palette',
+  async (name) => {
+    vault([], [])
+    const router = createMemoryRouter(
+      [
+        {
+          path: '/',
+          element: (
+            <>
+              <CommandPalette />
+              <Outlet />
+            </>
+          ),
+          children: [
+            { path: 'medications', element: <MedicationsPage /> },
+            { path: 'medical-records', element: <MedicalRecordsPage /> },
+          ],
+        },
+      ],
+      { initialEntries: ['/medications'] },
+    )
+    render(<RouterProvider router={router} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Search actions' }))
+    fireEvent.click(
+      within(await screen.findByRole('dialog')).getByRole('button', { name }),
+    )
+    await waitFor(() =>
+      expect(router.state.location.search).toContain('action='),
+    )
+    await waitFor(() => expect(screen.getAllByRole('dialog')).toHaveLength(1))
+    fireEvent.click(
+      within(screen.getByRole('dialog')).getByRole('button', { name: 'Close' }),
+    )
+    await waitFor(() =>
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument(),
+    )
+    expect(router.state.location.search).not.toContain('action=')
+    expect(mocks.save).not.toHaveBeenCalled()
+    expect(mocks.update).not.toHaveBeenCalled()
+  },
+)
+it('retains a source-linked record, search, category, order, and trigger focus after preview dismissal', async () => {
+  vi.spyOn(window, 'scrollTo').mockImplementation(() => {})
+  vault(
+    [{ ...medication, source_record_id: 'r1' }],
+    [record, { ...record, id: 'r2', title: 'Unrelated report' }],
+  )
+  mocks.file.mockRejectedValue(new Error('Fixture preview denied'))
+  render(
+    <MemoryRouter initialEntries={['/medical-records?record=r1']}>
+      <MedicalRecordsPage />
+    </MemoryRouter>,
+  )
+  fireEvent.change(screen.getByLabelText('Search records'), {
+    target: { value: ' OLDER ' },
+  })
+  for (const [label, value] of [
+    ['Category', 'Lab report'],
+    ['Record date order', 'Oldest record date'],
+  ]) {
+    fireEvent.click(screen.getByRole('combobox', { name: label }))
+    const option = await screen.findByRole('option', { name: value })
+    fireEvent.pointerDown(option)
+    fireEvent.click(option)
+  }
+  const trigger = screen.getByRole('button', { name: 'View Older report' })
+  fireEvent.click(trigger)
+  expect(await screen.findByRole('alert')).toHaveTextContent(
+    'Fixture preview denied',
+  )
+  fireEvent.click(screen.getByRole('button', { name: 'Close' }))
+  await waitFor(() => expect(trigger).toHaveFocus())
+  expect(screen.getByLabelText('Search records')).toHaveValue(' OLDER ')
+  expect(screen.getByRole('combobox', { name: 'Category' })).toHaveTextContent(
+    'Lab report',
+  )
+  expect(
+    screen.getByRole('combobox', { name: 'Record date order' }),
+  ).toHaveTextContent('Oldest record date')
+  expect(
+    screen.getByText('Showing the linked medical record.'),
+  ).toBeInTheDocument()
+  expect(
+    screen.queryByRole('heading', { name: 'Unrelated report' }),
+  ).not.toBeInTheDocument()
+  expect(
+    screen.getByRole('button', { name: 'Scan for medications' }),
+  ).toBeEnabled()
+  expect(
+    screen.getByRole('button', { name: 'Edit Older report' }),
+  ).toBeEnabled()
+  expect(
+    screen.getByRole('link', { name: '1 linked medication' }),
+  ).toHaveAttribute('href', '/medications?record=r1')
+})
 it('saves custom dropdown values, clears a linked record, and locks dropdowns while saving', async () => {
   let finish!: () => void
   const pending = new Promise<void>((resolve) => {

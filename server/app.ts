@@ -109,6 +109,7 @@ export function createApp(options: AppOptions) {
             directives: {
               scriptSrc: ["'self'", "'wasm-unsafe-eval'"],
               workerSrc: ["'self'"],
+              imgSrc: ["'self'", 'data:', 'blob:'],
             },
           }
         : false,

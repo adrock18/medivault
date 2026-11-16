@@ -1,8 +1,5 @@
 import { createWorker, OEM, type Worker } from 'tesseract.js'
-import * as pdfjs from 'pdfjs-dist'
-import pdfWorker from 'pdfjs-dist/build/pdf.worker.min.mjs?url'
-
-pdfjs.GlobalWorkerOptions.workerSrc = pdfWorker
+import { pdfjs } from './pdf'
 const MAX_PAGES = 10
 const MAX_PIXELS = 25_000_000
 

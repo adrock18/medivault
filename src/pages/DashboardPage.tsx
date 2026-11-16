@@ -33,11 +33,16 @@ import {
   WeekActivityChart,
 } from '../components/DashboardVisuals'
 import { MedicalRecordCard } from '../components/MedicalRecordCard'
+import {
+  RecordPreview,
+  type PreviewSelection,
+} from '../components/RecordPreview'
 import { MedicationReminder } from '../components/MedicationReminder'
 
 export default function DashboardPage() {
   const { profile, healthProfile, records, medications, logs, now } = useVault()
   const [doseFilter, setDoseFilter] = useState<DoseFilter>('all')
+  const [preview, setPreview] = useState<PreviewSelection | null>(null)
   const today = localDate(now)
   const doses = scheduledDoses(medications, logs, today)
   const hour = now.getHours()
@@ -111,10 +116,7 @@ export default function DashboardPage() {
           <span className="hidden sm:inline">Add medication</span>
         </Link>
       </div>
-      <section
-        aria-label="Today"
-        className="mb-7 grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_384px]"
-      >
+      <section aria-label="Today" className="daybook mb-7">
         <div className="routine-panel tint-sky">
           <SectionTitle
             title="Medications for today"
@@ -138,8 +140,56 @@ export default function DashboardPage() {
             <MedicationReminder doses={doses} now={now} />
           </div>
         </div>
-        <div className="grid min-w-0 gap-6 min-[900px]:grid-cols-2 xl:grid-cols-1">
-          <Panel className="tint-lavender overflow-hidden">
+        <nav
+          aria-label="Quick actions"
+          className="grid min-w-0 gap-3 sm:grid-cols-2"
+        >
+          <Link
+            to="/medications?action=scan"
+            className="quick-access tint-lavender"
+            aria-label="Scan prescription"
+          >
+            <span className="grid size-11 shrink-0 place-items-center rounded-2xl bg-accent text-primary">
+              <ScanLine size={22} />
+            </span>
+            <span>
+              <span className="block text-sm font-medium">
+                Scan prescription
+              </span>
+              <span className="mt-1 block text-xs text-muted-foreground">
+                Read, review, then save
+              </span>
+            </span>
+          </Link>
+          <Link
+            to="/medical-records?action=upload"
+            className="quick-access tint-peach"
+            aria-label="Upload record"
+          >
+            <span className="grid size-11 shrink-0 place-items-center rounded-2xl bg-accent text-primary">
+              <Upload size={22} />
+            </span>
+            <span>
+              <span className="block text-sm font-medium">Upload record</span>
+              <span className="mt-1 block text-xs text-muted-foreground">
+                Keep your paperwork together
+              </span>
+            </span>
+          </Link>
+          <Link to="/profile" className="quick-access tint-mint">
+            <span className="grid size-11 shrink-0 place-items-center rounded-2xl bg-accent text-primary">
+              <ShieldCheck size={22} />
+            </span>
+            <span>
+              <span className="block text-sm font-medium">Health profile</span>
+              <span className="mt-1 block text-xs text-muted-foreground">
+                Your important details
+              </span>
+            </span>
+          </Link>
+        </nav>
+        <div className="daybook-summary grid min-w-0 gap-6 min-[900px]:grid-cols-2 xl:grid-cols-1">
+          <Panel className="daybook-secondary tint-lavender overflow-hidden">
             <SectionTitle
               title="Your daily rhythm"
               description="A full day, at a glance."
@@ -156,7 +206,7 @@ export default function DashboardPage() {
               <DailyInsight statements={insights} />
             </div>
           </Panel>
-          <Panel className="tint-mint">
+          <Panel className="daybook-secondary tint-mint">
             <WeekActivityChart days={weekBreakdown(medications, logs, now)} />
             <div className="mt-5 border-t pt-5">
               <AdherenceRing value={adherence30(logs, now)} />
@@ -164,49 +214,6 @@ export default function DashboardPage() {
           </Panel>
         </div>
       </section>
-      <div className="mb-7 grid gap-3 md:grid-cols-3">
-        <Link
-          to="/medications?action=scan"
-          className="quick-access tint-lavender"
-          aria-label="Scan prescription"
-        >
-          <span className="grid size-11 shrink-0 place-items-center rounded-2xl bg-accent text-primary">
-            <ScanLine size={22} />
-          </span>
-          <span>
-            <span className="block text-sm font-medium">Scan prescription</span>
-            <span className="mt-1 block text-xs text-muted-foreground">
-              Read, review, then save
-            </span>
-          </span>
-        </Link>
-        <Link
-          to="/medical-records?action=upload"
-          className="quick-access tint-peach"
-          aria-label="Upload record"
-        >
-          <span className="grid size-11 shrink-0 place-items-center rounded-2xl bg-accent text-primary">
-            <Upload size={22} />
-          </span>
-          <span>
-            <span className="block text-sm font-medium">Upload record</span>
-            <span className="mt-1 block text-xs text-muted-foreground">
-              Keep your paperwork together
-            </span>
-          </span>
-        </Link>
-        <Link to="/profile" className="quick-access tint-mint">
-          <span className="grid size-11 shrink-0 place-items-center rounded-2xl bg-accent text-primary">
-            <ShieldCheck size={22} />
-          </span>
-          <span>
-            <span className="block text-sm font-medium">Health profile</span>
-            <span className="mt-1 block text-xs text-muted-foreground">
-              Your important details
-            </span>
-          </span>
-        </Link>
-      </div>
       <div className="mb-6 grid grid-cols-1 gap-6 xl:grid-cols-[1fr_1fr]">
         <Panel className="tint-sky">
           <SectionTitle
@@ -222,7 +229,14 @@ export default function DashboardPage() {
             records
               .slice(0, 4)
               .map((record) => (
-                <MedicalRecordCard key={record.id} record={record} compact />
+                <MedicalRecordCard
+                  key={record.id}
+                  record={record}
+                  compact
+                  onPreview={(record, trigger) =>
+                    setPreview({ record, trigger })
+                  }
+                />
               ))
           ) : (
             <EmptyState
@@ -316,6 +330,14 @@ export default function DashboardPage() {
         </section>
       )}
       <SafetyNote />
+      {preview && (
+        <RecordPreview
+          key={preview.record.id}
+          selection={preview}
+          available={records.some((record) => record.id === preview.record.id)}
+          onClose={() => setPreview(null)}
+        />
+      )}
     </>
   )
 }

@@ -7,11 +7,6 @@ import {
   useNavigate,
 } from 'react-router-dom'
 import {
-  LayoutDashboard,
-  FolderHeart,
-  Pill,
-  UserRound,
-  Settings,
   LogOut,
   Menu,
   ShieldCheck,
@@ -34,14 +29,8 @@ import { useVault } from '../contexts/DataContext'
 import { cn } from '../lib/utils'
 import { errorMessage } from '../lib/api'
 import { ThemeSelect } from './ThemeSelect'
-
-const navigation = [
-  { to: '/dashboard', label: 'Overview', icon: LayoutDashboard },
-  { to: '/medications', label: 'Medications', icon: Pill },
-  { to: '/medical-records', label: 'Medical records', icon: FolderHeart },
-  { to: '/profile', label: 'Health profile', icon: UserRound },
-  { to: '/settings', label: 'Settings', icon: Settings },
-]
+import { navigation } from '../lib/navigation'
+import { CommandPalette } from './CommandPalette'
 export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
   return (
     <div className="flex h-full flex-col">
@@ -125,6 +114,7 @@ export function Header({ onMenu }: { onMenu: () => void }) {
         )}
       </div>
       <div className="flex shrink-0 items-center gap-1 sm:gap-3">
+        <CommandPalette />
         <ThemeSelect />
         <Link
           to="/profile"

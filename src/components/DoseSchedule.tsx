@@ -63,23 +63,24 @@ function DoseRow({ dose, isNext }: { dose: ScheduledDose; isNext: boolean }) {
   }
   return (
     <li className="dose-card" data-next={isNext} data-status={timing}>
-      <span className="dose-symbol" data-period={period}>
-        <PeriodIcon size={30} strokeWidth={1.6} aria-hidden="true" />
-      </span>
+      <div className="dose-time">
+        <p className="text-lg font-medium tracking-tight tabular-nums sm:text-xl">
+          {dose.time}
+        </p>
+        <p className="mt-1 text-xs text-muted-foreground">
+          {isNext ? 'Up next' : dose.log ? 'Logged' : 'Local time'}
+        </p>
+        <PeriodIcon
+          className="mt-3 size-5 text-muted-foreground"
+          aria-hidden="true"
+        />
+      </div>
       <div className="min-w-0">
         <p className="break-words text-base leading-snug font-medium tracking-tight sm:text-lg">
           {dose.medication.name}
         </p>
         <p className="mt-1 break-words text-sm text-muted-foreground">
           {dose.medication.dosage}
-        </p>
-      </div>
-      <div className="self-start text-right">
-        <p className="text-lg font-medium tracking-tight tabular-nums sm:text-xl">
-          {dose.time}
-        </p>
-        <p className="mt-1 text-[11px] text-muted-foreground">
-          {isNext ? 'Up next' : dose.log ? 'Logged' : 'Local time'}
         </p>
       </div>
       <div className="dose-actions">
