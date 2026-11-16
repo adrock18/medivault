@@ -9,7 +9,8 @@ import {
   waitFor,
 } from '@testing-library/react'
 import '@testing-library/jest-dom/vitest'
-import { AuthProvider, useAuth } from '../src/contexts/AuthContext'
+import { useAuth } from '../src/contexts/AuthContext'
+import { AuthProvider } from '../src/contexts/AuthProvider'
 import type { Session } from '../src/lib/contracts'
 const mocks = vi.hoisted(() => ({ session: vi.fn(), login: vi.fn() }))
 vi.mock('../src/lib/api', () => ({

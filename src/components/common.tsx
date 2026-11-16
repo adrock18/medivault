@@ -1,4 +1,4 @@
-import { useId, type ReactNode } from 'react'
+import { useId, useState, type ReactNode } from 'react'
 import {
   Activity,
   AlertCircle,
@@ -38,7 +38,7 @@ import { cn } from '../lib/utils'
 export function Logo({ compact = false }: { compact?: boolean }) {
   return (
     <div className="flex items-center gap-2.5">
-      <div className="flex size-10 items-center justify-center rounded-xl bg-primary text-white">
+      <div className="flex size-10 items-center justify-center rounded-xl bg-primary text-primary-foreground">
         <Activity size={24} strokeWidth={2.4} />
       </div>
       {!compact && (
@@ -59,7 +59,7 @@ export function Panel({
   return (
     <Card
       className={cn(
-        'min-w-0 gap-0 rounded-2xl border border-slate-200/80 bg-white p-5 shadow-[0_4px_24px_rgba(24,59,53,0.045)] sm:p-6',
+        'min-w-0 gap-0 rounded-2xl border border-slate-200/80 bg-card p-5 shadow-[0_4px_24px_rgba(24,59,53,0.045)] sm:p-6',
         className,
       )}
     >
@@ -362,6 +362,9 @@ export function ConfirmationDialog({
   busy: boolean
   onConfirm: () => void
 }) {
+  // Keep the last open description so the close animation never shows a cleared value.
+  const [shownDescription, setShownDescription] = useState(description)
+  if (open && description !== shownDescription) setShownDescription(description)
   return (
     <AlertDialog
       open={open}
@@ -371,11 +374,11 @@ export function ConfirmationDialog({
     >
       <AlertDialogContent
         aria-busy={busy}
-        className="max-w-[calc(100%-2rem)] sm:max-w-md"
+        className="data-[size=default]:max-w-[calc(100%-2rem)] data-[size=default]:sm:max-w-md"
       >
         <AlertDialogHeader>
           <AlertDialogTitle>{title}</AlertDialogTitle>
-          <AlertDialogDescription>{description}</AlertDialogDescription>
+          <AlertDialogDescription>{shownDescription}</AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
           <Button variant="outline" disabled={busy} onClick={onClose}>

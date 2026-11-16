@@ -4,16 +4,10 @@ import {
   vaultSchema,
   healthProfileRow,
   medicationRow,
-  metricRow,
   recordRow,
   doseLogRow,
 } from './contracts'
-import type {
-  ProfileValues,
-  MedicationValues,
-  MetricValues,
-  RecordValues,
-} from './schemas'
+import type { ProfileValues, MedicationValues, RecordValues } from './schemas'
 import { loginSchema, registerSchema, passwordSchema } from './schemas'
 
 export function errorMessage(error: unknown) {
@@ -140,18 +134,6 @@ export const api = {
     }) => request('/dose-logs', doseLogRow, json('POST', values)),
     remove: (id: string) =>
       request(`/dose-logs/${encodeURIComponent(id)}`, z.void(), {
-        method: 'DELETE',
-      }),
-  },
-  metrics: {
-    save: (values: MetricValues, id?: string) =>
-      request(
-        id ? `/metrics/${encodeURIComponent(id)}` : '/metrics',
-        metricRow,
-        json(id ? 'PATCH' : 'POST', values),
-      ),
-    remove: (id: string) =>
-      request(`/metrics/${encodeURIComponent(id)}`, z.void(), {
         method: 'DELETE',
       }),
   },

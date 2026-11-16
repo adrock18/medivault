@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { medicationForms } from './database.types.ts'
 import type {
   Profile,
   HealthProfile,
@@ -56,6 +57,15 @@ export const medicationRow: z.ZodType<Medication> = z.object({
   user_id: z.uuid(),
   name: z.string(),
   dosage: z.string(),
+  form: z.enum(
+    Object.keys(medicationForms) as [
+      keyof typeof medicationForms,
+      ...(keyof typeof medicationForms)[],
+    ],
+  ),
+  strength: z.string(),
+  source_record_id: z.uuid().nullable(),
+  prescription_text: z.string(),
   frequency: z.enum(['once_daily', 'twice_daily', 'three_daily', 'custom']),
   times: z.array(z.string()),
   start_date: z.string(),

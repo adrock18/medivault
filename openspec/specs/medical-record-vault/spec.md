@@ -6,6 +6,24 @@ Provide private, searchable medical-document storage with understandable metadat
 
 ## Requirements
 
+### Requirement: Simple local prescription scanning
+
+Owners SHALL scan saved or newly uploaded PDF, JPG, and PNG records locally in the browser without sending document contents to an external OCR or AI service. OCR SHALL target clear printed English, support image-based PDFs up to 10 pages, and report unreadable or unsupported documents explicitly. Prescription text and suggestions SHALL remain drafts until reviewed and submitted.
+
+#### Scenario: Review a scanned prescription
+
+- **WHEN** an owner scans a readable printed prescription
+- **THEN** the recognized text can be compared with the original and corrected
+- **AND** explicit form/name/strength and instruction wording may prefill a medication draft without paraphrasing or inferring missing doses
+- **AND** saving requires valid details and explicit confirmation of review
+- **AND** existing source records and medications expose navigation links in both directions
+
+#### Scenario: Recognition is incomplete
+
+- **WHEN** handwriting, an unfamiliar layout, or missing instructions prevent reliable suggestions
+- **THEN** the text remains available for manual review and entry
+- **AND** no guessed medication, dosage, start date, or dose time is saved
+
 ### Requirement: Validated private uploads
 
 Users SHALL upload PDF, JPG, or PNG documents with title, category, record date, and optional provider. Files SHALL be non-empty and no larger than 10,485,760 bytes, with matching extension, MIME type, and supported file signature. Rejected uploads SHALL create no record.

@@ -2,7 +2,14 @@ import { afterEach, describe, expect, it } from 'vitest'
 import { createServer, type Server } from 'node:net'
 import { execFile, spawn } from 'node:child_process'
 import { promisify } from 'node:util'
-import { access, mkdtemp, rm, writeFile } from 'node:fs/promises'
+import {
+  access,
+  mkdir,
+  mkdtemp,
+  readFile,
+  rm,
+  writeFile,
+} from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
@@ -390,7 +397,51 @@ describe('development address preflight', () => {
         if (production) {
           const page = await fetch(`http://127.0.0.1:${port}/dashboard`)
           expect(page.status).toBe(200)
-          expect(await page.text()).toContain('<div id="root">')
+          const html = await page.text()
+          expect(html).toContain('<div id="root">')
+          const csp = Object.fromEntries(
+            (page.headers.get('content-security-policy') ?? '')
+              .split(';')
+              .map((directive) => {
+                const [name, ...values] = directive.trim().split(/\s+/)
+                return [name, values.join(' ')]
+              }),
+          )
+          expect(csp['default-src']).toBe("'self'")
+          expect(csp['script-src']).toBe("'self' 'wasm-unsafe-eval'")
+          expect(csp['worker-src']).toBe("'self'")
+          expect(csp['connect-src']).toBeUndefined()
+          const manifest = JSON.parse(
+            await readFile(join('dist', '.vite', 'manifest.json'), 'utf8'),
+          ) as Record<
+            string,
+            { file: string; isEntry?: boolean; css?: string[] }
+          >
+          const files = Object.values(manifest).map((chunk) => chunk.file)
+          const entry = Object.values(manifest).find((chunk) => chunk.isEntry)
+          const pdfWorker = files.find((file) => file.includes('pdf.worker'))
+          const expected: [string | undefined, RegExp][] = [
+            [entry?.file, /javascript/],
+            [entry?.css?.[0], /text\/css/],
+            [pdfWorker, /javascript/],
+            ['ocr/worker.min.js', /javascript/],
+            ['ocr/tesseract-core-lstm.wasm.js', /javascript/],
+            ['ocr/tesseract-core-lstm.wasm', /application\/wasm/],
+            ['ocr/eng.traineddata.gz', /application\/(gzip|x-gzip)/],
+            ['ocr/pdf/openjpeg.wasm', /application\/wasm/],
+            ['ocr/pdf/jbig2_nowasm_fallback.js', /javascript/],
+          ]
+          for (const [file, type] of expected) {
+            expect(file, `${type} resource is referenced`).toBeTruthy()
+            const response = await fetch(`http://127.0.0.1:${port}/${file}`)
+            expect(response.status, file).toBe(200)
+            expect(response.headers.get('content-type'), file).toMatch(type)
+            const body = Buffer.from(await response.arrayBuffer())
+            expect(body.length, file).toBeGreaterThan(0)
+            expect(body.toString('utf8', 0, 200), file).not.toMatch(
+              /<!doctype html|<div id="root">/i,
+            )
+          }
         }
         abort.abort()
         expect(await result).toBe(0)
@@ -594,6 +645,63 @@ describe('development address preflight', () => {
         stderr: expect.stringContaining('PORT must be an integer'),
       })
     })
+    it('refuses a missing or incomplete production build before creating storage, while development needs no build', async () => {
+      const entry = resolve('server', 'index.ts')
+      const cwd = await directory()
+      const dataDir = join(cwd, 'storage')
+      const env = {
+        ...process.env,
+        NODE_ENV: 'production',
+        COOKIE_SECURE: 'true',
+        HOST: '127.0.0.1',
+        PORT: String(await freePort()),
+        DATA_DIR: dataDir,
+      }
+      await expect(
+        execute(process.execPath, [entry], { cwd, env }),
+      ).rejects.toMatchObject({
+        code: 1,
+        stdout: '',
+        stderr: expect.stringMatching(
+          /missing or incomplete[\s\S]*Missing HTML shell: index\.html[\s\S]*Run `npm run build`/,
+        ),
+      })
+      await expect(access(dataDir)).rejects.toMatchObject({ code: 'ENOENT' })
+      await mkdir(join(cwd, 'dist', '.vite'), { recursive: true })
+      await writeFile(join(cwd, 'dist', 'index.html'), '<div id="root"></div>')
+      await writeFile(join(cwd, 'dist', '.vite', 'manifest.json'), '{}')
+      await expect(
+        execute(process.execPath, [entry], { cwd, env }),
+      ).rejects.toMatchObject({
+        code: 1,
+        stderr: expect.stringMatching(
+          /The manifest has no entry chunk[\s\S]*Missing local scanning asset: ocr\/worker\.min\.js/,
+        ),
+      })
+      await expect(access(dataDir)).rejects.toMatchObject({ code: 'ENOENT' })
+
+      const child = spawn(process.execPath, [entry], {
+        cwd: await directory(),
+        env: { ...env, NODE_ENV: 'development', COOKIE_SECURE: 'false' },
+        stdio: 'pipe',
+      })
+      let output = ''
+      child.stdout.on('data', (data) => (output += data.toString()))
+      child.stderr.on('data', (data) => (output += data.toString()))
+      const closed = once(child, 'close')
+      try {
+        await until(
+          () => output.includes('Express API listening'),
+          () => output,
+        )
+        const health = await fetch(`http://127.0.0.1:${env.PORT}/api/health`)
+        expect(await health.json()).toEqual({ status: 'ok' })
+        await access(dataDir)
+      } finally {
+        child.kill()
+        await closed
+      }
+    }, 40_000)
   })
   it.each(['API', 'Frontend'])(
     'rejects an occupied %s address without stopping its owner',

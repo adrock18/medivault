@@ -20,6 +20,7 @@ import {
   FormDialog,
 } from '../components/common'
 import { Button } from '../components/ui/button'
+import { ThemeSelect } from '../components/ThemeSelect'
 
 export default function SettingsPage() {
   const { session } = useAuth()
@@ -87,7 +88,14 @@ export default function SettingsPage() {
         description="Manage your account and keep control of your health information."
       />
       <div className="grid items-start gap-6 xl:grid-cols-2">
-        <div className="space-y-6">
+        <div className="min-w-0 space-y-6">
+          <Panel>
+            <SectionTitle
+              title="Appearance"
+              description="Choose Light, Dark, or follow your system. Saved on this browser only."
+            />
+            <ThemeSelect />
+          </Panel>
           <Panel>
             <SectionTitle
               title="Account"
@@ -165,9 +173,10 @@ export default function SettingsPage() {
               description="Optional, fictional entries to try the complete workflow."
             />
             <p className="mb-5 text-sm leading-6 text-muted-foreground">
-              Add clearly labeled sample measurements, a medication, dose logs,
-              and an example file to your actual account. They are not medical
-              advice and can be removed using the normal delete controls.
+              Add a clearly labeled sample medication, dose logs, and a
+              scannable fictional prescription to your actual account. They are
+              not medical advice and can be removed using the normal delete
+              controls.
             </p>
             <Button variant="outline" onClick={() => setSampleOpen(true)}>
               <FlaskConical />
@@ -201,10 +210,11 @@ export default function SettingsPage() {
       >
         {sample.error && <ErrorState message={sample.error} />}
         <p className="text-sm leading-6 text-muted-foreground">
-          Use a test account for exploration. The sample medication and readings
-          are explicitly fictional, not a prescription or a diagnosis. If an
-          upload fails partway through, successful sample entries remain visible
-          and can be deleted.
+          Use a test account for exploration. The sample medication, dose logs,
+          and prescription PDF are explicitly fictional, not a prescription or a
+          diagnosis. No health measurements are added, and existing ones are
+          kept. If an upload fails partway through, successful sample entries
+          remain visible and can be deleted.
         </p>
         <div className="mt-3 flex flex-wrap justify-end gap-2">
           <Button

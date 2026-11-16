@@ -98,7 +98,14 @@ export function createApp(options: AppOptions) {
   app.disable('x-powered-by')
   app.use(
     helmet({
-      contentSecurityPolicy: options.serveFrontend ? undefined : false,
+      contentSecurityPolicy: options.serveFrontend
+        ? {
+            directives: {
+              scriptSrc: ["'self'", "'wasm-unsafe-eval'"],
+              workerSrc: ["'self'"],
+            },
+          }
+        : false,
     }),
   )
   app.use('/api', (_req, res, next) => {
@@ -536,11 +543,29 @@ export function createApp(options: AppOptions) {
   })
   function saveMedication(req: Request, res: Response, id?: string) {
     const input = validate(medicationSchema.strict(), req.body)
+    const previous = id
+      ? owned('medications', storedMedication, id, res.locals.user.id)
+      : null
+    if (input.source_record_id)
+      owned(
+        'medical_records',
+        recordRow,
+        input.source_record_id,
+        res.locals.user.id,
+      )
     return save(
       'medications',
       storedMedication,
       {
         ...input,
+        form: input.form ?? previous?.form ?? 'unspecified',
+        strength: input.strength ?? previous?.strength ?? '',
+        source_record_id:
+          input.source_record_id === undefined
+            ? (previous?.source_record_id ?? null)
+            : input.source_record_id || null,
+        prescription_text:
+          input.prescription_text ?? previous?.prescription_text ?? '',
         times: JSON.stringify(
           input.times
             .split(',')

@@ -1,9 +1,9 @@
 import { useState } from 'react'
-import { useSearchParams } from 'react-router-dom'
-import { Plus, Pill, CheckCheck, Clock3 } from 'lucide-react'
+import { Plus, Pill, CheckCheck, Clock3, ScanLine } from 'lucide-react'
 import { subDays } from 'date-fns'
 import { useVault } from '../contexts/DataContext'
 import { useMutation } from '../hooks/useMutation'
+import { useQueryParams } from '../hooks/useQueryParams'
 import type { Medication } from '../lib/database.types'
 import {
   medicationStatus,
@@ -28,14 +28,23 @@ import { MedicationForm } from '../components/MedicationForm'
 import { MedicationCard } from '../components/MedicationCard'
 import { DoseSchedule } from '../components/DoseSchedule'
 import { MedicationReminder } from '../components/MedicationReminder'
+import { PrescriptionScanner } from '../components/PrescriptionScanner'
 
 export default function MedicationsPage() {
   const { medications, logs, now } = useVault()
-  const [params, setParams] = useSearchParams()
+  const [params, updateParams] = useQueryParams()
+  const record = params.get('record')
   const [edit, setEdit] = useState<Medication | null>(null)
   const [remove, setRemove] = useState<Medication | null>(null)
-  const [filter, setFilter] = useState('active')
+  const [filter, setFilter] = useState(record ? 'all' : 'active')
+  const [scopedRecord, setScopedRecord] = useState(record)
   const [search, setSearch] = useState('')
+  // Entering a record's linked view (including on an already-mounted page)
+  // starts with every status so upcoming/completed links are not hidden.
+  if (record !== scopedRecord) {
+    setScopedRecord(record)
+    if (record) setFilter('all')
+  }
   const mutation = useMutation()
   const today = localDate(now)
   const doses = scheduledDoses(medications, logs, today)
@@ -47,12 +56,13 @@ export default function MedicationsPage() {
   const taken = history.filter((log) => log.status === 'taken').length
   const visible = medications.filter(
     (med) =>
+      (!record || med.source_record_id === record) &&
       (filter === 'all' || medicationStatus(med, today) === filter) &&
       med.name.toLowerCase().includes(search.trim().toLowerCase()),
   )
   function close() {
     setEdit(null)
-    setParams({}, { replace: true })
+    updateParams({ action: null, source: null }, { replace: true })
   }
   async function confirmDelete() {
     if (!remove) return
@@ -69,10 +79,19 @@ export default function MedicationsPage() {
         title="Medications"
         description="A little structure for your daily routine. Always follow your prescription."
         action={
-          <Button onClick={() => setParams({ action: 'add' })}>
-            <Plus />
-            Add medication
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            <Button
+              variant="outline"
+              onClick={() => updateParams({ action: 'scan' })}
+            >
+              <ScanLine />
+              Scan prescription
+            </Button>
+            <Button onClick={() => updateParams({ action: 'add' })}>
+              <Plus />
+              Add medication
+            </Button>
+          </div>
         }
       />
       <div className="mb-6 grid gap-4 sm:grid-cols-3">
@@ -103,6 +122,19 @@ export default function MedicationsPage() {
         />
       </div>
       <MedicationReminder doses={doses} now={now} />
+      {record && (
+        <div className="mb-5 flex flex-wrap items-center justify-between gap-2 rounded-xl border bg-card p-4">
+          <p className="text-sm">
+            Showing medications linked to the selected record.
+          </p>
+          <Button
+            variant="outline"
+            onClick={() => updateParams({ record: null })}
+          >
+            Show all medications
+          </Button>
+        </div>
+      )}
       <Panel className="mb-6">
         <SectionTitle
           title="Today's schedule"
@@ -113,7 +145,7 @@ export default function MedicationsPage() {
       <Panel className="mb-5">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
           <h2 className="font-semibold">Your medications</h2>
-          <div className="flex flex-wrap gap-1 rounded-xl border bg-white p-1">
+          <div className="flex flex-wrap gap-1 rounded-xl border bg-card p-1">
             {['active', 'upcoming', 'completed', 'all'].map((value) => (
               <Button
                 key={value}
@@ -174,12 +206,13 @@ export default function MedicationsPage() {
                   onClick={() => {
                     setSearch('')
                     setFilter('active')
+                    updateParams({ record: null })
                   }}
                 >
                   Clear filters
                 </Button>
               ) : (
-                <Button onClick={() => setParams({ action: 'add' })}>
+                <Button onClick={() => updateParams({ action: 'add' })}>
                   <Plus />
                   Add medication
                 </Button>
@@ -246,6 +279,12 @@ export default function MedicationsPage() {
         <MedicationForm
           key={edit?.id ?? 'new'}
           medication={edit ?? undefined}
+          onClose={close}
+        />
+      )}
+      {params.get('action') === 'scan' && (
+        <PrescriptionScanner
+          recordId={params.get('source') ?? ''}
           onClose={close}
         />
       )}

@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Link } from 'react-router-dom'
 import {
   FileText,
   Download,
@@ -7,6 +8,7 @@ import {
   Trash2,
   LockKeyhole,
   LoaderCircle,
+  ScanLine,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import type { MedicalRecord } from '../lib/database.types'
@@ -21,11 +23,15 @@ export function MedicalRecordCard({
   onEdit,
   onDelete,
   compact = false,
+  onScan,
+  linkedCount = 0,
 }: {
   record: MedicalRecord
   onEdit?: () => void
   onDelete?: () => void
   compact?: boolean
+  onScan?: () => void
+  linkedCount?: number
 }) {
   const [busy, setBusy] = useState<'view' | 'download' | null>(null)
   async function access(action: 'view' | 'download') {
@@ -143,6 +149,24 @@ export function MedicalRecordCard({
         <LockKeyhole size={11} />
         Private document &middot; authenticated access only
       </p>
+      {(onScan || linkedCount > 0) && (
+        <div className="mt-3 flex flex-wrap gap-2">
+          {onScan && (
+            <Button variant="outline" onClick={onScan}>
+              <ScanLine />
+              Scan for medications
+            </Button>
+          )}
+          {linkedCount > 0 && (
+            <Link
+              className="small-link"
+              to={`/medications?record=${record.id}`}
+            >
+              {linkedCount} linked medication{linkedCount === 1 ? '' : 's'}
+            </Link>
+          )}
+        </div>
+      )}
     </Panel>
   )
 }

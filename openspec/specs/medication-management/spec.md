@@ -8,12 +8,31 @@ Help users organize existing prescriptions and explicitly record dose outcomes t
 
 ### Requirement: Persisted prescription management
 
-Users SHALL be able to add and edit their own medication name, prescribed dosage, frequency, unique dose times, inclusive start/end dates, and optional instructions. Invalid schedules SHALL be rejected without saving, and the application SHALL not prescribe or modify dosage automatically.
+Users SHALL add and edit their own medication name, prescribed dosage, form, optional strength, frequency, unique times, inclusive dates, instructions, and owned source-record links with prescription wording. Invalid schedules SHALL be rejected. Strength SHALL remain distinct from the amount to take or apply, and the application SHALL not prescribe or alter dosage automatically.
 
 #### Scenario: Save and revisit a prescription
 
 - **WHEN** a user submits a valid prescription form and reloads the medications page
 - **THEN** the saved dosage, times, dates, and instructions remain available
+
+#### Scenario: Choose the prescribed medication form
+
+- **WHEN** a user records a medication
+- **THEN** form choices include tablet, capsule, cream, ointment, gel, injection, liquid, drops, inhaler, patch, suppository, other, and unspecified
+- **AND** strength/concentration and prescribed dosage remain separately labeled
+
+#### Scenario: Link a reviewed prescription
+
+- **WHEN** a user confirms valid scan-derived medication details
+- **THEN** the saved form, strength, dosage wording, source excerpt, and source link survive reload
+- **AND** dates and dose times are explicitly entered rather than inferred from OCR
+- **AND** links to another account's records are rejected by the backend and database
+
+#### Scenario: Remove a source document
+
+- **WHEN** the owner deletes a linked medical record
+- **THEN** the medication's source link is cleared
+- **AND** the medication, dose logs, and saved prescription wording remain intact
 
 #### Scenario: Duplicate times are entered
 

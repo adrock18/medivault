@@ -10,48 +10,11 @@ export async function addSampleData() {
     throw new Error(
       'Sample data is already present. Remove sample entries before adding it again.',
     )
-  const metrics = Array.from({ length: 7 }, (_, i) => {
-    const measured = subDays(new Date(), 7 - i)
-    measured.setHours(8, 0, 0, 0)
-    return [
-      {
-        type: 'blood_pressure' as const,
-        value: [118, 122, 119, 121, 116, 120, 118][i],
-        secondary_value: [78, 80, 77, 79, 76, 78, 77][i],
-        measured_at: measured.toISOString(),
-        notes: '[Sample] Fictional morning reading.',
-      },
-      {
-        type: 'weight' as const,
-        value: [72.4, 72.2, 72.5, 72.1, 72.3, 72.1, 72][i],
-        measured_at: measured.toISOString(),
-        notes: '[Sample] Fictional weight reading.',
-      },
-      {
-        type: 'heart_rate' as const,
-        value: [72, 74, 71, 73, 70, 72, 71][i],
-        measured_at: measured.toISOString(),
-        notes: '[Sample] Fictional heart rate reading.',
-      },
-      {
-        type: 'blood_glucose' as const,
-        value: [94, 96, 92, 95, 91, 93, 94][i],
-        measured_at: measured.toISOString(),
-        notes: '[Sample] Fictional glucose reading, mg/dL.',
-      },
-    ]
-  }).flat()
-  for (const metric of metrics) {
-    await api.metrics.save({
-      ...metric,
-      value: String(metric.value),
-      secondary_value:
-        'secondary_value' in metric ? String(metric.secondary_value) : '',
-    })
-  }
   const med = await api.medications.save({
     name: '[Sample] Vitamin D',
     dosage: 'Example 1000 IU - demo only',
+    form: 'tablet',
+    strength: 'Example 1000 IU - fictional',
     frequency: 'once_daily',
     times: '08:00',
     start_date: localDate(subDays(new Date(), 7)),
@@ -68,14 +31,14 @@ export async function addSampleData() {
     })
   }
   const lines = [
-    'MEDIVAULT - FICTIONAL SAMPLE REPORT',
+    'MEDIVAULT - FICTIONAL SAMPLE PRESCRIPTION',
     'Riverside Medical Center - Demonstration only',
     'This is not a real medical record or medical advice.',
-    'Sample blood pressure: 118 / 77 mmHg',
-    'Sample heart rate: 71 bpm',
-    'Sample glucose: 94 mg/dL',
-    'Sample weight: 72 kg',
-    'These values are fictional, not recommendations.',
+    'Tablet ExampleOne 10 mg',
+    'Take one tablet at the printed scheduled time.',
+    'Cream ExampleTwo 1%',
+    'Apply the amount specified by the fictional prescriber.',
+    'Fictional examples only. Do not follow these instructions.',
   ]
   const stream = `BT /F1 14 Tf 50 760 Td ${lines.map((line, i) => `${i ? '0 -28 Td ' : ''}(${line}) Tj`).join('\n')} ET`
   const objects = [
@@ -96,13 +59,13 @@ export async function addSampleData() {
     .slice(1)
     .map((offset) => `${String(offset).padStart(10, '0')} 00000 n \n`)
     .join('')}trailer\n<< /Size 6 /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF`
-  const file = new File([pdf], 'fictional-wellness-report.pdf', {
+  const file = new File([pdf], 'fictional-prescription.pdf', {
     type: 'application/pdf',
   })
   await uploadRecord(
     {
-      title: '[Sample] Annual wellness report',
-      category: 'lab_report',
+      title: '[Sample] Prescription for scanning',
+      category: 'prescription',
       provider: 'Riverside Medical Center (fictional)',
       record_date: localDate(),
     },

@@ -1,15 +1,8 @@
 export { cn } from 'cn'
 import { format } from 'date-fns'
-import type {
-  DoseLog,
-  Medication,
-  HealthMetric,
-  MetricType,
-} from './database.types.ts'
+import type { DoseLog, Medication, MetricType } from './database.types.ts'
 
 export const localDate = (date = new Date()) => format(date, 'yyyy-MM-dd')
-export const localDateTime = (date = new Date()) =>
-  format(date, "yyyy-MM-dd'T'HH:mm")
 export function displayDate(value: string) {
   return format(
     value.length === 10 ? new Date(`${value}T12:00:00`) : new Date(value),
@@ -43,11 +36,6 @@ export const metricInfo: Record<
   blood_glucose: { label: 'Blood glucose', unit: 'mg/dL', min: 1, max: 1500 },
   weight: { label: 'Weight', unit: 'kg', min: 0.1, max: 700 },
   heart_rate: { label: 'Heart rate', unit: 'bpm', min: 20, max: 300 },
-}
-export function metricValue(metric: HealthMetric) {
-  return metric.type === 'blood_pressure'
-    ? `${metric.value}/${metric.secondary_value}`
-    : String(metric.value)
 }
 export function medicationStatus(med: Medication, day = localDate()) {
   if (med.start_date > day) return 'upcoming'

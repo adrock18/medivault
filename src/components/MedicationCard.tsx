@@ -1,4 +1,6 @@
 import { Pill, Clock3, Pencil, Trash2 } from 'lucide-react'
+import { Link } from 'react-router-dom'
+import { medicationForms } from '../lib/database.types'
 import type { Medication } from '../lib/database.types'
 import { medicationStatus, displayDate, frequencies, cn } from '../lib/utils'
 import { Panel } from './common'
@@ -30,6 +32,10 @@ export function MedicationCard({
             <p className="mt-1 text-sm text-muted-foreground">
               {medication.dosage}
             </p>
+            <p className="mt-2 text-xs text-primary">
+              {medicationForms[medication.form]}
+              {medication.strength ? ` · ${medication.strength}` : ''}
+            </p>
           </div>
         </div>
         <span
@@ -58,6 +64,33 @@ export function MedicationCard({
         {medication.instructions && (
           <p className="mt-3 rounded-lg bg-slate-50 p-3 text-xs leading-6">
             {medication.instructions}
+          </p>
+        )}
+        {medication.prescription_text && (
+          <details className="rounded-lg bg-slate-50 p-3 text-xs">
+            <summary className="cursor-pointer py-2 font-medium">
+              Prescription wording
+            </summary>
+            <p className="mt-2 whitespace-pre-wrap break-words leading-6">
+              {medication.prescription_text}
+            </p>
+            <p className="mt-2 text-muted-foreground">
+              User-reviewed transcription; compare with the original if
+              uncertain.
+            </p>
+          </details>
+        )}
+        {medication.source_record_id && (
+          <Link
+            className="small-link"
+            to={`/medical-records?record=${medication.source_record_id}`}
+          >
+            Open linked medical record
+          </Link>
+        )}
+        {!medication.source_record_id && medication.prescription_text && (
+          <p className="text-xs text-muted-foreground">
+            No source record is currently linked. The saved wording is retained.
           </p>
         )}
       </div>

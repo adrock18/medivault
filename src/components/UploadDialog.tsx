@@ -7,7 +7,7 @@ import { recordSchema, type RecordValues } from '../lib/schemas'
 import { categories, localDate } from '../lib/utils'
 import { uploadRecord } from '../lib/records'
 import { api } from '../lib/api'
-import type { MedicalRecord } from '../lib/database.types'
+import type { Category, MedicalRecord } from '../lib/database.types'
 import {
   Field,
   SelectField,
@@ -20,9 +20,13 @@ import { Button } from './ui/button'
 export function UploadDialog({
   onClose,
   record,
+  defaultCategory = 'lab_report',
+  onUploaded,
 }: {
   onClose: () => void
   record?: MedicalRecord
+  defaultCategory?: Category
+  onUploaded?: (record: MedicalRecord) => void
 }) {
   const mutation = useMutation()
   const [file, setFile] = useState<File | null>(null)
@@ -42,7 +46,7 @@ export function UploadDialog({
         }
       : {
           title: '',
-          category: 'lab_report',
+          category: defaultCategory,
           provider: '',
           record_date: localDate(),
         },
@@ -53,19 +57,23 @@ export function UploadDialog({
       return
     }
     setFileError(null)
+    let uploaded: MedicalRecord | undefined
     const saved = await mutation.run(
       async () => {
         if (record) {
           await api.records.update(record.id, values)
         } else {
-          await uploadRecord(values, file!)
+          uploaded = await uploadRecord(values, file!)
         }
       },
       record
         ? 'Record details updated.'
         : 'Document uploaded to your private vault.',
     )
-    if (saved) onClose()
+    if (saved) {
+      if (uploaded) onUploaded?.(uploaded)
+      onClose()
+    }
   }
   return (
     <FormDialog
@@ -90,7 +98,7 @@ export function UploadDialog({
                 }}
                 error={fileError ?? undefined}
                 hint="PDF, JPG, or PNG. Maximum 10 MB."
-                className="h-auto bg-white py-2"
+                className="h-auto bg-card py-2"
               />
             </div>
           )}

@@ -3,9 +3,11 @@ import { fileURLToPath } from 'node:url'
 import { createServer } from 'node:http'
 import { createApp } from './app.ts'
 import { apiConfig } from './config.ts'
+import { checkFrontendBuild, FrontendBuildError } from './frontend-build.ts'
 
 export function startApi(env: NodeJS.ProcessEnv = process.env) {
   const config = apiConfig(env)
+  if (config.production) checkFrontendBuild(resolve('dist'))
   const { app, db } = createApp({
     dataDir: config.dataDir,
     secureCookies: config.secureCookies,
@@ -70,7 +72,10 @@ if (
   try {
     startApi()
   } catch (error) {
-    console.error('Unable to start MediVault API:', error)
+    console.error(
+      'Unable to start MediVault API:',
+      error instanceof FrontendBuildError ? error.message : error,
+    )
     process.exitCode = 1
   }
 }

@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import { localDate, metricInfo } from './utils.ts'
+import { medicationForms } from './database.types.ts'
 
 export const calendarDateSchema = z
   .string()
@@ -88,6 +89,22 @@ export const medicationSchema = z
   .object({
     name: z.string().trim().min(1, 'Enter the medication name.').max(120),
     dosage: z.string().trim().min(1, 'Enter the prescribed dosage.').max(120),
+    form: z
+      .enum(
+        Object.keys(medicationForms) as [
+          keyof typeof medicationForms,
+          ...(keyof typeof medicationForms)[],
+        ],
+      )
+      .optional(),
+    strength: z.string().trim().max(120).optional(),
+    source_record_id: z
+      .union([z.literal(''), z.uuid('Select a valid source record.')])
+      .optional(),
+    prescription_text: z
+      .string()
+      .max(4000, 'Use an excerpt of at most 4,000 characters.')
+      .optional(),
     frequency: z.enum(['once_daily', 'twice_daily', 'three_daily', 'custom']),
     times: z.string().trim().min(1, 'Enter at least one dose time.'),
     start_date: date,
@@ -171,7 +188,6 @@ export const metricSchema = z
 export type ProfileValues = z.infer<typeof profileSchema>
 export type RecordValues = z.infer<typeof recordSchema>
 export type MedicationValues = z.infer<typeof medicationSchema>
-export type MetricValues = z.infer<typeof metricSchema>
 export const passwordSchema = z
   .object({
     current_password: z

@@ -29,7 +29,7 @@ export function MedicationReminder({
     >
       <span
         className={cn(
-          'rounded-xl bg-white p-2.5',
+          'rounded-xl bg-card p-2.5',
           due.length ? 'text-amber-700' : 'text-primary',
         )}
       >

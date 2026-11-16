@@ -1,6 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import supertest from 'supertest'
-import { mkdtemp, readdir, rm } from 'node:fs/promises'
+import { mkdtemp, readdir, rm, mkdir, readFile } from 'node:fs/promises'
+import { DatabaseSync } from 'node:sqlite'
+import { openDatabase } from '../server/database.ts'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { createApp } from '../server/app.ts'
@@ -78,6 +80,150 @@ async function createMedication() {
   )
 }
 describe('real Express + persistent SQLite + private filesystem integration', () => {
+  it('upgrades an existing database without losing medication logs, sessions, or historical measurements', async () => {
+    const legacyDir = join(directory, 'legacy')
+    await mkdir(legacyDir)
+    const old = new DatabaseSync(join(legacyDir, 'medivault.sqlite'))
+    old.exec(
+      await readFile(
+        new URL('../server/migrations/001_initial.sql', import.meta.url),
+        'utf8',
+      ),
+    )
+    old.exec(`
+      INSERT INTO users VALUES ('u','legacy@example.com','test-hash','2025-01-01','2025-01-01');
+      INSERT INTO profiles VALUES ('u','Legacy user','2025-01-01','2025-01-01');
+      INSERT INTO sessions VALUES ('existing-session','u',9999999999999);
+      INSERT INTO medications VALUES ('m','u','Existing medicine','Original dosage','once_daily','["08:00"]','2025-01-01',NULL,'Original instructions','2025-01-01','2025-01-01');
+      INSERT INTO medication_logs VALUES ('l','u','m','2025-01-02','08:00','taken','2025-01-02','2025-01-02','2025-01-02');
+      INSERT INTO health_metrics VALUES ('h','u','weight',72,NULL,'2025-01-01T08:00:00Z','Existing measurement','2025-01-01','2025-01-01');
+    `)
+    old.close()
+    const upgraded = openDatabase(legacyDir)
+    try {
+      expect(upgraded.prepare('PRAGMA user_version').get()?.user_version).toBe(
+        2,
+      )
+      expect(upgraded.prepare('SELECT * FROM medications').get()).toMatchObject(
+        {
+          id: 'm',
+          dosage: 'Original dosage',
+          form: 'unspecified',
+          strength: '',
+          source_record_id: null,
+          prescription_text: '',
+        },
+      )
+      expect(
+        upgraded.prepare('SELECT id,status FROM medication_logs').get(),
+      ).toEqual({ id: 'l', status: 'taken' })
+      expect(
+        upgraded.prepare('SELECT token_hash FROM sessions').get()?.token_hash,
+      ).toBe('existing-session')
+      expect(
+        upgraded.prepare('SELECT value FROM health_metrics').get()?.value,
+      ).toBe(72)
+      expect(upgraded.prepare('PRAGMA foreign_key_check').all()).toEqual([])
+    } finally {
+      upgraded.close()
+    }
+  })
+  it('links medication forms and exact prescription wording only to owned records, retaining medication history when a source is deleted', async () => {
+    const record = recordRow.parse(
+      (
+        await a
+          .post('/api/records')
+          .set(protection)
+          .field('title', 'Fictional prescription')
+          .field('category', 'prescription')
+          .field('provider', '')
+          .field('record_date', localDate())
+          .attach('file', Buffer.from('%PDF-1.4\nFictional\n%%EOF'), {
+            filename: 'prescription.pdf',
+            contentType: 'application/pdf',
+          })
+          .expect(201)
+      ).body,
+    )
+    const input = {
+      ...medicationInput(),
+      form: 'cream',
+      strength: '1%',
+      dosage: 'Apply the amount printed on the label.',
+      prescription_text:
+        'Cream Example 1%\nApply the amount printed on the label.',
+      source_record_id: record.id,
+    }
+    await b.post('/api/medications').set(protection).send(input).expect(404)
+    const other = medicationRow.parse(
+      (
+        await b
+          .post('/api/medications')
+          .set(protection)
+          .send(medicationInput())
+          .expect(201)
+      ).body,
+    )
+    await b
+      .patch(`/api/medications/${other.id}`)
+      .set(protection)
+      .send(input)
+      .expect(404)
+    const med = medicationRow.parse(
+      (await a.post('/api/medications').set(protection).send(input).expect(201))
+        .body,
+    )
+    expect(med).toMatchObject({
+      form: 'cream',
+      strength: '1%',
+      dosage: input.dosage,
+      prescription_text: input.prescription_text,
+      source_record_id: record.id,
+    })
+    await a
+      .post('/api/medications')
+      .set(protection)
+      .send({ ...input, form: 'invalid' })
+      .expect(400)
+    await a
+      .post('/api/dose-logs')
+      .set(protection)
+      .send({
+        medication_id: med.id,
+        scheduled_date: localDate(),
+        scheduled_time: '08:00',
+        status: 'taken',
+      })
+      .expect(201)
+    expect(() =>
+      instance.db
+        .prepare('UPDATE medications SET source_record_id=? WHERE id=?')
+        .run(record.id, other.id),
+    ).toThrow('Prescription must belong')
+    const legacyEdit = medicationRow.parse(
+      (
+        await a
+          .patch(`/api/medications/${med.id}`)
+          .set(protection)
+          .send(medicationInput())
+          .expect(200)
+      ).body,
+    )
+    expect(legacyEdit).toMatchObject({
+      form: 'cream',
+      strength: '1%',
+      source_record_id: record.id,
+      prescription_text: input.prescription_text,
+    })
+    await a.delete(`/api/records/${record.id}`).set(protection).expect(204)
+    const vault = vaultSchema.parse((await a.get('/api/vault')).body)
+    expect(vault.medications.find((item) => item.id === med.id)).toMatchObject({
+      source_record_id: null,
+      prescription_text: input.prescription_text,
+      dosage: medicationInput().dosage,
+    })
+    expect(vault.logs).toHaveLength(1)
+  })
   it('registers with HttpOnly sessions, hashes passwords, rejects duplicate emails and supports login/logout', async () => {
     const session = sessionSchema.parse(
       (await a.get('/api/auth/session').expect(200)).body,

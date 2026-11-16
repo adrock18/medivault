@@ -10,7 +10,7 @@ export function openDatabase(dataDir: string) {
   db.exec(
     'PRAGMA foreign_keys = ON; PRAGMA journal_mode = WAL; PRAGMA busy_timeout = 5000;',
   )
-  const version = db.prepare('PRAGMA user_version').get()?.user_version
+  let version = db.prepare('PRAGMA user_version').get()?.user_version
   if (version === 0)
     db.exec(
       readFileSync(
@@ -18,7 +18,15 @@ export function openDatabase(dataDir: string) {
         'utf8',
       ),
     )
-  else if (version !== 1) {
+  version = db.prepare('PRAGMA user_version').get()?.user_version
+  if (version === 1)
+    db.exec(
+      readFileSync(
+        new URL('./migrations/002_prescription_links.sql', import.meta.url),
+        'utf8',
+      ),
+    )
+  else if (version !== 2) {
     db.close()
     throw new Error(`Unsupported SQLite schema version ${version}.`)
   }

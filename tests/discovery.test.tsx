@@ -1,22 +1,55 @@
 // @vitest-environment jsdom
 import { afterEach, expect, it, vi } from 'vitest'
-import { cleanup, fireEvent, render, screen } from '@testing-library/react'
+import {
+  act,
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from '@testing-library/react'
 import '@testing-library/jest-dom/vitest'
-import { MemoryRouter } from 'react-router-dom'
+import {
+  MemoryRouter,
+  RouterProvider,
+  createMemoryRouter,
+} from 'react-router-dom'
 import MedicationsPage from '../src/pages/MedicationsPage'
 import MedicalRecordsPage from '../src/pages/MedicalRecordsPage'
 import type { Medication, MedicalRecord } from '../src/lib/database.types'
 
 const fixture = vi.hoisted(() => ({ vault: {} }))
+const mocks = vi.hoisted(() => ({ save: vi.fn(), update: vi.fn() }))
 vi.mock('../src/contexts/DataContext', () => ({
   useVault: () => fixture.vault,
 }))
-afterEach(cleanup)
+vi.mock('../src/lib/api', () => ({
+  errorMessage: (error: Error) => error.message,
+  api: {
+    medications: { save: mocks.save },
+    records: { update: mocks.update },
+  },
+}))
+afterEach(() => {
+  cleanup()
+  vi.resetAllMocks()
+})
+const sourceId = '5b6f9a0e-3c1d-4e2f-8a7b-9c0d1e2f3a4b'
+const statusButton = (name: string) => screen.getByRole('button', { name })
+const medicationNames = () =>
+  screen
+    .queryAllByRole('heading', { level: 3 })
+    .map((e) => e.textContent ?? '')
+    .filter((name) => /^(Linked|Unrelated) /.test(name))
 const medication: Medication = {
   id: 'm1',
   user_id: 'u1',
   name: 'Alpha medicine',
   dosage: 'As prescribed',
+  form: 'tablet',
+  strength: '',
+  source_record_id: null,
+  prescription_text: '',
   frequency: 'once_daily',
   times: ['20:00'],
   start_date: '2026-01-01',
@@ -72,7 +105,7 @@ it('combines normalized medication search with status and resets without changin
   expect(
     screen.queryByRole('heading', { name: 'Beta medicine' }),
   ).not.toBeInTheDocument()
-  fireEvent.click(screen.getByRole('button', { name: 'upcoming', exact: true }))
+  fireEvent.click(statusButton('upcoming'))
   expect(
     screen.getByRole('heading', { name: 'Alpha future' }),
   ).toBeInTheDocument()
@@ -81,9 +114,7 @@ it('combines normalized medication search with status and resets without changin
   })
   fireEvent.click(screen.getByRole('button', { name: 'Clear filters' }))
   expect(screen.getByLabelText('Search medications')).toHaveValue('')
-  expect(
-    screen.getByRole('button', { name: 'active', exact: true }),
-  ).toHaveAttribute('aria-pressed', 'true')
+  expect(statusButton('active')).toHaveAttribute('aria-pressed', 'true')
   expect(
     screen.getByRole('heading', { name: 'Beta medicine' }),
   ).toBeInTheDocument()
@@ -171,4 +202,127 @@ it('combines normalized record search and category with deterministic date sorti
     'scan',
   ])
   expect(screen.getAllByText(/50 bytes/)).toHaveLength(5)
+})
+it('shows every linked medication status from a record link, including on an already-mounted page', async () => {
+  const linked = { ...medication, source_record_id: sourceId }
+  vault(
+    [
+      { ...linked, id: 'a', name: 'Linked active' },
+      { ...linked, id: 'u', name: 'Linked upcoming', start_date: '2026-02-01' },
+      {
+        ...linked,
+        id: 'c',
+        name: 'Linked completed',
+        start_date: '2025-12-01',
+        end_date: '2025-12-31',
+      },
+      { ...medication, id: 'x', name: 'Unrelated active' },
+    ],
+    [],
+  )
+  const router = createMemoryRouter(
+    [{ path: '/medications', element: <MedicationsPage /> }],
+    { initialEntries: ['/medications'] },
+  )
+  render(<RouterProvider router={router} />)
+  expect(medicationNames()).toEqual(['Linked active', 'Unrelated active'])
+  expect(statusButton('active')).toHaveAttribute('aria-pressed', 'true')
+
+  await act(() => router.navigate(`/medications?record=${sourceId}`))
+  expect(statusButton('all')).toHaveAttribute('aria-pressed', 'true')
+  expect(medicationNames()).toEqual([
+    'Linked active',
+    'Linked upcoming',
+    'Linked completed',
+  ])
+  fireEvent.click(statusButton('completed'))
+  expect(medicationNames()).toEqual(['Linked completed'])
+
+  fireEvent.click(screen.getByRole('button', { name: 'Show all medications' }))
+  expect(router.state.location.search).toBe('')
+  expect(statusButton('completed')).toHaveAttribute('aria-pressed', 'true')
+  fireEvent.click(statusButton('active'))
+  expect(medicationNames()).toEqual(['Linked active', 'Unrelated active'])
+})
+it('keeps medication source scope and discovery controls when an edit is cancelled or saved', async () => {
+  mocks.save.mockResolvedValue(undefined)
+  const linked = { ...medication, source_record_id: sourceId }
+  vault(
+    [
+      { ...linked, id: 'a', name: 'Linked active' },
+      { ...linked, id: 'b', name: 'Linked second' },
+      { ...medication, id: 'x', name: 'Unrelated active' },
+    ],
+    [{ ...record, id: sourceId }],
+  )
+  const router = createMemoryRouter(
+    [{ path: '/medications', element: <MedicationsPage /> }],
+    { initialEntries: [`/medications?record=${sourceId}`] },
+  )
+  render(<RouterProvider router={router} />)
+  fireEvent.change(screen.getByLabelText('Search medications'), {
+    target: { value: 'second' },
+  })
+  fireEvent.click(screen.getByRole('button', { name: 'Edit Linked second' }))
+  fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
+  await waitFor(() =>
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument(),
+  )
+  expect(router.state.location.search).toBe(`?record=${sourceId}`)
+  expect(screen.getByLabelText('Search medications')).toHaveValue('second')
+  expect(mocks.save).not.toHaveBeenCalled()
+
+  fireEvent.click(screen.getByRole('button', { name: 'Edit Linked second' }))
+  fireEvent.click(screen.getByRole('button', { name: 'Save medication' }))
+  await waitFor(() => expect(mocks.save).toHaveBeenCalledOnce())
+  await waitFor(() =>
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument(),
+  )
+  expect(router.state.location.search).toBe(`?record=${sourceId}`)
+  expect(statusButton('all')).toHaveAttribute('aria-pressed', 'true')
+  expect(medicationNames()).toEqual(['Linked second'])
+})
+it('keeps the selected source record when its metadata edit is cancelled or saved', async () => {
+  mocks.update.mockResolvedValue(undefined)
+  vault(
+    [],
+    [
+      { ...record, id: sourceId },
+      { ...record, id: 'other', title: 'Unrelated report' },
+    ],
+  )
+  const router = createMemoryRouter(
+    [{ path: '/medical-records', element: <MedicalRecordsPage /> }],
+    { initialEntries: [`/medical-records?record=${sourceId}`] },
+  )
+  render(<RouterProvider router={router} />)
+  fireEvent.change(screen.getByLabelText('Category'), {
+    target: { value: 'lab_report' },
+  })
+  const titles = () =>
+    screen.getAllByRole('heading', { level: 2 }).map((e) => e.textContent)
+  expect(titles()).toEqual(['Older report'])
+
+  fireEvent.click(screen.getByRole('button', { name: 'Edit Older report' }))
+  fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
+  await waitFor(() =>
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument(),
+  )
+  expect(mocks.update).not.toHaveBeenCalled()
+  expect(router.state.location.search).toBe(`?record=${sourceId}`)
+  expect(screen.getByLabelText('Category')).toHaveValue('lab_report')
+  expect(titles()).toEqual(['Older report'])
+
+  fireEvent.click(screen.getByRole('button', { name: 'Edit Older report' }))
+  fireEvent.click(screen.getByRole('button', { name: 'Save details' }))
+  await waitFor(() => expect(mocks.update).toHaveBeenCalledOnce())
+  await waitFor(() =>
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument(),
+  )
+  expect(router.state.location.search).toBe(`?record=${sourceId}`)
+  expect(titles()).toEqual(['Older report'])
+
+  fireEvent.click(screen.getByRole('button', { name: 'Show all records' }))
+  expect(router.state.location.search).toBe('')
+  expect(titles()).toContain('Unrelated report')
 })

@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   cleanup,
   fireEvent,
@@ -11,16 +11,21 @@ import '@testing-library/jest-dom/vitest'
 import { MemoryRouter } from 'react-router-dom'
 import AuthPage from '../src/pages/AuthPage'
 import { MedicationForm } from '../src/components/MedicationForm'
-import { HealthMetricForm } from '../src/components/HealthMetricForm'
 import { UploadDialog } from '../src/components/UploadDialog'
 import { ConfirmationDialog, FormDialog } from '../src/components/common'
 const mocks = vi.hoisted(() => ({
   login: vi.fn(),
   signup: vi.fn(),
   medication: vi.fn(),
-  metric: vi.fn(),
   reload: vi.fn(async () => {}),
 }))
+beforeEach(() => {
+  vi.stubGlobal('matchMedia', () => ({
+    matches: false,
+    addEventListener: vi.fn(),
+    removeEventListener: vi.fn(),
+  }))
+})
 vi.mock('../src/contexts/AuthContext', () => ({
   useAuth: () => ({
     session: null,
@@ -31,18 +36,18 @@ vi.mock('../src/contexts/AuthContext', () => ({
   }),
 }))
 vi.mock('../src/contexts/DataContext', () => ({
-  useVault: () => ({ now: new Date(), reload: mocks.reload }),
+  useVault: () => ({ now: new Date(), records: [], reload: mocks.reload }),
 }))
 vi.mock('../src/lib/api', () => ({
   errorMessage: (error: Error) => error.message,
   api: {
     medications: { save: mocks.medication },
-    metrics: { save: mocks.metric },
   },
 }))
 afterEach(() => {
   cleanup()
   vi.resetAllMocks()
+  vi.unstubAllGlobals()
 })
 function fill(label: string, value: string) {
   fireEvent.change(screen.getByLabelText(label), { target: { value } })
@@ -182,21 +187,45 @@ describe('Express-connected forms', () => {
     )
     expect(mocks.medication.mock.calls[0][0]).not.toHaveProperty('user_id')
   })
-  it('sends a validated measurement to Express for server-side numeric and timestamp conversion', async () => {
-    const close = vi.fn()
-    mocks.metric.mockResolvedValue(undefined)
-    render(<HealthMetricForm onClose={close} />)
-    fill('Measurement type *', 'weight')
-    fill('Value (kg) *', '72.4')
-    fill('Date and time *', '2025-01-01T08:30')
-    fireEvent.click(screen.getByRole('button', { name: 'Record measurement' }))
-    await waitFor(() => expect(close).toHaveBeenCalledOnce())
-    expect(mocks.metric).toHaveBeenCalledWith(
+  it('requires explicit review of scanned medication details before persisting the original dosage text', async () => {
+    const dosage = 'Apply a thin layer as printed on the label.'
+    mocks.medication.mockResolvedValue(undefined)
+    render(
+      <MedicationForm
+        onClose={vi.fn()}
+        reviewRequired
+        initialValues={{
+          name: 'Fictional cream',
+          dosage,
+          form: 'cream',
+          strength: '1%',
+          prescription_text: `Cream Fictional 1%\n${dosage}`,
+        }}
+      />,
+    )
+    fill('Dose times *', '20:00')
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Confirm and add medication' }),
+    )
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Compare the details with the original prescription',
+    )
+    expect(mocks.medication).not.toHaveBeenCalled()
+    fireEvent.click(
+      screen.getByRole('checkbox', {
+        name: 'I checked these details against the original prescription.',
+      }),
+    )
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Confirm and add medication' }),
+    )
+    await waitFor(() => expect(mocks.medication).toHaveBeenCalledOnce())
+    expect(mocks.medication).toHaveBeenCalledWith(
       expect.objectContaining({
-        type: 'weight',
-        value: '72.4',
-        secondary_value: '',
-        measured_at: '2025-01-01T08:30',
+        dosage,
+        form: 'cream',
+        strength: '1%',
+        prescription_text: `Cream Fictional 1%\n${dosage}`,
       }),
       undefined,
     )

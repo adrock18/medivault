@@ -7,13 +7,14 @@ import {
   ShieldCheck,
   FolderHeart,
   Pill,
-  ChartNoAxesCombined,
+  ScanText,
   ArrowRight,
 } from 'lucide-react'
 import { Logo, Field, SubmitButton, ErrorState } from '../components/common'
 import { loginSchema, registerSchema } from '../lib/schemas'
 import { errorMessage } from '../lib/api'
 import { useAuth } from '../contexts/AuthContext'
+import { ThemeSelect } from '../components/ThemeSelect'
 
 function LoginForm() {
   const { signIn } = useAuth()
@@ -127,21 +128,21 @@ export default function AuthPage({
   const { session } = useAuth()
   if (session) return <Navigate to="/dashboard" replace />
   return (
-    <div className="grid min-h-screen bg-white lg:grid-cols-2">
-      <section className="relative hidden flex-col justify-between overflow-hidden bg-[#eaf5f1] p-12 lg:flex">
+    <div className="grid min-h-screen bg-card lg:grid-cols-2">
+      <section className="relative hidden flex-col justify-between overflow-hidden bg-accent p-12 lg:flex">
         <Logo />
         <div className="relative z-10 max-w-lg">
-          <span className="mb-6 inline-flex items-center gap-2 rounded-full border border-teal-200 bg-white/60 px-3 py-1.5 text-xs font-medium text-primary">
+          <span className="mb-6 inline-flex items-center gap-2 rounded-full border border-teal-200 bg-card/60 px-3 py-1.5 text-xs font-medium text-primary">
             <ShieldCheck size={14} />A little more peace of mind
           </span>
-          <h1 className="text-5xl font-semibold leading-[1.15] tracking-tight text-[#153d35]">
+          <h1 className="text-5xl font-semibold leading-[1.15] tracking-tight text-foreground">
             Your health.
             <br />
             One secure place.
           </h1>
           <p className="mt-6 max-w-sm text-base leading-7 text-muted-foreground">
-            Less paperwork. More clarity. Bring your records, medications, and
-            daily health into one thoughtfully organized space.
+            Less paperwork. More clarity. Bring your medical records and
+            medication routine into one thoughtfully organized space.
           </p>
           <div className="mt-10 space-y-5">
             {[
@@ -156,17 +157,17 @@ export default function AuthPage({
                 text: 'Track your prescribed medication schedule.',
               },
               {
-                icon: ChartNoAxesCombined,
-                title: 'See your health over time',
-                text: 'Log measurements and explore your history.',
+                icon: ScanText,
+                title: 'Scan prescriptions, then review',
+                text: 'Read printed prescriptions on your device and confirm every detail before saving.',
               },
             ].map(({ icon: Icon, title, text }) => (
               <div key={title} className="flex gap-4">
-                <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-white/70 text-primary">
+                <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-card/70 text-primary">
                   <Icon size={21} />
                 </span>
                 <div>
-                  <p className="text-sm font-semibold text-[#264b40]">
+                  <p className="text-sm font-semibold text-foreground">
                     {title}
                   </p>
                   <p className="mt-1 text-sm text-muted-foreground">{text}</p>
@@ -181,6 +182,9 @@ export default function AuthPage({
         <div className="pointer-events-none absolute -bottom-28 -right-40 size-[500px] rounded-full border-[70px] border-white/25" />
       </section>
       <section className="flex flex-col px-6 py-8 sm:px-12">
+        <div className="flex justify-end">
+          <ThemeSelect />
+        </div>
         <div className="lg:hidden">
           <Logo />
         </div>

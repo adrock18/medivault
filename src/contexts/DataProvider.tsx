@@ -1,24 +1,7 @@
-import {
-  createContext,
-  useCallback,
-  useContext,
-  useEffect,
-  useRef,
-  useState,
-  type ReactNode,
-} from 'react'
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import { api, errorMessage } from '../lib/api'
-import type { VaultData } from '../lib/contracts'
-import type { Profile } from '../lib/database.types'
-type DataState = Omit<VaultData, 'profile'> & {
-  profile: Profile | null
-  now: Date
-  loading: boolean
-  refreshing: boolean
-  error: string | null
-  reload: () => Promise<void>
-}
-const DataContext = createContext<DataState | null>(null)
+import { DataContext, type DataState } from './DataContext'
+
 export function DataProvider({ children }: { children: ReactNode }) {
   const [data, setData] = useState<
     Omit<DataState, 'now' | 'loading' | 'refreshing' | 'error' | 'reload'>
@@ -56,6 +39,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
     }
   }, [])
   useEffect(() => {
+    // Initial fetch from the external API; reload's state updates are intentional here.
+    // oxlint-disable-next-line react/set-state-in-effect
     void reload()
     const onFocus = () => {
       void reload()
@@ -63,6 +48,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
     window.addEventListener('focus', onFocus)
     const timer = window.setInterval(onFocus, 60_000)
     return () => {
+      // Must invalidate the latest pending generation, not a value captured at setup.
+      // oxlint-disable-next-line react-hooks/exhaustive-deps
       sequence.current++
       window.removeEventListener('focus', onFocus)
       window.clearInterval(timer)
@@ -75,9 +62,4 @@ export function DataProvider({ children }: { children: ReactNode }) {
       {children}
     </DataContext.Provider>
   )
-}
-export function useVault() {
-  const context = useContext(DataContext)
-  if (!context) throw new Error('useVault must be used inside DataProvider.')
-  return context
 }

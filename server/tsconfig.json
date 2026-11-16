@@ -15,5 +15,5 @@
     "noUnusedParameters": true,
     "tsBuildInfoFile": "../node_modules/.tmp/tsconfig.server.tsbuildinfo"
   },
-  "include": ["*.ts", "../scripts/*.ts", "../tests/startup.test.ts"]
+  "include": ["*.ts", "../scripts/*.ts"]
 }

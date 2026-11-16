@@ -7,7 +7,7 @@ export async function uploadRecord(values: RecordValues, file: File) {
   await validateDocument(file)
   if (file.name.length > 255)
     throw new Error('The file name must be no longer than 255 characters.')
-  await api.records.upload(values, file)
+  return api.records.upload(values, file)
 }
 export async function deleteRecord(record: MedicalRecord) {
   await api.records.remove(record.id)

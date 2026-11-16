@@ -10,7 +10,6 @@ import {
   LayoutDashboard,
   FolderHeart,
   Pill,
-  ChartNoAxesCombined,
   UserRound,
   Settings,
   LogOut,
@@ -27,12 +26,12 @@ import { useAuth } from '../contexts/AuthContext'
 import { useVault } from '../contexts/DataContext'
 import { cn } from '../lib/utils'
 import { errorMessage } from '../lib/api'
+import { ThemeSelect } from './ThemeSelect'
 
 const navigation = [
   { to: '/dashboard', label: 'Overview', icon: LayoutDashboard },
-  { to: '/medical-records', label: 'Medical records', icon: FolderHeart },
   { to: '/medications', label: 'Medications', icon: Pill },
-  { to: '/health-tracker', label: 'Health tracker', icon: ChartNoAxesCombined },
+  { to: '/medical-records', label: 'Medical records', icon: FolderHeart },
   { to: '/profile', label: 'Health profile', icon: UserRound },
   { to: '/settings', label: 'Settings', icon: Settings },
 ]
@@ -103,7 +102,7 @@ export function Header({ onMenu }: { onMenu: () => void }) {
     }
   }
   return (
-    <header className="flex min-h-20 items-center justify-between gap-2 border-b border-slate-200/80 bg-white px-4 sm:px-8">
+    <header className="flex min-h-20 flex-wrap items-center justify-between gap-2 border-b border-slate-200/80 bg-card px-4 py-2 sm:px-8">
       <div className="flex min-w-0 items-center gap-2 sm:gap-3">
         <Button
           variant="ghost"
@@ -130,6 +129,7 @@ export function Header({ onMenu }: { onMenu: () => void }) {
         )}
       </div>
       <div className="flex shrink-0 items-center gap-1 sm:gap-3">
+        <ThemeSelect />
         <Link
           to="/profile"
           aria-label={`Health profile for ${name}`}
@@ -169,11 +169,11 @@ export default function Layout() {
     <div className="min-h-screen bg-[var(--workspace)]">
       <a
         href="#main-content"
-        className="sr-only focus:not-sr-only focus:fixed focus:z-50 focus:bg-white focus:p-3"
+        className="sr-only focus:not-sr-only focus:fixed focus:z-50 focus:bg-card focus:p-3"
       >
         Skip to content
       </a>
-      <aside className="fixed inset-y-0 left-0 hidden w-64 border-r border-slate-200/80 bg-white lg:block">
+      <aside className="fixed inset-y-0 left-0 hidden w-64 border-r border-slate-200/80 bg-card lg:block">
         <Sidebar />
       </aside>
       <FormDialog
@@ -215,7 +215,7 @@ export default function Layout() {
       </div>
       <nav
         aria-label="Mobile navigation"
-        className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-4 border-t border-slate-200 bg-white pb-[env(safe-area-inset-bottom)] shadow-[0_-4px_16px_rgba(24,59,53,0.04)] lg:hidden"
+        className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-4 border-t border-slate-200 bg-card pb-[env(safe-area-inset-bottom)] shadow-[0_-4px_16px_rgba(24,59,53,0.04)] lg:hidden"
       >
         {navigation.slice(0, 4).map(({ to, label, icon: Icon }) => (
           <NavLink
@@ -231,8 +231,8 @@ export default function Layout() {
             <Icon size={20} />
             {label === 'Medical records'
               ? 'Records'
-              : label === 'Health tracker'
-                ? 'Tracker'
+              : label === 'Health profile'
+                ? 'Profile'
                 : label}
           </NavLink>
         ))}

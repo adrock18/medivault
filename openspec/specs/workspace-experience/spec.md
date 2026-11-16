@@ -6,15 +6,28 @@ Provide a coherent, professional healthcare workspace that remains readable, acc
 
 ## Requirements
 
-### Requirement: Consistent light visual system
+### Requirement: Consistent theme system
 
-The website SHALL use a consistent light theme with neutral surfaces, restrained teal accents, readable typography, and shared spacing, border, elevation, and interaction treatments across every current page.
+The website SHALL provide Light, Dark, and System appearance modes with neutral surfaces, restrained teal accents, readable typography, and shared spacing, border, elevation, and interaction treatments across every current page. System SHALL be the initial default and follow operating-system appearance changes. An explicit selection SHALL persist in this browser without storing health information or authentication tokens in localStorage.
 
 #### Scenario: Navigate between modules
 
-- **WHEN** a user visits login, dashboard, records, medications, profile, tracker, and settings
+- **WHEN** a user visits login, dashboard, records, medications, profile, and settings
 - **THEN** equivalent headings, cards, forms, buttons, and feedback states use consistent styling
 - **AND** destructive and disabled actions remain distinguishable from primary actions
+
+#### Scenario: Choose and restore an appearance
+
+- **WHEN** a user selects Light, Dark, or System on the authentication page, workspace header, or settings page
+- **THEN** all appearance controls, charts, dialogs, forms, and notifications reflect the selected appearance
+- **AND** the preference is restored after reload and synchronized across browser tabs
+- **AND** inability to save the preference is reported without preventing the current appearance change
+
+#### Scenario: Follow operating-system appearance
+
+- **WHEN** System is selected and the operating-system color preference changes
+- **THEN** the website updates its appearance without requiring a reload
+- **AND** an explicit Light or Dark selection overrides operating-system changes
 
 ### Requirement: Responsive workspace navigation
 

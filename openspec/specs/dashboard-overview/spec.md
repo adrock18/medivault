@@ -8,12 +8,12 @@ Give users a clear, actionable overview of their own health information and pres
 
 ### Requirement: Database-derived overview
 
-The dashboard SHALL derive record counts, active medication counts, scheduled/taken/skipped/pending dose totals, recent records, and latest measurements exclusively from the signed-in user's persisted data.
+The dashboard SHALL derive record counts, active medication counts, scheduled/taken/skipped/pending dose totals, recent records, linked-medication counts, and upcoming schedules exclusively from the signed-in user's persisted data.
 
 #### Scenario: A new account opens its dashboard
 
 - **WHEN** an account with no healthcare entries opens the dashboard
-- **THEN** counts reflect the empty account and absent measurements are labeled as unavailable
+- **THEN** counts reflect the empty account and absent schedules or records have explicit empty states
 - **AND** no fictional entries or sample statistics are displayed automatically
 
 #### Scenario: A completed mutation refreshes the overview
@@ -24,7 +24,7 @@ The dashboard SHALL derive record counts, active medication counts, scheduled/ta
 
 ### Requirement: Daily tasks take visual priority
 
-The dashboard SHALL place today's medication check-ins and working upload, add-medication, and record-measurement actions before recent-record and trend sections. It SHALL not place a promotional hero banner ahead of these daily tasks.
+The dashboard SHALL place today's medication check-ins and working prescription-scan, add-medication, and upload actions before historical detail. Measurement cards and charts SHALL not appear. It SHALL not place a promotional hero banner ahead of daily tasks.
 
 #### Scenario: Open a dashboard with scheduled doses
 
@@ -34,7 +34,7 @@ The dashboard SHALL place today's medication check-ins and working upload, add-m
 
 ### Requirement: Contextual first-use guidance
 
-The dashboard SHALL offer concise links for missing health-profile, document, and measurement setup using persisted data to determine completion. Medication setup SHALL be optional and described as recording an existing prescription, not an instruction to start medication.
+The dashboard SHALL offer concise links for missing health-profile, document, and medication setup using persisted data to determine completion. Medication setup SHALL be optional and described as recording an existing prescription, not an instruction to start medication.
 
 #### Scenario: Complete a setup item
 
@@ -59,7 +59,7 @@ The daily overview SHALL distinguish taken, skipped, and unlogged scheduled dose
 
 ### Requirement: Quick actions open the intended workflow
 
-Each dashboard quick action SHALL open the corresponding upload, medication, or measurement form within the existing workspace and SHALL return the user to usable navigation after cancellation or completion.
+Each dashboard quick action SHALL open the corresponding prescription scan, medication, or upload workflow within the existing workspace and SHALL return the user to usable navigation after cancellation or completion.
 
 #### Scenario: Start and cancel an upload
 

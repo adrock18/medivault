@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useMutation } from '../hooks/useMutation'
@@ -14,15 +15,26 @@ import {
   ErrorState,
 } from './common'
 import { Button } from './ui/button'
+import { medicationForms } from '../lib/database.types'
+import { useVault } from '../contexts/DataContext'
 
 export function MedicationForm({
   medication,
   onClose,
+  initialValues,
+  reviewRequired = false,
+  onSaved,
 }: {
   medication?: Medication
   onClose: () => void
+  initialValues?: Partial<MedicationValues>
+  reviewRequired?: boolean
+  onSaved?: () => void
 }) {
   const mutation = useMutation()
+  const { records } = useVault()
+  const [reviewed, setReviewed] = useState(false)
+  const [reviewError, setReviewError] = useState<string | null>(null)
   const {
     register,
     handleSubmit,
@@ -34,25 +46,40 @@ export function MedicationForm({
           ...medication,
           times: medication.times.join(', '),
           end_date: medication.end_date ?? '',
+          source_record_id: medication.source_record_id ?? '',
         }
       : {
           name: '',
           dosage: '',
+          form: 'unspecified',
+          strength: '',
+          source_record_id: '',
+          prescription_text: '',
           frequency: 'once_daily',
           times: '',
           start_date: localDate(),
           end_date: '',
           instructions: '',
+          ...initialValues,
         },
   })
   async function submit(values: MedicationValues) {
+    if (reviewRequired && !reviewed) {
+      setReviewError(
+        'Compare the details with the original prescription and confirm your review before saving.',
+      )
+      return
+    }
     const saved = await mutation.run(
       async () => {
         await api.medications.save(values, medication?.id)
       },
       medication ? 'Medication updated.' : 'Medication added to your schedule.',
     )
-    if (saved) onClose()
+    if (saved) {
+      onSaved?.()
+      onClose()
+    }
   }
   return (
     <FormDialog
@@ -76,6 +103,26 @@ export function MedicationForm({
               placeholder="e.g. 500 mg, one tablet"
               registration={register('dosage')}
               error={errors.dosage?.message}
+            />
+          </div>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <SelectField
+              label="Medication form"
+              registration={register('form')}
+              error={errors.form?.message}
+            >
+              {Object.entries(medicationForms).map(([value, label]) => (
+                <option key={value} value={value}>
+                  {label}
+                </option>
+              ))}
+            </SelectField>
+            <Field
+              label="Strength / concentration (optional)"
+              placeholder="e.g. 500 mg per tablet or 1% cream"
+              registration={register('strength')}
+              error={errors.strength?.message}
+              hint="Product strength is not the amount to take or apply."
             />
           </div>
           <SelectField
@@ -116,6 +163,46 @@ export function MedicationForm({
             registration={register('instructions')}
             error={errors.instructions?.message}
           />
+          <SelectField
+            label="Linked medical record (optional)"
+            registration={register('source_record_id')}
+            error={errors.source_record_id?.message}
+          >
+            <option value="">No linked record</option>
+            {records.map((record) => (
+              <option key={record.id} value={record.id}>
+                {record.title}
+              </option>
+            ))}
+          </SelectField>
+          <TextField
+            label="Prescription wording (optional)"
+            registration={register('prescription_text')}
+            error={errors.prescription_text?.message}
+            hint="Keep the original wording, including abbreviations, without guessing missing amounts or instructions. OCR text may contain errors."
+          />
+          {reviewRequired && (
+            <div className="rounded-xl border border-amber-100 bg-amber-50 p-4 text-sm text-amber-800">
+              <p className="mb-3">
+                Check the name, form, strength, dosage, and dates against the
+                original. Choose the schedule yourself; OCR does not determine
+                dose times.
+              </p>
+              <label className="flex items-start gap-3">
+                <input
+                  type="checkbox"
+                  checked={reviewed}
+                  onChange={(event) => {
+                    setReviewed(event.target.checked)
+                    setReviewError(null)
+                  }}
+                />
+                <span>
+                  I checked these details against the original prescription.
+                </span>
+              </label>
+            </div>
+          )}
           {medication && (
             <p className="rounded-lg bg-amber-50 p-3 text-xs leading-5 text-amber-800">
               Changing times or dates changes the displayed schedule. Existing
@@ -124,12 +211,17 @@ export function MedicationForm({
             </p>
           )}
           {mutation.error && <ErrorState message={mutation.error} />}
+          {reviewError && <ErrorState message={reviewError} />}
           <div className="flex flex-wrap justify-end gap-2 border-t pt-5">
             <Button type="button" variant="outline" onClick={onClose}>
               Cancel
             </Button>
             <SubmitButton busy={mutation.pending}>
-              {medication ? 'Save medication' : 'Add medication'}
+              {medication
+                ? 'Save medication'
+                : reviewRequired
+                  ? 'Confirm and add medication'
+                  : 'Add medication'}
             </SubmitButton>
           </div>
         </fieldset>

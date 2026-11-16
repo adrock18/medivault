@@ -22,6 +22,10 @@ it('derives dashboard totals from persisted records, active schedules and exact 
     user_id: 'u1',
     name: 'Example A',
     dosage: 'Example only',
+    form: 'tablet',
+    strength: '',
+    source_record_id: null,
+    prescription_text: '',
     frequency: 'twice_daily',
     times: ['08:00', '20:00'],
     start_date: today,
@@ -108,8 +112,11 @@ it('derives dashboard totals from persisted records, active schedules and exact 
     '/medications?action=add',
   )
   expect(
-    screen.getByRole('link', { name: 'Record measurement' }),
-  ).toHaveAttribute('href', '/health-tracker?action=add')
+    screen.getByRole('link', { name: 'Scan prescription' }),
+  ).toHaveAttribute('href', '/medications?action=scan')
+  expect(
+    screen.queryByRole('link', { name: 'Record measurement' }),
+  ).not.toBeInTheDocument()
   expect(
     screen.queryByText('A healthier routine starts with clarity.'),
   ).not.toBeInTheDocument()

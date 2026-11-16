@@ -41,20 +41,21 @@ Users SHALL save and edit their own name, birth date, optional gender, blood gro
 - **WHEN** a user saves a valid changed name in their health profile
 - **THEN** the profile and workspace account display reflect that name after refresh and reload
 
-### Requirement: Measurement management and history
+### Requirement: Retired tracker preserves existing data
 
-Users SHALL create, edit, and delete blood-pressure, glucose, weight, and heart-rate measurements with date/time and applicable units. Future or invalid measurements SHALL be rejected, and history filters, latest cards, and charts SHALL reflect persisted values without diagnosis or treatment recommendations.
+The website SHALL focus on medications and medical records rather than exposing a Health Tracker page or measurement charts. Existing measurements SHALL remain owner-specific in persistent storage and exports. Legacy measurement APIs SHALL retain validation and ownership protection for compatibility.
 
-#### Scenario: Filter recorded measurements
+#### Scenario: Open a retired tracker bookmark
 
-- **WHEN** a user selects a measurement type and date range
-- **THEN** the history and chart display the matching persisted values
-- **AND** the empty state is explicit when no measurements match
+- **WHEN** a signed-in user visits `/health-tracker`
+- **THEN** the website redirects to Medications
+- **AND** existing measurements and sessions are not deleted
 
-#### Scenario: Submit a future measurement
+#### Scenario: Export previous measurements
 
-- **WHEN** a user submits a measurement timestamp in the future
-- **THEN** validation reports the problem and no measurement is saved
+- **WHEN** an owner exports healthcare information after the tracker is retired
+- **THEN** their previous measurements remain included
+- **AND** another account cannot access them
 
 ### Requirement: Verified password changes
 

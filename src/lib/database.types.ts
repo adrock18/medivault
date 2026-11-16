@@ -1,6 +1,22 @@
 export type Category =
   'prescription' | 'lab_report' | 'scan' | 'discharge_summary' | 'other'
 export type Frequency = 'once_daily' | 'twice_daily' | 'three_daily' | 'custom'
+export const medicationForms = {
+  unspecified: 'Not specified',
+  tablet: 'Tablet',
+  capsule: 'Capsule',
+  cream: 'Cream',
+  ointment: 'Ointment',
+  gel: 'Gel',
+  injection: 'Injection',
+  liquid: 'Liquid / syrup',
+  drops: 'Drops',
+  inhaler: 'Inhaler',
+  patch: 'Patch',
+  suppository: 'Suppository',
+  other: 'Other',
+} as const
+export type MedicationFormType = keyof typeof medicationForms
 export type MetricType =
   'blood_pressure' | 'blood_glucose' | 'weight' | 'heart_rate'
 type Timestamps = { created_at: string; updated_at: string }
@@ -36,6 +52,10 @@ export type Medication = Timestamps & {
   user_id: string
   name: string
   dosage: string
+  form: MedicationFormType
+  strength: string
+  source_record_id: string | null
+  prescription_text: string
   frequency: Frequency
   times: string[]
   start_date: string

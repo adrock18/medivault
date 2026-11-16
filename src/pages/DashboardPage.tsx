@@ -1,4 +1,3 @@
-import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import {
   FileText,
@@ -7,18 +6,12 @@ import {
   Clock3,
   Upload,
   Plus,
-  Activity,
+  ScanLine,
   ChevronRight,
 } from 'lucide-react'
-import { addDays, subDays } from 'date-fns'
+import { addDays } from 'date-fns'
 import { useVault } from '../contexts/DataContext'
-import {
-  localDate,
-  medicationStatus,
-  scheduledDoses,
-  metricInfo,
-} from '../lib/utils'
-import type { MetricType } from '../lib/database.types'
+import { localDate, medicationStatus, scheduledDoses } from '../lib/utils'
 import {
   PageTitle,
   Panel,
@@ -26,18 +19,13 @@ import {
   StatCard,
   EmptyState,
   SafetyNote,
-  SelectField,
 } from '../components/common'
 import { DoseSchedule } from '../components/DoseSchedule'
 import { MedicalRecordCard } from '../components/MedicalRecordCard'
-import { HealthMetricCard } from '../components/HealthMetricCard'
-import { HealthChart } from '../components/HealthChart'
 import { MedicationReminder } from '../components/MedicationReminder'
 
 export default function DashboardPage() {
-  const { profile, healthProfile, records, medications, metrics, logs, now } =
-    useVault()
-  const [chartType, setChartType] = useState<MetricType>('blood_pressure')
+  const { profile, healthProfile, records, medications, logs, now } = useVault()
   const today = localDate(now)
   const doses = scheduledDoses(medications, logs, today)
   const taken = doses.filter((d) => d.log?.status === 'taken').length
@@ -60,9 +48,6 @@ export default function DashboardPage() {
   })
     .flat()
     .slice(0, 4)
-  const recentMetrics = metrics.filter(
-    (m) => localDate(new Date(m.measured_at)) >= localDate(subDays(now, 29)),
-  )
   const setup = [
     {
       complete: !!healthProfile,
@@ -75,35 +60,35 @@ export default function DashboardPage() {
       label: 'Upload your first record',
     },
     {
-      complete: metrics.length > 0,
-      to: '/health-tracker?action=add',
-      label: 'Record your first measurement',
+      complete: medications.length > 0,
+      to: '/medications?action=add',
+      label: 'Add your first medication',
     },
   ].filter((item) => !item.complete)
   return (
     <>
       <PageTitle
         title={`${greeting}${firstName ? ', ' + firstName : ''}`}
-        description="Your daily routine and health information, together in one place."
+        description="Your medication routine and medical records, together in one place."
         action={
           <div className="flex flex-wrap gap-2">
-            <Link to="/medical-records?action=upload" className="action-link">
-              <Upload size={16} />
-              Upload record
+            <Link to="/medications?action=scan" className="action-link">
+              <ScanLine size={16} />
+              Scan prescription
             </Link>
             <Link
               to="/medications?action=add"
-              className="small-link rounded-xl border bg-white px-3"
+              className="small-link rounded-xl border bg-card px-3"
             >
               <Plus size={16} />
               Add medication
             </Link>
             <Link
-              to="/health-tracker?action=add"
-              className="small-link rounded-xl border bg-white px-3"
+              to="/medical-records?action=upload"
+              className="small-link rounded-xl border bg-card px-3"
             >
-              <Activity size={16} />
-              Record measurement
+              <Upload size={16} />
+              Upload record
             </Link>
           </div>
         }
@@ -145,7 +130,7 @@ export default function DashboardPage() {
       {setup.length > 0 && (
         <section
           aria-label="Workspace setup"
-          className="mb-6 rounded-2xl border border-slate-200 bg-white p-5"
+          className="mb-6 rounded-2xl border border-slate-200 bg-card p-5"
         >
           <h2 className="text-base font-semibold text-slate-900">
             Make this workspace yours
@@ -223,47 +208,29 @@ export default function DashboardPage() {
           )}
         </Panel>
       </div>
-      <div className="mb-6 flex flex-wrap items-center justify-between gap-2">
-        <h2 className="text-base font-semibold text-slate-900">
-          Latest health measurements
-        </h2>
-        <Link to="/health-tracker" className="small-link">
-          View health tracker
-          <ChevronRight size={14} />
-        </Link>
-      </div>
-      <div className="mb-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        {(Object.keys(metricInfo) as MetricType[]).map((type) => (
-          <HealthMetricCard
-            key={type}
-            type={type}
-            metric={metrics.find((m) => m.type === type)}
-          />
-        ))}
-      </div>
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-[1.4fr_1fr]">
         <Panel>
           <SectionTitle
-            title="Your health at a glance"
-            description="Measurements from the last 30 days."
+            title="Keep prescriptions connected"
+            description="From a saved medical record to a medication you have reviewed."
           />
-          <div className="mb-3 max-w-52">
-            <SelectField
-              label="Chart measurement"
-              value={chartType}
-              onChange={(e) => {
-                const value = e.target.value
-                if (value in metricInfo) setChartType(value as MetricType)
-              }}
-            >
-              {Object.entries(metricInfo).map(([v, info]) => (
-                <option key={v} value={v}>
-                  {info.label}
-                </option>
-              ))}
-            </SelectField>
-          </div>
-          <HealthChart type={chartType} metrics={recentMetrics} />
+          <p className="text-sm leading-6 text-muted-foreground">
+            Scan a printed prescription locally, compare the text with the
+            original, and confirm the medication form, strength, dosage, and
+            schedule. Missing or unclear details are never filled in
+            automatically.
+          </p>
+          <p className="mt-4 text-sm font-medium">
+            {
+              medications.filter((medication) => medication.source_record_id)
+                .length
+            }{' '}
+            medication(s) linked to medical records
+          </p>
+          <Link className="small-link mt-3" to="/medications?action=scan">
+            <ScanLine size={16} />
+            Scan and review a prescription
+          </Link>
         </Panel>
         <div className="space-y-6">
           <Panel>

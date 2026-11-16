@@ -1,8 +1,9 @@
 import { useState } from 'react'
-import { useSearchParams } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import { Upload, FolderHeart, Search } from 'lucide-react'
 import { useVault } from '../contexts/DataContext'
 import { useMutation } from '../hooks/useMutation'
+import { useQueryParams } from '../hooks/useQueryParams'
 import { categories } from '../lib/utils'
 import { deleteRecord } from '../lib/records'
 import type { MedicalRecord } from '../lib/database.types'
@@ -19,8 +20,10 @@ import { MedicalRecordCard } from '../components/MedicalRecordCard'
 import { UploadDialog } from '../components/UploadDialog'
 
 export default function MedicalRecordsPage() {
-  const { records } = useVault()
-  const [params, setParams] = useSearchParams()
+  const navigate = useNavigate()
+  const { records, medications } = useVault()
+  const [params, updateParams] = useQueryParams()
+  const selected = params.get('record')
   const [edit, setEdit] = useState<MedicalRecord | null>(null)
   const [remove, setRemove] = useState<MedicalRecord | null>(null)
   const [search, setSearch] = useState('')
@@ -31,6 +34,7 @@ export default function MedicalRecordsPage() {
   const filtered = records
     .filter(
       (r) =>
+        (!selected || r.id === selected) &&
         (!category || r.category === category) &&
         `${r.title} ${r.provider} ${r.file_name}`
           .toLowerCase()
@@ -46,7 +50,7 @@ export default function MedicalRecordsPage() {
     )
   function close() {
     setEdit(null)
-    setParams({}, { replace: true })
+    updateParams({ action: null }, { replace: true })
   }
   async function confirmDelete() {
     if (
@@ -64,13 +68,24 @@ export default function MedicalRecordsPage() {
         title="Medical records"
         description="All your important documents. Organized, private, and easy to find."
         action={
-          <Button onClick={() => setParams({ action: 'upload' })}>
+          <Button onClick={() => updateParams({ action: 'upload' })}>
             <Upload />
             Upload record
           </Button>
         }
       />
-      <div className="mb-6 flex flex-wrap items-end gap-4 rounded-2xl border border-slate-200/80 bg-white p-5">
+      {selected && (
+        <div className="mb-5 flex flex-wrap items-center justify-between gap-2 rounded-xl border bg-card p-4">
+          <p className="text-sm">Showing the linked medical record.</p>
+          <Button
+            variant="outline"
+            onClick={() => updateParams({ record: null })}
+          >
+            Show all records
+          </Button>
+        </div>
+      )}
+      <div className="mb-6 flex flex-wrap items-end gap-4 rounded-2xl border border-slate-200/80 bg-card p-5">
         <div className="min-w-0 basis-full sm:flex-1">
           <Field
             label="Search records"
@@ -118,11 +133,19 @@ export default function MedicalRecordsPage() {
               record={record}
               onEdit={() => setEdit(record)}
               onDelete={() => setRemove(record)}
+              linkedCount={
+                medications.filter(
+                  (medication) => medication.source_record_id === record.id,
+                ).length
+              }
+              onScan={() =>
+                navigate(`/medications?action=scan&source=${record.id}`)
+              }
             />
           ))}
         </div>
       ) : (
-        <div className="rounded-2xl border bg-white">
+        <div className="rounded-2xl border bg-card">
           <EmptyState
             icon={search || category ? Search : FolderHeart}
             title={
@@ -141,12 +164,13 @@ export default function MedicalRecordsPage() {
                     setSearch('')
                     setCategory('')
                     setOrder('newest')
+                    updateParams({ record: null })
                   }}
                 >
                   Clear filters
                 </Button>
               ) : (
-                <Button onClick={() => setParams({ action: 'upload' })}>
+                <Button onClick={() => updateParams({ action: 'upload' })}>
                   <Upload />
                   Upload your first record
                 </Button>
@@ -166,7 +190,7 @@ export default function MedicalRecordsPage() {
         open={!!remove}
         onClose={() => setRemove(null)}
         title="Delete this medical record?"
-        description={`"${remove?.title}" and its uploaded file will be permanently removed. This cannot be undone.`}
+        description={`"${remove?.title}" and its uploaded file will be permanently removed. Linked medications and saved prescription wording will remain, without the file link. This cannot be undone.`}
         busy={mutation.pending}
         onConfirm={() => void confirmDelete()}
       />

@@ -14,8 +14,9 @@ import {
   Link,
 } from 'react-router-dom'
 import { Toaster } from 'sonner'
-import { AuthProvider, useAuth } from './contexts/AuthContext'
-import { DataProvider } from './contexts/DataContext'
+import { useAuth } from './contexts/AuthContext'
+import { AuthProvider } from './contexts/AuthProvider'
+import { DataProvider } from './contexts/DataProvider'
 import {
   LoadingState,
   ErrorState,
@@ -24,11 +25,11 @@ import {
 } from './components/common'
 import Layout from './components/Layout'
 import AuthPage from './pages/AuthPage'
+import { useTheme } from './lib/theme'
 const DashboardPage = lazy(() => import('./pages/DashboardPage'))
 const ProfilePage = lazy(() => import('./pages/ProfilePage'))
 const MedicalRecordsPage = lazy(() => import('./pages/MedicalRecordsPage'))
 const MedicationsPage = lazy(() => import('./pages/MedicationsPage'))
-const HealthTrackerPage = lazy(() => import('./pages/HealthTrackerPage'))
 const SettingsPage = lazy(() => import('./pages/SettingsPage'))
 
 class ErrorBoundary extends Component<
@@ -84,7 +85,10 @@ function AppRoutes() {
           <Route path="/profile" element={<ProfilePage />} />
           <Route path="/medical-records" element={<MedicalRecordsPage />} />
           <Route path="/medications" element={<MedicationsPage />} />
-          <Route path="/health-tracker" element={<HealthTrackerPage />} />
+          <Route
+            path="/health-tracker"
+            element={<Navigate to="/medications" replace />}
+          />
           <Route path="/settings" element={<SettingsPage />} />
         </Route>
       </Route>
@@ -114,6 +118,7 @@ function AppRoutes() {
   )
 }
 export default function App() {
+  const { resolved } = useTheme()
   return (
     <ErrorBoundary>
       <BrowserRouter>
@@ -124,7 +129,7 @@ export default function App() {
             <AppRoutes />
           </AuthProvider>
         </Suspense>
-        <Toaster richColors position="top-right" closeButton />
+        <Toaster theme={resolved} richColors position="top-right" closeButton />
       </BrowserRouter>
     </ErrorBoundary>
   )
