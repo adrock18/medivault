@@ -1,5 +1,7 @@
 import { useState } from 'react'
-import { useForm } from 'react-hook-form'
+import { Controller, useForm } from 'react-hook-form'
+import { Checkbox } from '@base-ui/react/checkbox'
+import { Check } from 'lucide-react'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useMutation } from '../hooks/useMutation'
 import { medicationSchema, type MedicationValues } from '../lib/schemas'
@@ -37,6 +39,7 @@ export function MedicationForm({
   const [reviewError, setReviewError] = useState<string | null>(null)
   const {
     register,
+    control,
     handleSubmit,
     formState: { errors },
   } = useForm<MedicationValues>({
@@ -106,17 +109,25 @@ export function MedicationForm({
             />
           </div>
           <div className="grid gap-4 sm:grid-cols-2">
-            <SelectField
-              label="Medication form"
-              registration={register('form')}
-              error={errors.form?.message}
-            >
-              {Object.entries(medicationForms).map(([value, label]) => (
-                <option key={value} value={value}>
-                  {label}
-                </option>
-              ))}
-            </SelectField>
+            <Controller
+              name="form"
+              control={control}
+              render={({ field }) => (
+                <SelectField
+                  label="Medication form"
+                  name={field.name}
+                  ref={field.ref}
+                  onBlur={field.onBlur}
+                  value={field.value ?? 'unspecified'}
+                  onValueChange={field.onChange}
+                  disabled={mutation.pending}
+                  options={Object.entries(medicationForms).map(
+                    ([value, label]) => ({ value, label }),
+                  )}
+                  error={errors.form?.message}
+                />
+              )}
+            />
             <Field
               label="Strength / concentration (optional)"
               placeholder="e.g. 500 mg per tablet or 1% cream"
@@ -125,17 +136,26 @@ export function MedicationForm({
               hint="Product strength is not the amount to take or apply."
             />
           </div>
-          <SelectField
-            label="Frequency *"
-            registration={register('frequency')}
-            error={errors.frequency?.message}
-          >
-            {Object.entries(frequencies).map(([v, label]) => (
-              <option key={v} value={v}>
-                {label}
-              </option>
-            ))}
-          </SelectField>
+          <Controller
+            name="frequency"
+            control={control}
+            render={({ field }) => (
+              <SelectField
+                label="Frequency *"
+                name={field.name}
+                ref={field.ref}
+                onBlur={field.onBlur}
+                value={field.value}
+                onValueChange={field.onChange}
+                disabled={mutation.pending}
+                options={Object.entries(frequencies).map(([value, label]) => ({
+                  value,
+                  label,
+                }))}
+                error={errors.frequency?.message}
+              />
+            )}
+          />
           <Field
             label="Dose times *"
             placeholder="e.g. 08:00, 20:00"
@@ -163,18 +183,29 @@ export function MedicationForm({
             registration={register('instructions')}
             error={errors.instructions?.message}
           />
-          <SelectField
-            label="Linked medical record (optional)"
-            registration={register('source_record_id')}
-            error={errors.source_record_id?.message}
-          >
-            <option value="">No linked record</option>
-            {records.map((record) => (
-              <option key={record.id} value={record.id}>
-                {record.title}
-              </option>
-            ))}
-          </SelectField>
+          <Controller
+            name="source_record_id"
+            control={control}
+            render={({ field }) => (
+              <SelectField
+                label="Linked medical record (optional)"
+                name={field.name}
+                ref={field.ref}
+                onBlur={field.onBlur}
+                value={field.value ?? ''}
+                onValueChange={field.onChange}
+                disabled={mutation.pending}
+                options={[
+                  { value: '', label: 'No linked record' },
+                  ...records.map((record) => ({
+                    value: record.id,
+                    label: record.title,
+                  })),
+                ]}
+                error={errors.source_record_id?.message}
+              />
+            )}
+          />
           <TextField
             label="Prescription wording (optional)"
             registration={register('prescription_text')}
@@ -189,15 +220,22 @@ export function MedicationForm({
                 dose times.
               </p>
               <label className="flex items-start gap-3">
-                <input
-                  type="checkbox"
+                <Checkbox.Root
                   checked={reviewed}
-                  onChange={(event) => {
-                    setReviewed(event.target.checked)
+                  disabled={mutation.pending}
+                  className="group grid size-11 shrink-0 place-items-center rounded-xl focus-visible:outline-2 focus-visible:outline-ring"
+                  onCheckedChange={(checked) => {
+                    setReviewed(checked)
                     setReviewError(null)
                   }}
-                />
-                <span>
+                >
+                  <span className="grid size-6 place-items-center rounded-lg border border-input bg-card text-primary-foreground transition-colors group-data-checked:border-primary group-data-checked:bg-primary">
+                    <Checkbox.Indicator>
+                      <Check size={17} aria-hidden="true" />
+                    </Checkbox.Indicator>
+                  </span>
+                </Checkbox.Root>
+                <span className="py-2">
                   I checked these details against the original prescription.
                 </span>
               </label>

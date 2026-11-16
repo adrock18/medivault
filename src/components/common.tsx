@@ -13,6 +13,7 @@ import { Button } from './ui/button'
 import { Input } from './ui/input'
 import { Textarea } from './ui/textarea'
 import { Label } from './ui/label'
+import { Select, type SelectProps } from './ui/select'
 import {
   Dialog,
   DialogContent,
@@ -28,23 +29,19 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from './ui/alert-dialog'
-import type {
-  InputHTMLAttributes,
-  SelectHTMLAttributes,
-  TextareaHTMLAttributes,
-} from 'react'
+import type { InputHTMLAttributes, TextareaHTMLAttributes } from 'react'
 import type { UseFormRegisterReturn } from 'react-hook-form'
 import { cn } from '../lib/utils'
 
 export function Logo({ compact = false }: { compact?: boolean }) {
   return (
     <div className="flex items-center gap-2.5">
-      <div className="flex size-10 items-center justify-center rounded-xl bg-primary text-primary-foreground">
+      <div className="brand-symbol flex size-10 items-center justify-center rounded-[14px] bg-[#405dff] text-white">
         <Activity size={24} strokeWidth={2.4} />
       </div>
       {!compact && (
         <span className="text-xl font-bold tracking-tight text-slate-900">
-          Medi<span className="text-primary">Vault</span>
+          MediVault
         </span>
       )}
     </div>
@@ -53,14 +50,20 @@ export function Logo({ compact = false }: { compact?: boolean }) {
 export function Panel({
   children,
   className,
+  tone = 'section',
 }: {
   children: ReactNode
   className?: string
+  tone?: 'raised' | 'section'
 }) {
   return (
     <Card
+      data-tone={tone}
       className={cn(
-        'min-w-0 gap-0 rounded-2xl border border-slate-200/80 bg-card p-5 shadow-[0_4px_24px_rgba(24,59,53,0.045)] sm:p-6',
+        'min-w-0 gap-0 rounded-[28px] border p-5 shadow-none ring-0 sm:p-6',
+        tone === 'raised'
+          ? 'border-slate-200 bg-surface-raised'
+          : 'border-transparent bg-card',
         className,
       )}
     >
@@ -103,7 +106,7 @@ export function PageTitle({
   return (
     <div className="mb-7 flex flex-wrap items-center justify-between gap-4">
       <div className="min-w-0 max-w-2xl">
-        <h1 className="text-2xl font-semibold tracking-tight text-slate-900 sm:text-3xl">
+        <h1 className="text-[2.4rem] leading-tight font-semibold tracking-[-0.055em] text-slate-900 sm:text-5xl">
           {title}
         </h1>
         <p className="mt-2 text-sm leading-6 text-muted-foreground">
@@ -111,6 +114,89 @@ export function PageTitle({
         </p>
       </div>
       {action}
+    </div>
+  )
+}
+export function Skeleton({ className }: { className?: string }) {
+  return (
+    <div
+      aria-hidden="true"
+      className={cn(
+        'rounded-lg bg-slate-100 motion-safe:animate-pulse',
+        className,
+      )}
+    />
+  )
+}
+export type PageSkeletonVariant = 'dashboard' | 'list' | 'form'
+export function PageSkeleton({ variant }: { variant: PageSkeletonVariant }) {
+  return (
+    <div
+      role="status"
+      aria-label="Loading page"
+      data-skeleton={variant}
+      className="min-w-0"
+    >
+      <span className="sr-only">Loading…</span>
+      <Skeleton className="h-8 w-56 max-w-full" />
+      <Skeleton className="mt-3 mb-7 h-4 w-80 max-w-full" />
+      {variant === 'dashboard' && (
+        <>
+          <div className="mb-6 grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_384px]">
+            <Panel>
+              <Skeleton className="mb-6 h-5 w-40" />
+              <Skeleton className="mb-7 h-12 w-60 max-w-full rounded-full" />
+              <div className="space-y-6">
+                {[0, 1, 2].map((row) => (
+                  <div key={row}>
+                    <Skeleton className="mb-3 h-3 w-20" />
+                    <Skeleton className="h-36 w-full rounded-3xl" />
+                  </div>
+                ))}
+              </div>
+            </Panel>
+            <Panel>
+              <Skeleton className="mb-5 h-5 w-40" />
+              <Skeleton className="mx-auto aspect-square w-full max-w-60 rounded-full" />
+              <Skeleton className="mt-5 h-12 w-full" />
+            </Panel>
+          </div>
+          <div className="grid gap-6 lg:grid-cols-2">
+            <Panel>
+              <Skeleton className="mb-5 h-5 w-40" />
+              <Skeleton className="h-36 w-full" />
+            </Panel>
+            <Panel>
+              <Skeleton className="mb-5 h-5 w-40" />
+              <Skeleton className="h-36 w-full" />
+            </Panel>
+          </div>
+        </>
+      )}
+      {variant === 'list' && (
+        <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+          {[0, 1, 2].map((card) => (
+            <Panel key={card}>
+              <Skeleton className="mb-4 size-11 rounded-xl" />
+              <Skeleton className="h-5 w-3/4" />
+              <Skeleton className="mt-3 h-4 w-1/2" />
+              <Skeleton className="mt-6 h-11 w-full" />
+            </Panel>
+          ))}
+        </div>
+      )}
+      {variant === 'form' && (
+        <Panel className="max-w-3xl">
+          <div className="grid gap-5 sm:grid-cols-2">
+            {[0, 1, 2, 3, 4, 5].map((field) => (
+              <div key={field} className="space-y-2">
+                <Skeleton className="h-4 w-24" />
+                <Skeleton className="h-11 w-full rounded-xl" />
+              </div>
+            ))}
+          </div>
+        </Panel>
+      )}
     </div>
   )
 }
@@ -205,17 +291,19 @@ export function StatCard({
   value,
   subtitle,
   icon: Icon,
+  className,
 }: {
   title: string
   value: string | number
   subtitle: string
   icon: LucideIcon
+  className?: string
 }) {
   return (
-    <Panel className="relative">
+    <Panel className={cn('relative !p-4', className)}>
       <div className="flex items-center justify-between gap-3">
         <p className="text-sm font-medium text-muted-foreground">{title}</p>
-        <span className="rounded-xl bg-teal-50 p-2.5 text-primary">
+        <span className="color-emblem rounded-full bg-card p-2.5 text-primary">
           <Icon size={20} />
         </span>
       </div>
@@ -299,27 +387,28 @@ export function TextField({
 export function SelectField({
   label,
   error,
-  registration,
-  children,
+  hint,
   ...props
-}: FieldCommon & SelectHTMLAttributes<HTMLSelectElement>) {
+}: Omit<FieldCommon, 'registration'> & SelectProps) {
   const id = useId()
   return (
     <div className="space-y-2">
       <Label htmlFor={id}>{label}</Label>
-      <select
+      <Select
         id={id}
-        className="form-select"
         aria-invalid={!!error}
-        aria-describedby={error ? `${id}-error` : undefined}
-        {...registration}
+        aria-describedby={error || hint ? `${id}-help` : undefined}
         {...props}
-      >
-        {children}
-      </select>
-      {error && (
-        <p id={`${id}-error`} className="text-xs text-red-700">
-          {error}
+      />
+      {(error || hint) && (
+        <p
+          id={`${id}-help`}
+          className={cn(
+            'text-xs leading-5',
+            error ? 'text-red-700' : 'text-muted-foreground',
+          )}
+        >
+          {error || hint}
         </p>
       )}
     </div>

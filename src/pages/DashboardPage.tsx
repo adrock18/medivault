@@ -2,11 +2,11 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import {
   FileText,
-  Clock3,
   Upload,
   Plus,
   ScanLine,
-  ChevronRight,
+  CalendarDays,
+  ShieldCheck,
 } from 'lucide-react'
 import { addDays, format } from 'date-fns'
 import { useVault } from '../contexts/DataContext'
@@ -19,7 +19,6 @@ import {
   weekBreakdown,
 } from '../lib/dashboard'
 import {
-  PageTitle,
   Panel,
   SectionTitle,
   EmptyState,
@@ -84,120 +83,138 @@ export default function DashboardPage() {
   ].filter((item) => !item.complete)
   return (
     <>
-      <PageTitle
-        title={`${greeting}${firstName ? ', ' + firstName : ''}`}
-        description="Your medication routine and medical records, together in one place."
-        action={
-          <div className="flex flex-wrap gap-2">
-            <Link to="/medications?action=scan" className="action-link">
-              <ScanLine size={16} />
-              Scan prescription
-            </Link>
-            <Link
-              to="/medications?action=add"
-              className="small-link rounded-xl border bg-card px-3"
-            >
-              <Plus size={16} />
-              Add medication
-            </Link>
-            <Link
-              to="/medical-records?action=upload"
-              className="small-link rounded-xl border bg-card px-3"
-            >
-              <Upload size={16} />
-              Upload record
-            </Link>
-          </div>
-        }
-      />
-      <MedicationReminder doses={doses} now={now} />
-      {setup.length > 0 && (
-        <section
-          aria-label="Workspace setup"
-          className="mb-6 rounded-2xl border border-slate-200 bg-card p-5"
-        >
-          <h2 className="text-base font-semibold text-slate-900">
-            Make this workspace yours
-          </h2>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Start wherever you need. You can use MediVault without completing
-            every step.
+      <div className="mb-8 flex flex-wrap items-end justify-between gap-5">
+        <div>
+          <p className="mb-4 text-sm text-muted-foreground">
+            {greeting}
+            {firstName ? `, ${firstName}` : ''}. Here's your day.
           </p>
-          <div className="mt-3 flex flex-wrap gap-2">
-            {setup.map((item) => (
-              <Link
-                key={item.to}
-                to={item.to}
-                className="small-link rounded-xl bg-teal-50 px-3"
-              >
-                {item.label}
-                <ChevronRight size={16} />
-              </Link>
-            ))}
+          <div className="flex items-center gap-5">
+            <div className="calendar-tile" aria-hidden="true">
+              <span>{format(now, 'MMM')}</span>
+              <span>{format(now, 'd')}</span>
+            </div>
+            <div>
+              <h1 className="today-heading">Today</h1>
+              <p className="mt-2 text-xs text-muted-foreground sm:text-sm">
+                {format(now, 'EEE, MMM d, yyyy')}
+              </p>
+            </div>
           </div>
-          {!medications.length && (
-            <p className="mt-3 text-xs text-muted-foreground">
-              Medication setup is optional. Only add an existing prescription
-              from your clinician.
-            </p>
-          )}
-        </section>
-      )}
-      <Panel className="mb-6">
-        <section aria-label="Today">
-          <SectionTitle
-            title="Today"
-            description={format(now, 'EEEE, MMMM d')}
-            action={
-              <Link to="/medications" className="small-link">
-                All medications
-                <ChevronRight size={14} />
-              </Link>
-            }
-          />
-          <div className="grid gap-6 lg:grid-cols-[15rem_minmax(0,1fr)] lg:gap-8">
-            <DayDial
-              doses={doses}
-              now={now}
-              filter={doseFilter}
-              onFilterChange={setDoseFilter}
-            />
-            <DoseTimeline
-              doses={doses}
-              filter={doseFilter}
-              onFilterChange={setDoseFilter}
-            />
-          </div>
-          <div className="mt-5 border-t border-slate-100 pt-4">
-            <DailyInsight statements={insights} />
-          </div>
-        </section>
-      </Panel>
+        </div>
+        <Link
+          to="/medications?action=add"
+          aria-label="Add medication"
+          className="action-link size-12 !p-0 sm:h-auto sm:w-auto sm:!px-5 sm:!py-3"
+        >
+          <Plus size={18} />
+          <span className="hidden sm:inline">Add medication</span>
+        </Link>
+      </div>
       <section
-        aria-label="Recent activity"
-        className="mb-6 grid gap-6 border-y border-slate-200 py-6 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)] lg:gap-10"
+        aria-label="Today"
+        className="mb-7 grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_384px]"
       >
-        <WeekActivityChart days={weekBreakdown(medications, logs, now)} />
-        <div className="space-y-5 lg:border-l lg:border-slate-200 lg:pl-10">
-          <AdherenceRing value={adherence30(logs, now)} />
-          <VaultCounts
-            records={records.length}
-            activeMedications={
-              medications.filter((m) => medicationStatus(m, today) === 'active')
-                .length
+        <div className="routine-panel tint-sky">
+          <SectionTitle
+            title="Medications for today"
+            action={
+              <Link
+                to="/medications"
+                aria-label="Manage medications"
+                className="small-link text-xs"
+              >
+                <span className="hidden sm:inline">Manage medications</span>
+                <CalendarDays size={19} className="sm:hidden" />
+              </Link>
             }
           />
+          <DoseTimeline
+            doses={doses}
+            filter={doseFilter}
+            onFilterChange={setDoseFilter}
+          />
+          <div className="mt-7 border-t border-slate-200 pt-5">
+            <MedicationReminder doses={doses} now={now} />
+          </div>
+        </div>
+        <div className="grid min-w-0 gap-6 min-[900px]:grid-cols-2 xl:grid-cols-1">
+          <Panel className="tint-lavender overflow-hidden">
+            <SectionTitle
+              title="Your daily rhythm"
+              description="A full day, at a glance."
+            />
+            <div className="dose-orbit -mx-3">
+              <DayDial
+                doses={doses}
+                now={now}
+                filter={doseFilter}
+                onFilterChange={setDoseFilter}
+              />
+            </div>
+            <div className="mt-4 border-t pt-4">
+              <DailyInsight statements={insights} />
+            </div>
+          </Panel>
+          <Panel className="tint-mint">
+            <WeekActivityChart days={weekBreakdown(medications, logs, now)} />
+            <div className="mt-5 border-t pt-5">
+              <AdherenceRing value={adherence30(logs, now)} />
+            </div>
+          </Panel>
         </div>
       </section>
-      <div className="mb-6 grid grid-cols-1 gap-6 xl:grid-cols-[1.4fr_1fr]">
-        <Panel>
+      <div className="mb-7 grid gap-3 md:grid-cols-3">
+        <Link
+          to="/medications?action=scan"
+          className="quick-access tint-lavender"
+          aria-label="Scan prescription"
+        >
+          <span className="grid size-11 shrink-0 place-items-center rounded-2xl bg-accent text-primary">
+            <ScanLine size={22} />
+          </span>
+          <span>
+            <span className="block text-sm font-medium">Scan prescription</span>
+            <span className="mt-1 block text-xs text-muted-foreground">
+              Read, review, then save
+            </span>
+          </span>
+        </Link>
+        <Link
+          to="/medical-records?action=upload"
+          className="quick-access tint-peach"
+          aria-label="Upload record"
+        >
+          <span className="grid size-11 shrink-0 place-items-center rounded-2xl bg-accent text-primary">
+            <Upload size={22} />
+          </span>
+          <span>
+            <span className="block text-sm font-medium">Upload record</span>
+            <span className="mt-1 block text-xs text-muted-foreground">
+              Keep your paperwork together
+            </span>
+          </span>
+        </Link>
+        <Link to="/profile" className="quick-access tint-mint">
+          <span className="grid size-11 shrink-0 place-items-center rounded-2xl bg-accent text-primary">
+            <ShieldCheck size={22} />
+          </span>
+          <span>
+            <span className="block text-sm font-medium">Health profile</span>
+            <span className="mt-1 block text-xs text-muted-foreground">
+              Your important details
+            </span>
+          </span>
+        </Link>
+      </div>
+      <div className="mb-6 grid grid-cols-1 gap-6 xl:grid-cols-[1fr_1fr]">
+        <Panel className="tint-sky">
           <SectionTitle
             title="Recent medical records"
             description="Your latest uploads, always within reach."
             action={
               <Link to="/medical-records" className="small-link">
                 View vault
-                <ChevronRight size={14} />
               </Link>
             }
           />
@@ -224,7 +241,7 @@ export default function DashboardPage() {
             />
           )}
         </Panel>
-        <Panel>
+        <Panel className="tint-peach">
           <SectionTitle
             title="Upcoming schedule"
             description="Next unlogged doses in the next 7 days."
@@ -235,15 +252,21 @@ export default function DashboardPage() {
                 key={`${d.medication.id}-${d.date}-${d.time}`}
                 className="flex items-center gap-3 border-b border-slate-100 py-3 last:border-0"
               >
-                <span className="rounded-lg bg-teal-50 p-2 text-primary">
-                  <Clock3 size={17} />
+                <span className="rounded-2xl bg-slate-50 p-3 text-muted-foreground">
+                  <CalendarDays size={19} />
                 </span>
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-medium text-slate-700">
                     {d.medication.name}
                   </p>
                   <p className="mt-1 text-xs text-slate-400">
-                    {d.date === today ? 'Today' : d.date} &middot; {d.time}
+                    {d.date === today
+                      ? 'Today'
+                      : format(
+                          new Date(`${d.date}T12:00:00`),
+                          'EEE, MMM d',
+                        )}{' '}
+                    at {d.time}
                   </p>
                 </div>
                 <span className="text-[10px] font-medium text-slate-400">
@@ -258,29 +281,40 @@ export default function DashboardPage() {
           )}
         </Panel>
       </div>
-      <Panel>
-        <SectionTitle
-          title="Keep prescriptions connected"
-          description="From a saved medical record to a medication you have reviewed."
+      <div className="flex flex-wrap items-center justify-between gap-4 rounded-3xl border border-slate-200 px-5 py-3">
+        <VaultCounts
+          records={records.length}
+          activeMedications={
+            medications.filter((m) => medicationStatus(m, today) === 'active')
+              .length
+          }
         />
-        <p className="max-w-3xl text-sm leading-6 text-muted-foreground">
-          Scan a printed prescription locally, compare the text with the
-          original, and confirm the medication form, strength, dosage, and
-          schedule. Missing or unclear details are never filled in
-          automatically.
-        </p>
-        <p className="mt-4 text-sm font-medium">
+        <p className="text-xs text-muted-foreground">
           {
             medications.filter((medication) => medication.source_record_id)
               .length
           }{' '}
           medication(s) linked to medical records
         </p>
-        <Link className="small-link mt-3" to="/medications?action=scan">
-          <ScanLine size={16} />
-          Scan and review a prescription
-        </Link>
-      </Panel>
+      </div>
+      {setup.length > 0 && (
+        <section aria-label="Workspace setup" className="mt-6 px-1">
+          <h2 className="text-sm font-medium">Make this workspace yours</h2>
+          <div className="mt-2 flex flex-wrap gap-x-5 gap-y-1">
+            {setup.map((item) => (
+              <Link key={item.to} to={item.to} className="small-link text-xs">
+                {item.label}
+              </Link>
+            ))}
+          </div>
+          {!medications.length && (
+            <p className="mt-2 text-xs text-muted-foreground">
+              Medication setup is optional. Only add an existing prescription
+              from your clinician.
+            </p>
+          )}
+        </section>
+      )}
       <SafetyNote />
     </>
   )

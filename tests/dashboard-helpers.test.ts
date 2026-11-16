@@ -4,6 +4,7 @@ import {
   dailyInsights,
   dayBreakdown,
   loggedStreak,
+  partOfDay,
   weekBreakdown,
 } from '../src/lib/dashboard'
 import { scheduledDoses } from '../src/lib/utils'
@@ -124,4 +125,15 @@ describe('dashboard derivations', () => {
       'Add a medication or upload a record, and a summary of your day will appear here.',
     ])
   })
+})
+
+it.each([
+  ['00:00', 'Morning'],
+  ['11:59', 'Morning'],
+  ['12:00', 'Afternoon'],
+  ['16:59', 'Afternoon'],
+  ['17:00', 'Evening'],
+  ['23:59', 'Evening'],
+] as const)('places %s in the %s period', (time, period) => {
+  expect(partOfDay(time)).toBe(period)
 })

@@ -89,14 +89,14 @@ export default function SettingsPage() {
       />
       <div className="grid items-start gap-6 xl:grid-cols-2">
         <div className="min-w-0 space-y-6">
-          <Panel>
+          <Panel className="tint-lavender">
             <SectionTitle
               title="Appearance"
               description="Choose Light, Dark, or follow your system. Saved on this browser only."
             />
             <ThemeSelect />
           </Panel>
-          <Panel>
+          <Panel className="tint-sky">
             <SectionTitle
               title="Account"
               description="Your MediVault sign-in details."
@@ -147,7 +147,7 @@ export default function SettingsPage() {
           </Panel>
         </div>
         <div className="space-y-6">
-          <Panel>
+          <Panel className="tint-mint">
             <SectionTitle
               title="Your data, your control"
               description="Download a copy of your structured health information."
@@ -167,7 +167,7 @@ export default function SettingsPage() {
               Export my health data
             </Button>
           </Panel>
-          <Panel>
+          <Panel className="tint-peach">
             <SectionTitle
               title="Explore with sample data"
               description="Optional, fictional entries to try the complete workflow."

@@ -94,9 +94,10 @@ export default function MedicationsPage() {
           </div>
         }
       />
-      <div className="mb-6 grid gap-4 sm:grid-cols-3">
+      <div className="mb-7 grid gap-3 sm:grid-cols-3">
         <StatCard
           title="Active medications"
+          className="tint-lavender"
           value={
             medications.filter((m) => medicationStatus(m, today) === 'active')
               .length
@@ -106,12 +107,14 @@ export default function MedicationsPage() {
         />
         <StatCard
           title="Today's doses"
+          className="tint-sky"
           value={`${doses.filter((d) => d.log?.status === 'taken').length} / ${doses.length}`}
           subtitle="Taken / scheduled today"
           icon={Clock3}
         />
         <StatCard
           title="Recorded adherence"
+          className="tint-mint"
           value={
             history.length
               ? `${Math.round((taken / history.length) * 100)}%`
@@ -121,7 +124,6 @@ export default function MedicationsPage() {
           icon={CheckCheck}
         />
       </div>
-      <MedicationReminder doses={doses} now={now} />
       {record && (
         <div className="mb-5 flex flex-wrap items-center justify-between gap-2 rounded-xl border bg-card p-4">
           <p className="text-sm">
@@ -135,13 +137,16 @@ export default function MedicationsPage() {
           </Button>
         </div>
       )}
-      <Panel className="mb-6">
+      <div className="routine-panel tint-sky mb-7">
         <SectionTitle
           title="Today's schedule"
-          description={`${displayDate(today)} · Local time · Updates while this website is open`}
+          description={`${displayDate(today)}, in your local time. Updates while this page is open.`}
         />
         <DoseSchedule doses={doses} />
-      </Panel>
+        <div className="mt-7 border-t pt-5">
+          <MedicationReminder doses={doses} now={now} />
+        </div>
+      </div>
       <Panel className="mb-5">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
           <h2 className="font-semibold">Your medications</h2>

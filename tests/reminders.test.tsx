@@ -1,6 +1,12 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { cleanup, fireEvent, render, screen } from '@testing-library/react'
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  within,
+} from '@testing-library/react'
 import '@testing-library/jest-dom/vitest'
 import { MedicationReminder } from '../src/components/MedicationReminder'
 import { DoseSchedule } from '../src/components/DoseSchedule'
@@ -77,12 +83,12 @@ describe('website medication check-ins', () => {
     expect(screen.getByRole('status')).toHaveTextContent(
       "Today's doses are all logged",
     )
-    expect(screen.getByRole('status')).toHaveTextContent('0 taken · 1 skipped')
+    expect(screen.getByRole('status')).toHaveTextContent('0 taken, 1 skipped')
   })
   it('filters pending and logged doses without losing access to undo', () => {
     render(<DoseSchedule doses={[dose, skipped]} />)
     fireEvent.click(screen.getByRole('button', { name: /To log/ }))
-    expect(screen.getByText('Past scheduled time')).toBeInTheDocument()
+    expect(screen.getByText('Not logged')).toBeInTheDocument()
     expect(screen.queryByText('Logged medication')).not.toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: /Logged/ }))
     expect(screen.getByText('Logged medication')).toBeInTheDocument()
@@ -91,21 +97,50 @@ describe('website medication check-ins', () => {
       screen.getByRole('button', { name: /Undo Logged medication/ }),
     ).toBeInTheDocument()
   })
-  it('orders the timeline around a current-time marker and emphasizes the next unlogged dose', () => {
+  it('groups the timeline by period around a current-time marker and emphasizes the next unlogged dose', () => {
     const later = {
       ...dose,
       medication: { ...dose.medication, id: 'med-3', name: 'Evening item' },
       time: '20:00',
     }
-    render(<DoseSchedule doses={[dose, skipped, later]} />)
-    const items = screen
+    const { container } = render(
+      <DoseSchedule doses={[dose, skipped, later]} />,
+    )
+    const region = screen.getByRole('region', {
+      name: "Today's doses in time order",
+    })
+    expect(
+      within(region)
+        .getAllByRole('heading', { level: 3 })
+        .map((heading) => heading.textContent),
+    ).toEqual(['Morning', 'Evening'])
+    const items = within(region)
       .getAllByRole('listitem')
       .map((item) => item.textContent ?? '')
     const marker = items.findIndex((text) => text.includes('Now, 09:00'))
     expect(marker).toBe(2)
+    const morning = screen.getByRole('region', { name: 'Morning' })
+    expect(within(morning).getByText('Now, 09:00')).toBeInTheDocument()
     expect(items[3]).toContain('Evening item')
     expect(items[3]).toContain('Up next')
     expect(items[0]).not.toContain('Up next')
     expect(screen.getAllByText('Up next')).toHaveLength(1)
+    expect(container.textContent).not.toMatch(/missed/i)
+  })
+  it('keeps headings only for periods with matching doses when filtered', () => {
+    const later = {
+      ...dose,
+      medication: { ...dose.medication, id: 'med-3', name: 'Evening item' },
+      time: '20:00',
+    }
+    render(<DoseSchedule doses={[skipped, later]} />)
+    fireEvent.click(screen.getByRole('button', { name: /To log/ }))
+    expect(
+      screen
+        .getAllByRole('heading', { level: 3 })
+        .map((heading) => heading.textContent),
+    ).toEqual(['Evening'])
+    const evening = screen.getByRole('region', { name: 'Evening' })
+    expect(within(evening).getByText('Now, 09:00')).toBeInTheDocument()
   })
 })

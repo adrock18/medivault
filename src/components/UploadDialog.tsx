@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { useForm } from 'react-hook-form'
+import { useId, useState } from 'react'
+import { Controller, useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { UploadCloud } from 'lucide-react'
 import { useMutation } from '../hooks/useMutation'
@@ -29,10 +29,12 @@ export function UploadDialog({
   onUploaded?: (record: MedicalRecord) => void
 }) {
   const mutation = useMutation()
+  const fileId = useId()
   const [file, setFile] = useState<File | null>(null)
   const [fileError, setFileError] = useState<string | null>(null)
   const {
     register,
+    control,
     handleSubmit,
     formState: { errors },
   } = useForm<RecordValues>({
@@ -86,20 +88,44 @@ export function UploadDialog({
       <form onSubmit={handleSubmit(submit)} noValidate>
         <fieldset disabled={mutation.pending} className="space-y-5">
           {!record && (
-            <div className="rounded-xl border-2 border-dashed border-teal-200 bg-teal-50/50 p-5">
-              <UploadCloud className="mx-auto mb-3 text-primary" size={28} />
-              <Field
-                label="Choose document *"
+            <div>
+              <input
+                id={fileId}
                 type="file"
+                className="peer sr-only"
+                aria-label="Choose document *"
+                aria-invalid={!!fileError}
+                aria-describedby={`${fileId}-help`}
                 accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png"
                 onChange={(event) => {
                   setFile(event.target.files?.[0] ?? null)
                   setFileError(null)
                 }}
-                error={fileError ?? undefined}
-                hint="PDF, JPG, or PNG. Maximum 10 MB."
-                className="h-auto bg-card py-2"
               />
+              <label
+                htmlFor={fileId}
+                className="upload-chooser flex min-h-44 cursor-pointer flex-col items-center justify-center gap-3 rounded-3xl border border-dashed border-input bg-slate-50 p-6 text-center transition-colors hover:border-primary hover:bg-accent peer-focus-visible:outline-2 peer-focus-visible:outline-offset-4 peer-focus-visible:outline-ring peer-disabled:pointer-events-none peer-disabled:opacity-50"
+              >
+                <span className="grid size-12 place-items-center rounded-2xl bg-card text-primary">
+                  <UploadCloud size={24} />
+                </span>
+                <span className="max-w-full break-words text-sm font-medium">
+                  {file ? file.name : 'Choose a document'}
+                </span>
+                <span className="rounded-full bg-primary px-4 py-2 text-xs font-medium text-primary-foreground">
+                  {file ? 'Replace document' : 'Browse files'}
+                </span>
+              </label>
+              <p
+                id={`${fileId}-help`}
+                className={
+                  fileError
+                    ? 'mt-2 text-xs text-red-700'
+                    : 'mt-2 text-xs text-muted-foreground'
+                }
+              >
+                {fileError || 'PDF, JPG, or PNG. Maximum 10 MB.'}
+              </p>
             </div>
           )}
           <Field
@@ -109,17 +135,26 @@ export function UploadDialog({
             error={errors.title?.message}
           />
           <div className="grid gap-4 sm:grid-cols-2">
-            <SelectField
-              label="Category *"
-              registration={register('category')}
-              error={errors.category?.message}
-            >
-              {Object.entries(categories).map(([value, label]) => (
-                <option key={value} value={value}>
-                  {label}
-                </option>
-              ))}
-            </SelectField>
+            <Controller
+              name="category"
+              control={control}
+              render={({ field }) => (
+                <SelectField
+                  label="Category *"
+                  name={field.name}
+                  ref={field.ref}
+                  onBlur={field.onBlur}
+                  value={field.value}
+                  onValueChange={field.onChange}
+                  disabled={mutation.pending}
+                  options={Object.entries(categories).map(([value, label]) => ({
+                    value,
+                    label,
+                  }))}
+                  error={errors.category?.message}
+                />
+              )}
+            />
             <Field
               label="Record date *"
               type="date"

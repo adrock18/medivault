@@ -18,6 +18,16 @@ export type DayCounts = {
 export const clockTime = (date: Date) =>
   `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`
 
+export type PartOfDay = 'Morning' | 'Afternoon' | 'Evening'
+export const partsOfDay: PartOfDay[] = ['Morning', 'Afternoon', 'Evening']
+
+export function partOfDay(time: string): PartOfDay {
+  const hour = Number(time.slice(0, 2))
+  if (hour < 12) return 'Morning'
+  if (hour < 17) return 'Afternoon'
+  return 'Evening'
+}
+
 export function dayBreakdown(
   meds: Medication[],
   logs: DoseLog[],

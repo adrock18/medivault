@@ -36,7 +36,15 @@ function Appearance() {
     </>
   )
 }
-it('follows system changes until overridden, synchronizes controls and restores the saved selection', () => {
+async function chooseAppearance(index: number, name: string) {
+  fireEvent.click(
+    screen.getAllByRole('combobox', { name: 'Appearance' })[index],
+  )
+  const option = await screen.findByRole('option', { name })
+  fireEvent.pointerDown(option)
+  fireEvent.click(option)
+}
+it('follows system changes until overridden, synchronizes controls and restores the saved selection', async () => {
   render(<Appearance />)
   expect(screen.getByText('light')).toBeInTheDocument()
   act(() => {
@@ -44,17 +52,13 @@ it('follows system changes until overridden, synchronizes controls and restores 
     media.dispatchEvent(new Event('change'))
   })
   expect(document.documentElement).toHaveClass('dark')
-  fireEvent.change(screen.getAllByLabelText('Appearance')[0], {
-    target: { value: 'light' },
-  })
+  await chooseAppearance(0, 'Light')
   expect(document.documentElement).not.toHaveClass('dark')
-  expect(screen.getAllByLabelText('Appearance')[1]).toHaveValue('light')
+  expect(screen.getAllByLabelText('Appearance')[1]).toHaveTextContent('Light')
   expect(localStorage.getItem('medivault-theme')).toBe('light')
   act(() => initializeTheme())
   expect(document.documentElement.style.colorScheme).toBe('light')
-  fireEvent.change(screen.getAllByLabelText('Appearance')[1], {
-    target: { value: 'system' },
-  })
+  await chooseAppearance(1, 'System')
   expect(document.documentElement).toHaveClass('dark')
   act(() => {
     dark = false
@@ -71,13 +75,13 @@ it('responds to another tab changing or clearing the saved theme', () => {
     )
   })
   expect(document.documentElement).toHaveClass('dark')
-  expect(screen.getAllByLabelText('Appearance')[0]).toHaveValue('dark')
+  expect(screen.getAllByLabelText('Appearance')[0]).toHaveTextContent('Dark')
   act(() => {
     localStorage.clear()
     window.dispatchEvent(new StorageEvent('storage', { key: null }))
   })
   expect(document.documentElement).not.toHaveClass('dark')
-  expect(screen.getAllByLabelText('Appearance')[0]).toHaveValue('system')
+  expect(screen.getAllByLabelText('Appearance')[0]).toHaveTextContent('System')
 })
 it('continues following the system after another appearance control unmounts', () => {
   const first = render(<ThemeSelect />)
@@ -88,20 +92,18 @@ it('continues following the system after another appearance control unmounts', (
     media.dispatchEvent(new Event('change'))
   })
   expect(document.documentElement).toHaveClass('dark')
-  expect(screen.getByLabelText('Appearance')).toHaveValue('system')
+  expect(screen.getByLabelText('Appearance')).toHaveTextContent('System')
 })
-it('keeps the selected appearance but reports when browser storage cannot save it', () => {
+it('keeps the selected appearance but reports when browser storage cannot save it', async () => {
   const notify = vi.spyOn(toast, 'error')
   const log = vi.spyOn(console, 'error').mockImplementation(() => {})
   vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
     throw new Error('Storage blocked')
   })
   render(<Appearance />)
-  fireEvent.change(screen.getAllByLabelText('Appearance')[0], {
-    target: { value: 'dark' },
-  })
+  await chooseAppearance(0, 'Dark')
   expect(document.documentElement).toHaveClass('dark')
-  expect(screen.getAllByLabelText('Appearance')[1]).toHaveValue('dark')
+  expect(screen.getAllByLabelText('Appearance')[1]).toHaveTextContent('Dark')
   expect(log).toHaveBeenCalledWith(
     'Unable to save theme preference.',
     expect.any(Error),

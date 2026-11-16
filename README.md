@@ -2,6 +2,16 @@
 
 A responsive **medication and medical-records workspace** with React + TypeScript + Vite, Tailwind CSS, shadcn/ui, Express, and persistent SQLite. Prescription scanning runs locally in the browser; no cloud database, OCR account, AI key, or external authentication/storage service is required.
 
+## Interface
+
+The Today screen puts the medication feed first, with time-of-day icons, explicit Taken/Skip/Undo controls, and a daily rhythm dial with outcome filters. Desktop uses a navigation rail and an activity column; smaller screens use a floating navigation capsule. Light, Dark, and System appearances remain available, with System as the default. The dark theme uses ink/slate surfaces, blue navigation, green dose confirmations, and warm/cool time-of-day accents inspired by the medication-card reference. Motion is CSS-only and respects reduced-motion preferences. All counts and charts use saved data; a past scheduled time is never treated as proof of a missed dose.
+
+Appearance menus, filters, and form dropdowns share a themed, keyboard-accessible select with typeahead, selected-state checkmarks, and viewport-aware popups. Uploads use a document chooser with the selected filename; prescription review retains an explicit confirmation checkbox. Native file dialogs and date inputs remain available.
+
+Cards use a frosted-glass finish with opaque fallbacks, soft edge highlights, and staggered entrances. A slow ambient backdrop adds depth. On sign-in and registration, an original SVG illustration cycles through a capsule, syringe, cream tube, and bottle with crossfades and perspective flips, including a compact mobile version and pause/resume control. Navigation, quick actions, record icons, and medication emblems respond to interaction. Hover effects stay on fine pointers; reduced motion shows a static capsule and collapses other animation and transition durations. Motion never changes health data or medication schedules.
+
+Soft lavender, mint, peach, and sky accents tint glass surfaces, section icons, and quick actions in both themes. Dark mode uses a near-black navy workspace, deep glass cards, and subdued color washes; light mode retains pastel surfaces. Decorative colors do not change the labeled dose-status colors or chart meanings.
+
 ## Run the complete application
 
 Use **Node.js 24 LTS** (minimum 22.18) and npm. SQLite uses Node's built-in `node:sqlite`, so no separate database installation or native npm build is needed.

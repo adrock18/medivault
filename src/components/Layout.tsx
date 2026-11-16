@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { Suspense, useState } from 'react'
 import {
   Link,
   NavLink,
@@ -22,10 +22,11 @@ import { format } from 'date-fns'
 import { toast } from 'sonner'
 import {
   Logo,
-  LoadingState,
   ErrorState,
   FormDialog,
   DemoNotice,
+  PageSkeleton,
+  type PageSkeletonVariant,
 } from './common'
 import { Button } from './ui/button'
 import { useAuth } from '../contexts/AuthContext'
@@ -47,9 +48,6 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
       <div className="px-6 py-8">
         <Logo />
       </div>
-      <div className="mb-3 px-7 text-xs font-semibold tracking-[0.16em] text-muted-foreground">
-        YOUR HEALTH SPACE
-      </div>
       <nav aria-label="Main navigation" className="space-y-1 px-4">
         {navigation.map(({ to, label, icon: Icon }) => (
           <NavLink
@@ -58,9 +56,9 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
             onClick={onNavigate}
             className={({ isActive }) =>
               cn(
-                'flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium transition-colors',
+                'nav-item relative flex items-center gap-3 px-4 py-3 text-sm font-medium',
                 isActive
-                  ? 'bg-teal-50 text-primary'
+                  ? 'font-semibold'
                   : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900',
               )
             }
@@ -70,19 +68,11 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
           </NavLink>
         ))}
       </nav>
-      <div className="mt-auto p-5">
-        <div className="rounded-xl border border-teal-100 bg-teal-50/70 p-4">
-          <ShieldCheck className="mb-2 text-primary" size={22} />
-          <p className="text-sm font-semibold text-teal-900">
-            Private by design
-          </p>
-          <p className="mt-1 text-xs leading-5 text-teal-800">
-            Your documents stay in private server storage, accessible only
-            through your signed-in account.
-          </p>
-        </div>
-        <p className="mt-5 text-center text-[11px] text-slate-400">
-          MediVault &middot; Personal healthcare
+      <div className="mt-auto px-6 py-6">
+        <p className="flex items-start gap-2 text-xs leading-5 text-muted-foreground">
+          <ShieldCheck className="mt-0.5 size-4 shrink-0 text-primary" />
+          Documents stay in private storage, open only to your signed-in
+          account.
         </p>
       </div>
     </div>
@@ -108,7 +98,7 @@ export function Header({ onMenu }: { onMenu: () => void }) {
     }
   }
   return (
-    <header className="flex min-h-20 flex-wrap items-center justify-between gap-2 border-b border-slate-200/80 bg-card px-4 py-2 sm:px-8">
+    <header className="workspace-header flex min-h-20 flex-wrap items-center justify-between gap-2 px-4 py-2 sm:px-8">
       <div className="flex min-w-0 items-center gap-2 sm:gap-3">
         <Button
           variant="ghost"
@@ -120,7 +110,7 @@ export function Header({ onMenu }: { onMenu: () => void }) {
           <Menu />
         </Button>
         <span className="hidden text-sm text-slate-400 sm:block">
-          My workspace
+          Personal workspace
         </span>
         <ChevronRight className="hidden size-3 text-slate-300 sm:block" />
         <span className="truncate text-sm font-semibold text-slate-700">
@@ -168,18 +158,27 @@ export function Header({ onMenu }: { onMenu: () => void }) {
     </header>
   )
 }
+function pageSkeletonFor(pathname: string): PageSkeletonVariant {
+  if (pathname.startsWith('/dashboard')) return 'dashboard'
+  if (pathname.startsWith('/profile') || pathname.startsWith('/settings'))
+    return 'form'
+  return 'list'
+}
 export default function Layout() {
   const [mobile, setMobile] = useState(false)
   const { loading, error, reload, profile, now } = useVault()
+  const location = useLocation()
+  const skeleton = pageSkeletonFor(location.pathname)
   return (
-    <div className="min-h-screen bg-[var(--workspace)]">
+    <div className="workspace-shell min-h-screen bg-workspace">
+      <div className="ambient-backdrop" aria-hidden="true" />
       <a
         href="#main-content"
         className="sr-only focus:not-sr-only focus:fixed focus:z-50 focus:bg-card focus:p-3"
       >
         Skip to content
       </a>
-      <aside className="fixed inset-y-0 left-0 hidden w-64 border-r border-slate-200/80 bg-card lg:block">
+      <aside className="workspace-sidebar fixed inset-y-4 left-4 hidden w-56 rounded-[30px] border border-slate-200/60 lg:block">
         <Sidebar />
       </aside>
       <FormDialog
@@ -190,15 +189,15 @@ export default function Layout() {
       >
         <Sidebar onNavigate={() => setMobile(false)} />
       </FormDialog>
-      <div className="min-w-0 pb-24 lg:ml-64 lg:pb-0">
+      <div className="min-w-0 pb-32 lg:ml-64 lg:pb-0">
         <DemoNotice />
         <Header onMenu={() => setMobile(true)} />
         <main
           id="main-content"
-          className="mx-auto min-w-0 max-w-7xl px-4 py-7 sm:px-8 sm:py-8"
+          className="mx-auto min-w-0 max-w-[1440px] px-4 pt-5 pb-8 sm:px-8 sm:pt-8"
         >
           {loading ? (
-            <LoadingState />
+            <PageSkeleton variant={skeleton} />
           ) : (
             <>
               {error && (
@@ -209,7 +208,17 @@ export default function Layout() {
                   />
                 </div>
               )}
-              {(!error || profile) && <Outlet />}
+              {(!error || profile) && (
+                <div
+                  key={location.pathname}
+                  data-route-transition
+                  className="motion-safe:animate-in motion-safe:fade-in motion-safe:duration-200"
+                >
+                  <Suspense fallback={<PageSkeleton variant={skeleton} />}>
+                    <Outlet />
+                  </Suspense>
+                </div>
+              )}
             </>
           )}
         </main>
@@ -222,7 +231,7 @@ export default function Layout() {
       </div>
       <nav
         aria-label="Mobile navigation"
-        className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-4 border-t border-slate-200 bg-card pb-[env(safe-area-inset-bottom)] shadow-[0_-4px_16px_rgba(24,59,53,0.04)] lg:hidden"
+        className="mobile-dock fixed inset-x-4 bottom-[calc(1rem+env(safe-area-inset-bottom))] z-30 mx-auto grid max-w-md grid-cols-4 gap-1 rounded-full border border-slate-300/50 p-1.5 lg:hidden"
       >
         {navigation.slice(0, 4).map(({ to, label, icon: Icon }) => (
           <NavLink
@@ -230,12 +239,16 @@ export default function Layout() {
             to={to}
             className={({ isActive }) =>
               cn(
-                'flex flex-col items-center gap-1 py-3 text-[10px]',
-                isActive ? 'text-primary' : 'text-slate-400',
+                'group flex min-h-14 flex-col items-center justify-center gap-1 rounded-full py-2 text-[10px] transition-colors',
+                isActive
+                  ? 'font-medium'
+                  : 'text-slate-500 hover:text-slate-900',
               )
             }
           >
-            <Icon size={20} />
+            <span className="flex h-5 items-center justify-center">
+              <Icon size={19} />
+            </span>
             {label === 'Medical records'
               ? 'Records'
               : label === 'Health profile'

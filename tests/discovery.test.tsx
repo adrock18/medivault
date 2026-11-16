@@ -16,6 +16,7 @@ import {
 } from 'react-router-dom'
 import MedicationsPage from '../src/pages/MedicationsPage'
 import MedicalRecordsPage from '../src/pages/MedicalRecordsPage'
+import { MedicationForm } from '../src/components/MedicationForm'
 import type { Medication, MedicalRecord } from '../src/lib/database.types'
 
 const fixture = vi.hoisted(() => ({ vault: {} }))
@@ -81,6 +82,54 @@ function vault(medications: Medication[], records: MedicalRecord[]) {
     reload: vi.fn(),
   }
 }
+it('saves custom dropdown values, clears a linked record, and locks dropdowns while saving', async () => {
+  let finish!: () => void
+  const pending = new Promise<void>((resolve) => {
+    finish = resolve
+  })
+  const close = vi.fn()
+  mocks.save.mockReturnValue(pending)
+  vault([], [{ ...record, id: sourceId }])
+  render(
+    <MedicationForm
+      medication={{ ...medication, source_record_id: sourceId }}
+      onClose={close}
+    />,
+  )
+  expect(
+    screen.getByLabelText('Linked medical record (optional)'),
+  ).toHaveTextContent('Older report')
+  fireEvent.click(
+    screen.getByRole('combobox', {
+      name: 'Linked medical record (optional)',
+    }),
+  )
+  const unlinked = await screen.findByRole('option', {
+    name: 'No linked record',
+  })
+  fireEvent.pointerDown(unlinked)
+  fireEvent.click(unlinked)
+  fireEvent.click(screen.getByRole('combobox', { name: 'Medication form' }))
+  const form = await screen.findByRole('option', { name: 'Capsule' })
+  fireEvent.pointerDown(form)
+  fireEvent.click(form)
+  fireEvent.click(screen.getByRole('button', { name: 'Save medication' }))
+  await waitFor(() =>
+    expect(mocks.save).toHaveBeenCalledWith(
+      expect.objectContaining({
+        form: 'capsule',
+        source_record_id: '',
+        frequency: 'once_daily',
+      }),
+      medication.id,
+    ),
+  )
+  for (const control of screen.getAllByRole('combobox'))
+    expect(control).toBeDisabled()
+  expect(close).not.toHaveBeenCalled()
+  await act(async () => finish())
+  expect(close).toHaveBeenCalledOnce()
+})
 it('combines normalized medication search with status and resets without changing saved entries', () => {
   const entries = [
     medication,
@@ -138,7 +187,7 @@ it('keeps medication setup distinct from an unmatched populated list', () => {
     screen.queryByRole('button', { name: 'Clear filters' }),
   ).not.toBeInTheDocument()
 })
-it('combines normalized record search and category with deterministic date sorting and reset', () => {
+it('combines normalized record search and category with deterministic date sorting and reset', async () => {
   const entries: MedicalRecord[] = [
     { ...record, id: 'z', title: 'Tie Z', record_date: '2026-01-02' },
     record,
@@ -169,18 +218,22 @@ it('combines normalized record search and category with deterministic date sorti
   fireEvent.change(screen.getByLabelText('Search records'), {
     target: { value: ' TEST CLINIC ' },
   })
-  fireEvent.change(screen.getByLabelText('Category'), {
-    target: { value: 'lab_report' },
-  })
+  fireEvent.click(screen.getByRole('combobox', { name: 'Category' }))
+  const category = await screen.findByRole('option', { name: 'Lab report' })
+  fireEvent.pointerDown(category)
+  fireEvent.click(category)
   expect(titles()).toEqual([
     'Recently uploaded tie',
     'Tie A',
     'Tie Z',
     'Older report',
   ])
-  fireEvent.change(screen.getByLabelText('Record date order'), {
-    target: { value: 'oldest' },
+  fireEvent.click(screen.getByRole('combobox', { name: 'Record date order' }))
+  const order = await screen.findByRole('option', {
+    name: 'Oldest record date',
   })
+  fireEvent.pointerDown(order)
+  fireEvent.click(order)
   expect(titles()).toEqual([
     'Older report',
     'Recently uploaded tie',
@@ -191,8 +244,10 @@ it('combines normalized record search and category with deterministic date sorti
     target: { value: 'not present' },
   })
   fireEvent.click(screen.getByRole('button', { name: 'Clear filters' }))
-  expect(screen.getByLabelText('Record date order')).toHaveValue('newest')
-  expect(screen.getByLabelText('Category')).toHaveValue('')
+  expect(screen.getByLabelText('Record date order')).toHaveTextContent(
+    'Newest record date',
+  )
+  expect(screen.getByLabelText('Category')).toHaveTextContent('All categories')
   expect(titles()[0]).toBe('Scan')
   expect(entries.map((entry) => entry.id)).toEqual([
     'z',
@@ -296,9 +351,10 @@ it('keeps the selected source record when its metadata edit is cancelled or save
     { initialEntries: [`/medical-records?record=${sourceId}`] },
   )
   render(<RouterProvider router={router} />)
-  fireEvent.change(screen.getByLabelText('Category'), {
-    target: { value: 'lab_report' },
-  })
+  fireEvent.click(screen.getByRole('combobox', { name: 'Category' }))
+  const category = await screen.findByRole('option', { name: 'Lab report' })
+  fireEvent.pointerDown(category)
+  fireEvent.click(category)
   const titles = () =>
     screen.getAllByRole('heading', { level: 2 }).map((e) => e.textContent)
   expect(titles()).toEqual(['Older report'])
@@ -310,7 +366,7 @@ it('keeps the selected source record when its metadata edit is cancelled or save
   )
   expect(mocks.update).not.toHaveBeenCalled()
   expect(router.state.location.search).toBe(`?record=${sourceId}`)
-  expect(screen.getByLabelText('Category')).toHaveValue('lab_report')
+  expect(screen.getByLabelText('Category')).toHaveTextContent('Lab report')
   expect(titles()).toEqual(['Older report'])
 
   fireEvent.click(screen.getByRole('button', { name: 'Edit Older report' }))

@@ -1,4 +1,4 @@
-import { useForm } from 'react-hook-form'
+import { Controller, useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { UserRound, ShieldCheck, Phone } from 'lucide-react'
 import { useVault } from '../contexts/DataContext'
@@ -23,6 +23,7 @@ function ProfileForm() {
   const mutation = useMutation()
   const {
     register,
+    control,
     handleSubmit,
     formState: { errors },
   } = useForm<ProfileValues>({
@@ -48,7 +49,7 @@ function ProfileForm() {
   return (
     <form onSubmit={handleSubmit(submit)} noValidate>
       <fieldset disabled={mutation.pending} className="space-y-6">
-        <Panel>
+        <Panel className="tint-sky">
           <SectionTitle
             title="Personal information"
             description="The essentials that make your care more personal."
@@ -67,27 +68,51 @@ function ProfileForm() {
               registration={register('date_of_birth')}
               error={errors.date_of_birth?.message}
             />
-            <SelectField
-              label="Gender (optional)"
-              registration={register('gender')}
-              error={errors.gender?.message}
-            >
-              <option value="">Not specified</option>
-              <option value="female">Female</option>
-              <option value="male">Male</option>
-              <option value="non_binary">Non-binary</option>
-              <option value="prefer_not_to_say">Prefer not to say</option>
-            </SelectField>
-            <SelectField
-              label="Blood group"
-              registration={register('blood_group')}
-              error={errors.blood_group?.message}
-            >
-              <option value="">Unknown / not specified</option>
-              {['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'].map((v) => (
-                <option key={v}>{v}</option>
-              ))}
-            </SelectField>
+            <Controller
+              name="gender"
+              control={control}
+              render={({ field }) => (
+                <SelectField
+                  label="Gender (optional)"
+                  name={field.name}
+                  ref={field.ref}
+                  onBlur={field.onBlur}
+                  value={field.value}
+                  onValueChange={field.onChange}
+                  disabled={mutation.pending}
+                  options={[
+                    { value: '', label: 'Not specified' },
+                    { value: 'female', label: 'Female' },
+                    { value: 'male', label: 'Male' },
+                    { value: 'non_binary', label: 'Non-binary' },
+                    { value: 'prefer_not_to_say', label: 'Prefer not to say' },
+                  ]}
+                  error={errors.gender?.message}
+                />
+              )}
+            />
+            <Controller
+              name="blood_group"
+              control={control}
+              render={({ field }) => (
+                <SelectField
+                  label="Blood group"
+                  name={field.name}
+                  ref={field.ref}
+                  onBlur={field.onBlur}
+                  value={field.value}
+                  onValueChange={field.onChange}
+                  disabled={mutation.pending}
+                  options={[
+                    { value: '', label: 'Unknown / not specified' },
+                    ...['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'].map(
+                      (value) => ({ value, label: value }),
+                    ),
+                  ]}
+                  error={errors.blood_group?.message}
+                />
+              )}
+            />
             <Field
               label="Height (cm)"
               type="number"
@@ -108,7 +133,7 @@ function ProfileForm() {
             />
           </div>
         </Panel>
-        <Panel>
+        <Panel className="tint-mint">
           <SectionTitle
             title="Medical background"
             description="Record known information from your healthcare providers."
@@ -129,7 +154,7 @@ function ProfileForm() {
             />
           </div>
         </Panel>
-        <Panel>
+        <Panel className="tint-peach">
           <SectionTitle
             title="Emergency contact"
             description="Someone to contact when it matters most."

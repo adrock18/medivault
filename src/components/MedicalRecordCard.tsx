@@ -50,8 +50,8 @@ export function MedicalRecordCard({
   }
   if (compact)
     return (
-      <div className="flex items-center gap-3 border-b border-slate-100 py-4 last:border-0">
-        <div className="rounded-xl bg-teal-50 p-3 text-primary">
+      <div className="record-row tint-sky flex items-center gap-3 border-b border-slate-100 py-4 last:border-0">
+        <div className="record-emblem rounded-xl bg-teal-50 p-3 text-primary">
           <FileText size={20} />
         </div>
         <div className="min-w-0 flex-1">
@@ -59,8 +59,7 @@ export function MedicalRecordCard({
             {record.title}
           </h3>
           <p className="mt-1 text-xs text-muted-foreground">
-            {categories[record.category]} &middot;{' '}
-            {displayDate(record.record_date)}
+            {categories[record.category]}, {displayDate(record.record_date)}
           </p>
         </div>
         <Button
@@ -75,9 +74,9 @@ export function MedicalRecordCard({
       </div>
     )
   return (
-    <Panel>
+    <Panel className="record-card tint-sky">
       <div className="mb-4 flex items-start justify-between gap-2">
-        <div className="rounded-xl bg-teal-50 p-3 text-primary">
+        <div className="record-emblem rounded-xl bg-teal-50 p-3 text-primary">
           <FileText size={24} />
         </div>
         <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-medium text-slate-600">
@@ -90,10 +89,19 @@ export function MedicalRecordCard({
       <p className="mt-2 break-words text-sm text-muted-foreground">
         {record.provider || 'No provider specified'}
       </p>
-      <p className="mt-2 text-xs text-slate-400">
-        {displayDate(record.record_date)} &middot; {fileSize(record.file_size)}{' '}
-        &middot; {record.file_type === 'application/pdf' ? 'PDF' : 'Image'}
-      </p>
+      <dl className="mt-3 flex flex-wrap gap-x-5 gap-y-1 text-xs">
+        <div>
+          <dt className="sr-only">Record date</dt>
+          <dd className="text-slate-600">{displayDate(record.record_date)}</dd>
+        </div>
+        <div>
+          <dt className="sr-only">File</dt>
+          <dd className="text-muted-foreground">
+            {record.file_type === 'application/pdf' ? 'PDF' : 'Image'},{' '}
+            {fileSize(record.file_size)}
+          </dd>
+        </div>
+      </dl>
       <div className="mt-5 flex items-center justify-between gap-2 border-t pt-4">
         <Button
           variant="outline"
@@ -147,7 +155,7 @@ export function MedicalRecordCard({
       </div>
       <p className="mt-3 flex items-center gap-1.5 text-[10px] text-slate-400">
         <LockKeyhole size={11} />
-        Private document &middot; authenticated access only
+        Private document, open only to your signed-in account
       </p>
       {(onScan || linkedCount > 0) && (
         <div className="mt-3 flex flex-wrap gap-2">

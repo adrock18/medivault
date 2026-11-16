@@ -3,13 +3,7 @@ import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import {
-  ShieldCheck,
-  FolderHeart,
-  Pill,
-  ScanText,
-  ArrowRight,
-} from 'lucide-react'
+import { ShieldCheck, Pill } from 'lucide-react'
 import {
   Logo,
   Field,
@@ -21,6 +15,7 @@ import { loginSchema, registerSchema } from '../lib/schemas'
 import { errorMessage } from '../lib/api'
 import { useAuth } from '../contexts/AuthContext'
 import { ThemeSelect } from '../components/ThemeSelect'
+import { MedicationShowcase } from '../components/MedicationShowcase'
 
 function LoginForm() {
   const { signIn } = useAuth()
@@ -60,9 +55,7 @@ function LoginForm() {
       />
       {error && <ErrorState message={error} />}
       <div className="[&_button]:w-full">
-        <SubmitButton busy={isSubmitting}>
-          Sign in <ArrowRight />
-        </SubmitButton>
+        <SubmitButton busy={isSubmitting}>Sign in</SubmitButton>
       </div>
     </form>
   )
@@ -119,9 +112,7 @@ function RegisterForm() {
       />
       {error && <ErrorState message={error} />}
       <div className="[&_button]:w-full">
-        <SubmitButton busy={isSubmitting}>
-          Create account <ArrowRight />
-        </SubmitButton>
+        <SubmitButton busy={isSubmitting}>Create account</SubmitButton>
       </div>
     </form>
   )
@@ -132,75 +123,56 @@ export default function AuthPage({
   registration?: boolean
 }) {
   const { session } = useAuth()
+  const [motionPaused, setMotionPaused] = useState(false)
   if (session) return <Navigate to="/dashboard" replace />
   return (
-    <div className="flex min-h-screen flex-col bg-card">
+    <div className="auth-shell flex min-h-screen flex-col bg-workspace">
+      <div className="ambient-backdrop" aria-hidden="true" />
       <DemoNotice />
       <div className="grid flex-1 lg:grid-cols-2">
-        <section className="relative hidden flex-col justify-between overflow-hidden bg-accent p-12 lg:flex">
-          <Logo />
-          <div className="relative z-10 max-w-lg">
-            <span className="mb-6 inline-flex items-center gap-2 rounded-full border border-teal-200 bg-card/60 px-3 py-1.5 text-xs font-medium text-primary">
-              <ShieldCheck size={14} />A little more peace of mind
-            </span>
-            <h1 className="text-5xl font-semibold leading-[1.15] tracking-tight text-foreground">
-              Your health.
-              <br />
-              One secure place.
-            </h1>
-            <p className="mt-6 max-w-sm text-base leading-7 text-muted-foreground">
-              Less paperwork. More clarity. Bring your medical records and
-              medication routine into one thoughtfully organized space.
-            </p>
-            <div className="mt-10 space-y-5">
-              {[
-                {
-                  icon: FolderHeart,
-                  title: 'Every record, within reach',
-                  text: 'Keep your medical documents together.',
-                },
-                {
-                  icon: Pill,
-                  title: 'Stay on top of your routine',
-                  text: 'Track your prescribed medication schedule.',
-                },
-                {
-                  icon: ScanText,
-                  title: 'Scan prescriptions, then review',
-                  text: 'Read printed prescriptions on your device and confirm every detail before saving.',
-                },
-              ].map(({ icon: Icon, title, text }) => (
-                <div key={title} className="flex gap-4">
-                  <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-card/70 text-primary">
-                    <Icon size={21} />
-                  </span>
-                  <div>
-                    <p className="text-sm font-semibold text-foreground">
-                      {title}
-                    </p>
-                    <p className="mt-1 text-sm text-muted-foreground">{text}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
+        <section className="auth-art relative hidden flex-col justify-between overflow-hidden p-12 xl:p-16 lg:flex">
+          <div className="[&_span]:text-white">
+            <Logo />
           </div>
-          <p className="text-xs text-muted-foreground">
-            Personal healthcare, made simpler.
+          <div className="relative z-10 max-w-lg py-12">
+            <h1 className="text-6xl font-medium leading-[1.05] tracking-[-0.06em] xl:text-7xl">
+              A little order.
+              <br />A clearer day.
+            </h1>
+            <p className="mt-6 max-w-sm text-base leading-7 text-[#acb7ce]">
+              Your medications, medical records, and important details.
+              Together, at your pace.
+            </p>
+            <div className="my-10">
+              <MedicationShowcase
+                paused={motionPaused}
+                onPausedChange={setMotionPaused}
+              />
+            </div>
+            <p className="flex items-center gap-3 text-sm text-[#acb7ce]">
+              <Pill size={18} />
+              Built around your prescribed routine.
+            </p>
+          </div>
+          <p className="flex items-center gap-2 text-xs text-[#acb7ce]">
+            <ShieldCheck size={16} />
+            Private records. Personal space.
           </p>
-          <div className="pointer-events-none absolute -bottom-28 -right-40 size-[500px] rounded-full border-[70px] border-white/25" />
         </section>
-        <section className="flex flex-col px-6 py-8 sm:px-12">
+        <section className="flex flex-col gap-6 px-6 py-8 sm:px-12">
           <div className="flex justify-end">
             <ThemeSelect />
           </div>
-          <div className="lg:hidden">
+          <div className="flex items-center justify-between gap-2 lg:hidden">
             <Logo />
+            <MedicationShowcase
+              compact
+              paused={motionPaused}
+              onPausedChange={setMotionPaused}
+            />
           </div>
-          <div className="mx-auto my-auto w-full max-w-sm py-12">
-            <p className="mb-3 text-xs font-semibold uppercase tracking-[0.18em] text-primary">
-              Welcome to MediVault
-            </p>
-            <h1 className="text-3xl font-semibold tracking-tight text-slate-900">
+          <div className="auth-form glass-surface tint-lavender mx-auto my-auto w-full max-w-md rounded-[32px] p-5 sm:p-8">
+            <h1 className="text-4xl font-medium tracking-[-0.055em] text-slate-900">
               {registration
                 ? 'Start your health journey'
                 : 'Good to have you back'}

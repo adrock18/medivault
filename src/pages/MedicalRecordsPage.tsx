@@ -98,28 +98,28 @@ export default function MedicalRecordsPage() {
           <SelectField
             label="Record date order"
             value={order}
-            onChange={(event) => {
-              const value = event.target.value
+            options={[
+              { value: 'newest', label: 'Newest record date' },
+              { value: 'oldest', label: 'Oldest record date' },
+            ]}
+            onValueChange={(value) => {
               if (value === 'newest' || value === 'oldest') setOrder(value)
             }}
-          >
-            <option value="newest">Newest record date</option>
-            <option value="oldest">Oldest record date</option>
-          </SelectField>
+          />
         </div>
         <div className="w-full sm:w-52">
           <SelectField
             label="Category"
             value={category}
-            onChange={(e) => setCategory(e.target.value)}
-          >
-            <option value="">All categories</option>
-            {Object.entries(categories).map(([v, label]) => (
-              <option key={v} value={v}>
-                {label}
-              </option>
-            ))}
-          </SelectField>
+            onValueChange={setCategory}
+            options={[
+              { value: '', label: 'All categories' },
+              ...Object.entries(categories).map(([value, label]) => ({
+                value,
+                label,
+              })),
+            ]}
+          />
         </div>
         <span className="pb-3 text-xs text-muted-foreground">
           {filtered.length} record{filtered.length !== 1 && 's'}

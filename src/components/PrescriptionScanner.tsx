@@ -109,20 +109,17 @@ export function PrescriptionScanner({
             label="Prescription or medical record"
             value={selected}
             disabled={busy}
-            onChange={(event) => {
-              setSelected(event.target.value)
+            onValueChange={(value) => {
+              setSelected(value)
               setText('')
               setError(null)
               setAdded(new Set())
             }}
-          >
-            <option value="">Choose a saved document</option>
-            {records.map((item) => (
-              <option key={item.id} value={item.id}>
-                {item.title}
-              </option>
-            ))}
-          </SelectField>
+            options={[
+              { value: '', label: 'Choose a saved document' },
+              ...records.map((item) => ({ value: item.id, label: item.title })),
+            ]}
+          />
           <div className="flex flex-wrap gap-2">
             <Button
               variant="outline"

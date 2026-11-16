@@ -53,6 +53,26 @@ function fill(label: string, value: string) {
   fireEvent.change(screen.getByLabelText(label), { target: { value } })
 }
 describe('Express-connected forms', () => {
+  it('lets users pause and resume the medication illustration without submitting authentication', () => {
+    render(
+      <MemoryRouter>
+        <AuthPage />
+      </MemoryRouter>,
+    )
+    fireEvent.click(
+      screen.getAllByRole('button', { name: 'Pause medication animation' })[0],
+    )
+    const resume = screen.getAllByRole('button', {
+      name: 'Play medication animation',
+    })[0]
+    expect(resume).toHaveAttribute('aria-pressed', 'true')
+    fireEvent.click(resume)
+    expect(
+      screen.queryByRole('button', { name: 'Play medication animation' }),
+    ).not.toBeInTheDocument()
+    expect(mocks.login).not.toHaveBeenCalled()
+    expect(mocks.signup).not.toHaveBeenCalled()
+  })
   it('validates login input and surfaces the server authentication error', async () => {
     mocks.login.mockRejectedValue(new Error('Invalid email or password.'))
     render(
@@ -171,7 +191,10 @@ describe('Express-connected forms', () => {
     render(<MedicationForm onClose={close} />)
     fill('Medicine name *', 'Example medication')
     fill('Prescribed dosage *', 'As prescribed')
-    fill('Frequency *', 'twice_daily')
+    fireEvent.click(screen.getByRole('combobox', { name: 'Frequency *' }))
+    const frequency = await screen.findByRole('option', { name: 'Twice daily' })
+    fireEvent.pointerDown(frequency)
+    fireEvent.click(frequency)
     fill('Dose times *', '08:00, 08:00')
     fireEvent.click(screen.getByRole('button', { name: 'Add medication' }))
     expect(
@@ -182,7 +205,13 @@ describe('Express-connected forms', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Add medication' }))
     await waitFor(() => expect(close).toHaveBeenCalledOnce())
     expect(mocks.medication).toHaveBeenCalledWith(
-      expect.objectContaining({ times: '20:00, 08:00', end_date: '' }),
+      expect.objectContaining({
+        times: '20:00, 08:00',
+        end_date: '',
+        frequency: 'twice_daily',
+        form: 'unspecified',
+        source_record_id: '',
+      }),
       undefined,
     )
     expect(mocks.medication.mock.calls[0][0]).not.toHaveProperty('user_id')

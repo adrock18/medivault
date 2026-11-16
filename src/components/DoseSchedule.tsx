@@ -1,9 +1,24 @@
 import { useState } from 'react'
-import { Check, Pill, RotateCcw, LoaderCircle, X } from 'lucide-react'
+import {
+  Check,
+  Pill,
+  RotateCcw,
+  LoaderCircle,
+  X,
+  Sun,
+  Sunset,
+  Moon,
+} from 'lucide-react'
 import { useVault } from '../contexts/DataContext'
 import { useMutation } from '../hooks/useMutation'
 import { api } from '../lib/api'
-import { clockTime, markState, nextDose } from '../lib/dashboard'
+import {
+  clockTime,
+  markState,
+  nextDose,
+  partOfDay,
+  partsOfDay,
+} from '../lib/dashboard'
 import { cn, doseTiming, type ScheduledDose } from '../lib/utils'
 import { EmptyState } from './common'
 import { StatusMark } from './DashboardVisuals'
@@ -14,7 +29,7 @@ export type DoseFilter = 'all' | 'unlogged' | 'logged' | 'taken' | 'skipped'
 const labels = {
   scheduled: 'Scheduled',
   due: 'Due now',
-  past_time: 'Past scheduled time',
+  past_time: 'Not logged',
   taken: 'Taken',
   skipped: 'Skipped',
 }
@@ -23,8 +38,12 @@ function DoseRow({ dose, isNext }: { dose: ScheduledDose; isNext: boolean }) {
   const { now } = useVault()
   const mutation = useMutation()
   const timing = doseTiming(dose, now)
+  const period = partOfDay(dose.time)
+  const PeriodIcon =
+    period === 'Morning' ? Sun : period === 'Afternoon' ? Sunset : Moon
+  const [changes, setChanges] = useState(0)
   async function mark(status: 'taken' | 'skipped') {
-    await mutation.run(async () => {
+    const ok = await mutation.run(async () => {
       await api.doses.add({
         medication_id: dose.medication.id,
         scheduled_date: dose.date,
@@ -32,96 +51,93 @@ function DoseRow({ dose, isNext }: { dose: ScheduledDose; isNext: boolean }) {
         status,
       })
     }, `Dose marked as ${status}.`)
+    if (ok) setChanges((count) => count + 1)
   }
   async function undo() {
     const log = dose.log
     if (!log) return
-    await mutation.run(async () => {
+    const ok = await mutation.run(async () => {
       await api.doses.remove(log.id)
     }, 'Dose log removed. This dose is scheduled again.')
+    if (ok) setChanges((count) => count + 1)
   }
   return (
-    <li
-      className={cn(
-        'relative grid grid-cols-[2.75rem_1.5rem_minmax(0,1fr)] items-start gap-x-2 rounded-xl py-3 pr-2',
-        isNext && 'bg-teal-50',
-      )}
-    >
-      <span
-        className={cn(
-          'pt-0.5 text-right text-sm tabular-nums text-muted-foreground',
-          isNext && 'font-semibold text-primary',
-        )}
-      >
-        {dose.time}
+    <li className="dose-card" data-next={isNext} data-status={timing}>
+      <span className="dose-symbol" data-period={period}>
+        <PeriodIcon size={30} strokeWidth={1.6} aria-hidden="true" />
       </span>
-      <span className="relative z-10 flex justify-center pt-0.5">
-        <span className="rounded-full bg-card">
-          <StatusMark state={markState(dose, now, isNext ? dose : undefined)} />
-        </span>
-      </span>
-      <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-2">
-        <div className="min-w-0 flex-1 basis-40">
-          <p className="break-words text-sm">
-            <span className="font-semibold text-slate-800">
-              {dose.medication.name}
-            </span>{' '}
-            <span className="inline-block text-muted-foreground">
-              {dose.medication.dosage}
-            </span>
-          </p>
-          <p className="mt-0.5 flex flex-wrap gap-x-2 text-xs">
-            {isNext && (
-              <span className="font-semibold text-primary">Up next</span>
-            )}
-            <span
-              className={cn(
-                'font-medium text-muted-foreground',
-                dose.log?.status === 'taken' && 'text-primary',
-                (timing === 'due' || timing === 'past_time') &&
-                  'text-amber-700',
-              )}
-            >
-              {labels[timing]}
-            </span>
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          {mutation.pending ? (
-            <LoaderCircle className="size-4 animate-spin text-primary" />
-          ) : dose.log ? (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => void undo()}
-              aria-label={`Undo ${dose.medication.name} dose at ${dose.time}`}
-            >
-              <RotateCcw />
-              Undo
-            </Button>
-          ) : (
-            <>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => void mark('taken')}
-                aria-label={`Mark ${dose.medication.name} dose at ${dose.time} as taken`}
-              >
-                <Check />
-                Taken
-              </Button>
-              <Button
-                size="sm"
-                variant="ghost"
-                className="text-slate-500"
-                onClick={() => void mark('skipped')}
-                aria-label={`Skip ${dose.medication.name} dose at ${dose.time}`}
-              >
-                Skip
-              </Button>
-            </>
+      <div className="min-w-0">
+        <p className="break-words text-base leading-snug font-medium tracking-tight sm:text-lg">
+          {dose.medication.name}
+        </p>
+        <p className="mt-1 break-words text-sm text-muted-foreground">
+          {dose.medication.dosage}
+        </p>
+      </div>
+      <div className="self-start text-right">
+        <p className="text-lg font-medium tracking-tight tabular-nums sm:text-xl">
+          {dose.time}
+        </p>
+        <p className="mt-1 text-[11px] text-muted-foreground">
+          {isNext ? 'Up next' : dose.log ? 'Logged' : 'Local time'}
+        </p>
+      </div>
+      <div className="dose-actions">
+        <span
+          key={changes}
+          data-state-change={changes > 0 || undefined}
+          data-status={timing}
+          className={cn(
+            'dose-status mr-auto inline-flex items-center gap-1.5 text-xs text-muted-foreground',
+            changes > 0 && 'mark-pop',
           )}
-        </div>
+        >
+          <StatusMark
+            state={markState(dose, now, isNext ? dose : undefined)}
+            size={16}
+          />
+          {labels[timing]}
+        </span>
+        {mutation.pending ? (
+          <span
+            role="status"
+            aria-label="Saving dose"
+            className="grid size-11 place-items-center"
+          >
+            <LoaderCircle className="size-5 animate-spin text-primary" />
+          </span>
+        ) : dose.log ? (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => void undo()}
+            aria-label={`Undo ${dose.medication.name} dose at ${dose.time}`}
+          >
+            <RotateCcw />
+            Undo
+          </Button>
+        ) : (
+          <>
+            <Button
+              size="sm"
+              className="take-dose"
+              onClick={() => void mark('taken')}
+              aria-label={`Mark ${dose.medication.name} dose at ${dose.time} as taken`}
+            >
+              <Check />
+              Taken
+            </Button>
+            <Button
+              size="sm"
+              variant="ghost"
+              className="text-slate-500"
+              onClick={() => void mark('skipped')}
+              aria-label={`Skip ${dose.medication.name} dose at ${dose.time}`}
+            >
+              Skip
+            </Button>
+          </>
+        )}
       </div>
     </li>
   )
@@ -129,15 +145,9 @@ function DoseRow({ dose, isNext }: { dose: ScheduledDose; isNext: boolean }) {
 
 function NowMarker({ now }: { now: Date }) {
   return (
-    <li className="grid grid-cols-[2.75rem_1.5rem_minmax(0,1fr)] items-center gap-x-2 py-1">
-      <span />
-      <span className="relative z-10 flex justify-center">
-        <span className="size-2.5 rounded-full bg-primary ring-4 ring-card" />
-      </span>
-      <span className="flex items-center gap-2 text-xs font-semibold text-primary">
-        Now, {clockTime(now)}
-        <span aria-hidden="true" className="h-px flex-1 bg-primary/40" />
-      </span>
+    <li className="now-marker">
+      <span aria-hidden="true" className="size-1.5 rounded-full bg-primary" />
+      Now, {clockTime(now)}
     </li>
   )
 }
@@ -173,19 +183,20 @@ export function DoseTimeline({
   const visible = doses.filter((dose) => matches(dose, filter))
   const next = nextDose(doses, now)
   const nowTime = clockTime(now)
-  const markerAt = visible.findIndex((dose) => dose.time > nowTime)
-  const items = visible.map((dose) => (
-    <DoseRow
-      key={`${dose.medication.id}-${dose.date}-${dose.time}`}
-      dose={dose}
-      isNext={dose === next}
-    />
-  ))
-  items.splice(
-    markerAt === -1 ? items.length : markerAt,
-    0,
-    <NowMarker key="now" now={now} />,
-  )
+  const groups = partsOfDay
+    .map((period) => ({
+      period,
+      doses: visible.filter((dose) => partOfDay(dose.time) === period),
+    }))
+    .filter((group) => group.doses.length)
+  const nowPeriod = partOfDay(nowTime)
+  const markerGroup =
+    groups.find((group) => group.period === nowPeriod) ??
+    groups.find(
+      (group) =>
+        partsOfDay.indexOf(group.period) > partsOfDay.indexOf(nowPeriod),
+    ) ??
+    groups.at(-1)
   const tabs = [
     { value: 'all', label: 'All doses', count: doses.length },
     { value: 'unlogged', label: 'To log', count: pending },
@@ -193,11 +204,7 @@ export function DoseTimeline({
   ] as const
   return (
     <div className="min-w-0">
-      <div
-        role="group"
-        className="mb-2 flex flex-wrap items-center gap-1"
-        aria-label="Filter dose schedule"
-      >
+      <div role="group" className="dose-tabs" aria-label="Filter dose schedule">
         {tabs.map((tab) => (
           <Button
             key={tab.value}
@@ -205,10 +212,9 @@ export function DoseTimeline({
             size="sm"
             aria-pressed={filter === tab.value}
             onClick={() => setFilter(tab.value)}
-            className={cn(filter === tab.value && 'bg-teal-50 text-primary')}
           >
             {tab.label}
-            <span className="ml-1 rounded-md bg-slate-100 px-1.5 py-0.5 text-[10px] text-slate-500">
+            <span className="ml-1 text-[10px] tabular-nums opacity-70">
               {tab.count}
             </span>
           </Button>
@@ -236,14 +242,44 @@ export function DoseTimeline({
         </p>
       )}
       {visible.length > 0 && (
-        <div className="relative">
-          <span
-            aria-hidden="true"
-            className="absolute top-4 bottom-4 left-[calc(2.75rem+0.5rem+0.75rem-0.5px)] w-px bg-slate-200"
-          />
-          <ol aria-label="Today's doses in time order" className="relative">
-            {items}
-          </ol>
+        <div
+          role="region"
+          aria-label="Today's doses in time order"
+          className="space-y-7"
+        >
+          {groups.map((group) => {
+            const items = group.doses.map((dose) => (
+              <DoseRow
+                key={`${dose.medication.id}-${dose.date}-${dose.time}`}
+                dose={dose}
+                isNext={dose === next}
+              />
+            ))
+            if (group === markerGroup) {
+              const at = group.doses.findIndex((dose) => dose.time > nowTime)
+              items.splice(
+                at === -1 ? items.length : at,
+                0,
+                <NowMarker key="now" now={now} />,
+              )
+            }
+            const id = `dose-period-${group.period.toLowerCase()}`
+            return (
+              <section
+                key={group.period}
+                aria-labelledby={id}
+                className="dose-period"
+              >
+                <h3
+                  id={id}
+                  className="mb-3 pl-1 text-xs font-medium text-muted-foreground"
+                >
+                  {group.period}
+                </h3>
+                <ol>{items}</ol>
+              </section>
+            )
+          })}
         </div>
       )}
     </div>

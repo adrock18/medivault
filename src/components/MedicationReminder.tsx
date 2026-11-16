@@ -21,25 +21,17 @@ export function MedicationReminder({
       role="status"
       aria-live="polite"
       className={cn(
-        'mb-6 flex items-start gap-4 rounded-2xl border p-5',
-        due.length
-          ? 'border-amber-100 bg-amber-50/60'
-          : 'border-teal-100 bg-teal-50/60',
+        'flex items-start gap-3 rounded-2xl p-4',
+        due.length ? 'bg-amber-50/50' : 'bg-slate-50',
       )}
     >
       <span
-        className={cn(
-          'rounded-xl bg-card p-2.5',
-          due.length ? 'text-amber-700' : 'text-primary',
-        )}
+        className={cn('mt-0.5', due.length ? 'text-amber-700' : 'text-primary')}
       >
         <Icon size={21} />
       </span>
       <div className="min-w-0 flex-1">
-        <p className="text-[10px] font-semibold uppercase tracking-[0.15em] text-slate-500">
-          In-app schedule check-in
-        </p>
-        <h2 className="mt-1 text-sm font-semibold text-slate-800">
+        <h2 className="text-sm font-medium text-slate-800">
           {due.length
             ? `${due.length} dose${due.length === 1 ? '' : 's'} awaiting a log`
             : complete
@@ -50,8 +42,8 @@ export function MedicationReminder({
           {due.length
             ? 'These scheduled times have arrived. Record what happened using Taken or Skip below.'
             : complete
-              ? `${doses.filter((dose) => dose.log?.status === 'taken').length} taken · ${doses.filter((dose) => dose.log?.status === 'skipped').length} skipped`
-              : `${next?.medication.name} · ${next?.medication.dosage}`}
+              ? `${doses.filter((dose) => dose.log?.status === 'taken').length} taken, ${doses.filter((dose) => dose.log?.status === 'skipped').length} skipped`
+              : `${next?.medication.name}, ${next?.medication.dosage}`}
         </p>
         {!!due.length && (
           <p className="mt-2 text-xs leading-5 text-amber-800">

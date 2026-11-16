@@ -44,10 +44,10 @@ function MarkShape({
   if (state === 'taken')
     return (
       <g>
-        <circle cx={x} cy={y} r={7} className="fill-primary" />
+        <circle cx={x} cy={y} r={7} className="fill-[var(--success)]" />
         <path
           d={`M${x - 3.2} ${y + 0.2} l2.2 2.2 l4.2 -4.6`}
-          className="stroke-primary-foreground"
+          className="stroke-card"
           strokeWidth={1.8}
           fill="none"
           strokeLinecap="round"
@@ -147,7 +147,7 @@ export function DayDial({
     : `No doses scheduled today. Current time ${clockTime(now)}.`
   return (
     <div className="flex flex-col items-center">
-      <div className="relative w-full max-w-[13rem] sm:max-w-[15rem]">
+      <div className="relative w-full max-w-[15rem]">
         <svg viewBox="0 0 200 200" role="img" aria-label={summary}>
           <circle
             cx={C}
@@ -157,6 +157,21 @@ export function DayDial({
             className="stroke-slate-200"
             strokeWidth={2}
           />
+          {Array.from({ length: 48 }, (_, index) => {
+            const outer = point(index * 30, R + 12)
+            const inner = point(index * 30, R + (index % 4 === 0 ? 8 : 10))
+            return (
+              <line
+                key={index}
+                x1={outer.x}
+                y1={outer.y}
+                x2={inner.x}
+                y2={inner.y}
+                className="stroke-slate-300"
+                strokeWidth={0.8}
+              />
+            )
+          })}
           {[0, 360, 720, 1080].map((minutes) => {
             const outer = point(minutes, R + 6)
             const inner = point(minutes, R - 6)
@@ -188,7 +203,7 @@ export function DayDial({
               d={elapsed}
               pathLength={1}
               fill="none"
-              className="stroke-primary/20 motion-safe:animate-[dial-draw_900ms_ease-out]"
+              className="stroke-primary/20 motion-safe:animate-[dial-draw_300ms_ease-out]"
               strokeWidth={6}
               strokeLinecap="round"
               strokeDasharray="1 1"
@@ -201,7 +216,7 @@ export function DayDial({
             y2={hand.y}
             pathLength={1}
             strokeDasharray="1 1"
-            className="stroke-primary motion-safe:animate-[dial-draw_900ms_ease-out]"
+            className="stroke-primary motion-safe:animate-[dial-draw_300ms_ease-out]"
             strokeWidth={1.5}
             strokeLinecap="round"
             opacity={0.5}
@@ -239,7 +254,7 @@ export function DayDial({
         <div
           role="group"
           aria-label="Filter today's doses by outcome"
-          className="mt-3 flex w-full flex-wrap justify-center gap-1"
+          className="mt-2 flex w-full flex-wrap justify-center gap-0"
         >
           {legend.map((item) => (
             <button
@@ -251,7 +266,7 @@ export function DayDial({
                 onFilterChange(filter === item.value ? 'all' : item.value)
               }
               className={cn(
-                'inline-flex min-h-11 items-center gap-1.5 rounded-xl px-2.5 text-sm text-slate-600 transition-colors hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring',
+                'inline-flex min-h-11 items-center gap-1.5 rounded-xl px-2 text-xs text-slate-600 transition-colors hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring',
                 filter === item.value &&
                   'bg-teal-50 font-medium text-primary hover:bg-teal-50',
               )}
@@ -336,12 +351,12 @@ export function WeekActivityChart({ days }: { days: DayCounts[] }) {
   const label = (day: DayCounts) =>
     format(new Date(`${day.date}T12:00:00`), 'EEE, MMM d')
   return (
-    <div>
+    <div className="week-activity">
       <h2 className="text-base font-semibold text-slate-900">Last 7 days</h2>
       <div
         role="group"
         aria-label="Dose activity for the last 7 days"
-        className="-mx-3 mt-3 grid grid-cols-7 sm:mx-0 sm:gap-1.5"
+        className="week-bars mt-3 grid grid-cols-7"
       >
         {days.map((day, index) => (
           <button
