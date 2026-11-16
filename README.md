@@ -219,7 +219,7 @@ npm run verify
 
 ### Continuous integration
 
-`.github/workflows/verify.yml` runs on every push and pull request: `npm ci` and `npm run verify` on Node 24 for both Ubuntu and Windows, plus a separate `npm audit --omit=dev` job (it depends on the npm registry and is reported separately rather than blocking verification). The jobs use no secrets, accounts, or deployment credentials. Hosted runs start only after this workflow is pushed to GitHub; until then, only local `npm run verify` results exist.
+`.github/workflows/verify.yml` runs on every push and pull request: `npm ci` and `npm run verify` on Node 24 for both Ubuntu and Windows, a `container` job that builds the Docker image, runs it with local storage, polls `/api/health` and `/medications`, and asserts the image has no `/app/.env`, no stored documents and runs as the non-root `node` user, plus a separate `npm audit --omit=dev` job (it depends on the npm registry and is reported separately rather than blocking verification). The jobs use no secrets, accounts, or deployment credentials. Hosted runs start only after this workflow is pushed to GitHub; until then, only local `npm run verify` results exist.
 
 ### Check the built application
 
@@ -245,6 +245,52 @@ Invoke-WebRequest http://127.0.0.1:5187/api/auth/session
 Both health calls return `status: ok`. The session endpoint returns HTTP 200 with `null` when signed out; `/api/vault` correctly returns HTTP 401 without a session. If neither server responds, restart the combined command and retry in the website rather than reinstalling dependencies while Vite is running.
 
 ## Deploy
+
+### Public demo on Render (free tier)
+
+The repository includes a `Dockerfile` and a `render.yaml` Blueprint for a single free Render web service. Render's free filesystem is wiped on every restart, redeploy and spin-down, so durable state lives in a private **Backblaze B2** bucket:
+
+- **Documents** are stored in the bucket under `documents/` when `DOCUMENT_STORAGE=s3`. They are only ever streamed through the authenticated API, never via public URLs.
+- **SQLite** is continuously replicated to the bucket under `LITESTREAM_REPLICA_PATH` by [Litestream](https://litestream.io) (10 s sync interval). On startup the container restores the latest replica before Node starts; a failed restore stops the container instead of starting with an empty database.
+
+**Owner prerequisites**
+
+1. A Render account connected to GitHub with access to this repository.
+2. A Backblaze B2 **private** bucket. Set its lifecycle setting to **"Keep only the last version of the file"**; otherwise deleted documents and old replication segments are only hidden and keep using storage.
+3. A B2 application key restricted to that bucket with **Read and Write** access.
+
+**Variables** (`render.yaml` sets the non-secret ones; also documented in `.env.example`)
+
+| Variable                                   | Value                                                                           |
+| ------------------------------------------ | ------------------------------------------------------------------------------- |
+| `NODE_ENV`, `COOKIE_SECURE`                | `production`, `true`                                                            |
+| `TRUST_PROXY`                              | `1` (number of proxy hops in front of the app; used for per-client rate limits) |
+| `DOCUMENT_STORAGE`                         | `s3`                                                                            |
+| `S3_ENDPOINT`, `S3_BUCKET`, `S3_REGION`    | The bucket's `https://` S3 endpoint, name and region                            |
+| `LITESTREAM_REPLICA_PATH`                  | Key prefix for the database replica, e.g. `db`                                  |
+| `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY` | **Secrets.** Entered only in the Render dashboard (`sync: false`)               |
+
+Missing or malformed storage settings make the server exit with an error naming the variable (never its value) before it opens storage or listens.
+
+**Steps**
+
+1. Adjust `S3_ENDPOINT`, `S3_BUCKET` and `S3_REGION` in `render.yaml` if you use your own bucket, and push.
+2. In Render choose **New → Blueprint**, select this repository, and enter the two key values when prompted.
+3. Wait for the first deploy, then open `https://<service>.onrender.com/api/health`; it should return `{"status":"ok"}`.
+4. **Restart-survival check:** with a fictional account, add a medication, log a dose and upload a document, then use **Manual Deploy → Deploy latest commit**. After it comes back, sign in again and confirm all of them, including the document download, are still there.
+
+**Behavior and limits**
+
+- Free services spin down after about 15 minutes without traffic; the next visit takes roughly a minute while the container starts and restores the database.
+- Run exactly **one instance**. Litestream replication assumes a single writer; never scale out or run a second service against the same replica path.
+- Writes in the last ~10 seconds before an abrupt stop may be lost.
+- The demo build shows a "Public demo: fictional data only" notice. Do not enter real health information.
+- **Rollback:** in Render, redeploy a previous successful deploy from the service's Events page. Database migrations only move forward, so roll back application code only to versions that understand the current schema; the bucket keeps both documents and the replica.
+- Pushes deploy automatically only after the GitHub checks pass (`autoDeployTrigger: checksPass`).
+
+The demo is **not live until it has been deployed and verified** with the restart-survival check above.
+
+### Other persistent hosts
 
 Build with `npm run build` (optionally confirm with `npm run check:build`), then run `npm start` with:
 

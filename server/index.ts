@@ -3,6 +3,7 @@ import { fileURLToPath } from 'node:url'
 import { createServer } from 'node:http'
 import { createApp } from './app.ts'
 import { apiConfig } from './config.ts'
+import { S3DocumentStore } from './document-store.ts'
 import { checkFrontendBuild, FrontendBuildError } from './frontend-build.ts'
 
 export function startApi(env: NodeJS.ProcessEnv = process.env) {
@@ -14,11 +15,13 @@ export function startApi(env: NodeJS.ProcessEnv = process.env) {
     appOrigin: config.appOrigin,
     serveFrontend: config.production,
     devStartupId: config.production ? undefined : env.MEDIVAULT_DEV_STARTUP_ID,
+    trustProxy: config.trustProxy,
+    documentStore: config.s3 ? new S3DocumentStore(config.s3) : undefined,
   })
   const server = createServer(app)
   server.once('listening', () => {
     console.log(
-      `MediVault Express API listening on port ${config.port}. SQLite data: ${config.dataDir}`,
+      `MediVault Express API listening on port ${config.port}. SQLite data: ${config.dataDir}. Documents: ${config.s3 ? `S3 bucket ${config.s3.bucket}` : 'local data directory'}`,
     )
   })
   let shutdownPromise: Promise<void> | undefined

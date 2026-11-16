@@ -5,6 +5,7 @@ import {
   LoaderCircle,
   ShieldCheck,
   Inbox,
+  TriangleAlert,
   type LucideIcon,
 } from 'lucide-react'
 import { Card } from './ui/card'
@@ -172,6 +173,21 @@ export function ErrorState({
         </Button>
       )}
     </div>
+  )
+}
+export function DemoNotice() {
+  if (import.meta.env.VITE_PUBLIC_DEMO !== 'true') return null
+  return (
+    <p
+      role="note"
+      className="flex items-start justify-center gap-2 border-b border-amber-100 bg-amber-50 px-4 py-2 text-center text-xs leading-5 text-amber-800"
+    >
+      <TriangleAlert className="mt-0.5 size-4 shrink-0" />
+      <span>
+        Public demo: use fictional data only. Not medical advice. Data may be
+        reset at any time.
+      </span>
+    </p>
   )
 }
 export function SafetyNote() {

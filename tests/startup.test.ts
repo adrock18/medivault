@@ -702,6 +702,60 @@ describe('development address preflight', () => {
         await closed
       }
     }, 40_000)
+    it('validates proxy and bucket settings without echoing secrets, and refuses incomplete bucket storage before creating storage', async () => {
+      const bucket = {
+        DOCUMENT_STORAGE: 's3',
+        S3_ENDPOINT: 'https://s3.example-region.example.com',
+        S3_BUCKET: 'test-bucket',
+        S3_REGION: 'example-region',
+        S3_ACCESS_KEY_ID: 'test-key-id',
+        S3_SECRET_ACCESS_KEY: 'test-secret-value',
+      }
+      expect(apiConfig({}).s3).toBeUndefined()
+      expect(apiConfig({}).trustProxy).toBeUndefined()
+      expect(apiConfig({ TRUST_PROXY: '1' }).trustProxy).toBe(1)
+      expect(() => apiConfig({ TRUST_PROXY: 'yes' })).toThrow('TRUST_PROXY')
+      expect(() => apiConfig({ DOCUMENT_STORAGE: 'disk' })).toThrow(
+        'DOCUMENT_STORAGE',
+      )
+      expect(apiConfig(bucket).s3).toMatchObject({ bucket: 'test-bucket' })
+      for (const name of [
+        'S3_ENDPOINT',
+        'S3_BUCKET',
+        'S3_REGION',
+        'S3_ACCESS_KEY_ID',
+        'S3_SECRET_ACCESS_KEY',
+      ])
+        expect(() => apiConfig({ ...bucket, [name]: '' })).toThrow(name)
+      expect(() =>
+        apiConfig({ ...bucket, S3_ENDPOINT: 'http://insecure.example.com' }),
+      ).toThrow('S3_ENDPOINT must be an https:// URL.')
+      try {
+        apiConfig({ ...bucket, S3_ENDPOINT: 'test-secret-value' })
+      } catch (error) {
+        expect(String(error)).not.toContain('test-secret-value')
+      }
+
+      const dataDir = join(await directory(), 'storage')
+      await expect(
+        execute(process.execPath, [resolve('server', 'index.ts')], {
+          env: {
+            ...process.env,
+            NODE_ENV: 'development',
+            HOST: '127.0.0.1',
+            PORT: String(await freePort()),
+            DATA_DIR: dataDir,
+            ...bucket,
+            S3_SECRET_ACCESS_KEY: '',
+          },
+        }),
+      ).rejects.toMatchObject({
+        code: 1,
+        stdout: '',
+        stderr: expect.stringContaining('Set S3_SECRET_ACCESS_KEY'),
+      })
+      await expect(access(dataDir)).rejects.toMatchObject({ code: 'ENOENT' })
+    })
   })
   it.each(['API', 'Frontend'])(
     'rejects an occupied %s address without stopping its owner',

@@ -659,3 +659,81 @@ describe('real Express + persistent SQLite + private filesystem integration', ()
     expect(updated.logs[0].scheduled_date).toBe(input.scheduled_date)
   })
 })
+describe('hosted deployment request handling and document storage', () => {
+  function separateApp(
+    options: Omit<Parameters<typeof createApp>[0], 'dataDir'>,
+  ) {
+    const dataDir = join(
+      directory,
+      `separate-${Math.random().toString(36).slice(2)}`,
+    )
+    return createApp({ ...options, dataDir })
+  }
+  const attempt = (
+    app: ReturnType<typeof createApp>['app'],
+    forwardedFor: string,
+  ) =>
+    supertest(app)
+      .post('/api/auth/login')
+      .set(protection)
+      .set('X-Forwarded-For', forwardedFor)
+      .send({ email: 'nobody@example.com', password })
+  it('rate-limits forwarded clients separately only behind a trusted proxy', async () => {
+    const trusted = separateApp({
+      authRateLimit: 1,
+      trustProxy: 1,
+    })
+    const untrusted = separateApp({ authRateLimit: 1 })
+    try {
+      await attempt(trusted.app, '203.0.113.1').expect(401)
+      await attempt(trusted.app, '203.0.113.1').expect(429)
+      await attempt(trusted.app, '203.0.113.2').expect(401)
+      await attempt(untrusted.app, '203.0.113.1').expect(401)
+      await attempt(untrusted.app, '203.0.113.2').expect(429)
+    } finally {
+      trusted.db.close()
+      untrusted.db.close()
+    }
+  })
+  it('creates no record and returns a retryable error when the document store rejects an upload', async () => {
+    const failing = separateApp({
+      authRateLimit: 1000,
+      documentStore: {
+        put: () => Promise.reject(new Error('bucket unavailable')),
+        get: () => Promise.resolve(null),
+        delete: () => Promise.resolve(),
+      },
+    })
+    try {
+      const agent = supertest.agent(failing.app)
+      await agent
+        .post('/api/auth/register')
+        .set(protection)
+        .send({
+          full_name: 'Store Test',
+          email: 'store@example.com',
+          password,
+          confirm_password: password,
+        })
+        .expect(201)
+      const response = await agent
+        .post('/api/records')
+        .set(protection)
+        .field('title', 'Unstored report')
+        .field('category', 'other')
+        .field('provider', '')
+        .field('record_date', localDate())
+        .attach('file', Buffer.from('%PDF-1.4\nStore failure\n%%EOF'), {
+          filename: 'report.pdf',
+          contentType: 'application/pdf',
+        })
+        .expect(503)
+      expect(response.body.error).toContain('Please try again')
+      expect(
+        vaultSchema.parse((await agent.get('/api/vault')).body).records,
+      ).toHaveLength(0)
+    } finally {
+      failing.db.close()
+    }
+  })
+})

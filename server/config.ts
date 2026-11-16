@@ -4,6 +4,47 @@ export const DEV_WEB_HOST = '127.0.0.1'
 export const DEV_WEB_PORT = 5187
 export const DEV_STARTUP_HEADER = 'X-MediVault-Dev-Startup'
 
+export type S3Settings = {
+  endpoint: string
+  bucket: string
+  region: string
+  accessKeyId: string
+  secretAccessKey: string
+}
+
+function trustProxyHops(value: string | undefined) {
+  if (value === undefined || value === '') return undefined
+  const hops = Number(value)
+  if (!Number.isInteger(hops) || hops < 1 || hops > 10)
+    throw new Error('TRUST_PROXY must be an integer between 1 and 10.')
+  return hops
+}
+
+function s3Settings(env: NodeJS.ProcessEnv): S3Settings {
+  const required = (name: string) => {
+    const value = env[name]?.trim()
+    if (!value)
+      throw new Error(`Set ${name} when DOCUMENT_STORAGE=s3 is selected.`)
+    return value
+  }
+  const endpoint = required('S3_ENDPOINT')
+  let url: URL | undefined
+  try {
+    url = new URL(endpoint)
+  } catch {
+    url = undefined
+  }
+  if (url?.protocol !== 'https:')
+    throw new Error('S3_ENDPOINT must be an https:// URL.')
+  return {
+    endpoint,
+    bucket: required('S3_BUCKET'),
+    region: required('S3_REGION'),
+    accessKeyId: required('S3_ACCESS_KEY_ID'),
+    secretAccessKey: required('S3_SECRET_ACCESS_KEY'),
+  }
+}
+
 export function apiConfig(env: NodeJS.ProcessEnv = process.env) {
   const port = Number(env.PORT ?? 3001)
   if (!Number.isInteger(port) || port < 1 || port > 65535)
@@ -13,6 +54,9 @@ export function apiConfig(env: NodeJS.ProcessEnv = process.env) {
     throw new Error(
       'Set COOKIE_SECURE=true when serving a production application over HTTPS.',
     )
+  const storage = env.DOCUMENT_STORAGE || 'local'
+  if (storage !== 'local' && storage !== 's3')
+    throw new Error('DOCUMENT_STORAGE must be "local" or "s3".')
   return {
     port,
     host: env.HOST ?? '127.0.0.1',
@@ -20,5 +64,7 @@ export function apiConfig(env: NodeJS.ProcessEnv = process.env) {
     secureCookies: env.COOKIE_SECURE === 'true',
     appOrigin: env.APP_ORIGIN,
     production,
+    trustProxy: trustProxyHops(env.TRUST_PROXY),
+    s3: storage === 's3' ? s3Settings(env) : undefined,
   }
 }

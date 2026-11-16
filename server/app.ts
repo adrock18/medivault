@@ -8,8 +8,8 @@ import helmet from 'helmet'
 import { rateLimit } from 'express-rate-limit'
 import multer from 'multer'
 import { randomUUID } from 'node:crypto'
-import { mkdir, writeFile, unlink } from 'node:fs/promises'
-import { resolve, dirname, sep } from 'node:path'
+import { resolve } from 'node:path'
+import { pipeline } from 'node:stream/promises'
 import { z } from 'zod'
 import type { SQLInputValue } from 'node:sqlite'
 import {
@@ -48,6 +48,7 @@ import {
 } from './auth.ts'
 import type { Session } from '../src/lib/contracts.ts'
 import { DEV_STARTUP_HEADER } from './config.ts'
+import { LocalDocumentStore, type DocumentStore } from './document-store.ts'
 
 declare global {
   namespace Express {
@@ -89,13 +90,18 @@ export type AppOptions = {
   serveFrontend?: boolean
   authRateLimit?: number
   devStartupId?: string
+  trustProxy?: number
+  documentStore?: DocumentStore
 }
 
 export function createApp(options: AppOptions) {
   const db = openDatabase(options.dataDir)
-  const uploadRoot = resolve(options.dataDir, 'documents')
+  const documents =
+    options.documentStore ??
+    new LocalDocumentStore(resolve(options.dataDir, 'documents'))
   const app = express()
   app.disable('x-powered-by')
+  if (options.trustProxy) app.set('trust proxy', options.trustProxy)
   app.use(
     helmet({
       contentSecurityPolicy: options.serveFrontend
@@ -235,12 +241,6 @@ export function createApp(options: AppOptions) {
       res.locals.user.id,
     )
     res.status(204).end()
-  }
-  function documentPath(filePath: string) {
-    const path = resolve(uploadRoot, filePath)
-    if (!path.startsWith(`${uploadRoot}${sep}`))
-      throw new Error('Invalid stored document path.')
-    return path
   }
   app.get('/api/health', (_req, res) => {
     db.prepare('SELECT 1').get()
@@ -453,9 +453,15 @@ export function createApp(options: AppOptions) {
         'The file name must be no longer than 255 characters.',
       )
     const filePath = `${res.locals.user.id}/${randomUUID()}.${file.name.split('.').pop()!.toLowerCase()}`
-    const path = documentPath(filePath)
-    await mkdir(dirname(path), { recursive: true, mode: 0o700 })
-    await writeFile(path, req.file.buffer, { flag: 'wx', mode: 0o600 })
+    try {
+      await documents.put(filePath, req.file.buffer, file.type)
+    } catch (error) {
+      console.error('MediVault document store upload failed:', error)
+      throw new HttpError(
+        503,
+        'The document could not be stored right now. Please try again.',
+      )
+    }
     try {
       const row = save(
         'medical_records',
@@ -472,7 +478,7 @@ export function createApp(options: AppOptions) {
       res.status(201).json(row)
     } catch (error) {
       try {
-        await unlink(path)
+        await documents.delete(filePath)
       } catch (cleanupError) {
         throw new AggregateError(
           [error, cleanupError],
@@ -493,45 +499,30 @@ export function createApp(options: AppOptions) {
       ),
     )
   })
-  app.get('/api/records/:id/file', (req, res, next) => {
+  app.get('/api/records/:id/file', async (req, res) => {
     const record = owned(
       'medical_records',
       recordRow,
       requestId(req),
       res.locals.user.id,
     )
+    const stored = await documents.get(record.file_path)
+    if (!stored)
+      throw new HttpError(
+        404,
+        'The document file could not be found. Contact your server administrator.',
+      )
     res.type(record.file_type)
     if (req.query.download === '1') res.attachment(record.file_name)
     else res.set('Content-Disposition', 'inline')
-    res.sendFile(
-      documentPath(record.file_path),
-      { dotfiles: 'deny', cacheControl: false },
-      (error) => {
-        if (!error) return
-        if ('code' in error && error.code === 'ENOENT')
-          next(
-            new HttpError(
-              404,
-              'The document file could not be found. Contact your server administrator.',
-            ),
-          )
-        else next(error)
-      },
-    )
+    if (stored.size !== undefined)
+      res.set('Content-Length', String(stored.size))
+    await pipeline(stored.body, res)
   })
   app.delete('/api/records/:id', async (req, res) => {
     const id = requestId(req)
     const record = owned('medical_records', recordRow, id, res.locals.user.id)
-    try {
-      await unlink(documentPath(record.file_path))
-    } catch (error) {
-      if (!(
-        error instanceof Error &&
-        'code' in error &&
-        error.code === 'ENOENT'
-      ))
-        throw error
-    }
+    await documents.delete(record.file_path)
     try {
       remove('medical_records', recordRow, req, res)
     } catch (error) {

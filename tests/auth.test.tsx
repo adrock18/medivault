@@ -10,6 +10,7 @@ import {
 } from '@testing-library/react'
 import '@testing-library/jest-dom/vitest'
 import { useAuth } from '../src/contexts/AuthContext'
+import { DemoNotice } from '../src/components/common'
 import { AuthProvider } from '../src/contexts/AuthProvider'
 import type { Session } from '../src/lib/contracts'
 const mocks = vi.hoisted(() => ({ session: vi.fn(), login: vi.fn() }))
@@ -20,6 +21,7 @@ vi.mock('../src/lib/api', () => ({
 afterEach(() => {
   cleanup()
   vi.resetAllMocks()
+  vi.unstubAllEnvs()
 })
 function Consumer() {
   const { session, loading, signIn } = useAuth()
@@ -72,4 +74,15 @@ it('does not let focus-based session refresh overwrite an in-flight login, and c
   )
   act(() => window.dispatchEvent(new Event('medivault:session-expired')))
   expect(screen.getByText('anonymous')).toBeInTheDocument()
+})
+it('shows the public demo notice only when the demo build flag is set', () => {
+  vi.stubEnv('VITE_PUBLIC_DEMO', 'false')
+  const { unmount } = render(<DemoNotice />)
+  expect(screen.queryByRole('note')).not.toBeInTheDocument()
+  unmount()
+  vi.stubEnv('VITE_PUBLIC_DEMO', 'true')
+  render(<DemoNotice />)
+  expect(screen.getByRole('note')).toHaveTextContent(
+    'Public demo: use fictional data only. Not medical advice. Data may be reset at any time.',
+  )
 })

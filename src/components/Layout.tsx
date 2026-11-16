@@ -20,7 +20,13 @@ import {
 } from 'lucide-react'
 import { format } from 'date-fns'
 import { toast } from 'sonner'
-import { Logo, LoadingState, ErrorState, FormDialog } from './common'
+import {
+  Logo,
+  LoadingState,
+  ErrorState,
+  FormDialog,
+  DemoNotice,
+} from './common'
 import { Button } from './ui/button'
 import { useAuth } from '../contexts/AuthContext'
 import { useVault } from '../contexts/DataContext'
@@ -185,6 +191,7 @@ export default function Layout() {
         <Sidebar onNavigate={() => setMobile(false)} />
       </FormDialog>
       <div className="min-w-0 pb-24 lg:ml-64 lg:pb-0">
+        <DemoNotice />
         <Header onMenu={() => setMobile(true)} />
         <main
           id="main-content"
