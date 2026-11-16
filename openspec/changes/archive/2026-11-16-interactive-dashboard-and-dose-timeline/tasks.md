@@ -29,4 +29,4 @@
 
 ## 6. Workflow follow-up
 
-- [ ] 6.1 After review, commit, push, confirm the Render deploy, and archive the change
+- [x] 6.1 After review, commit, push, confirm the Render deploy, and archive the change
