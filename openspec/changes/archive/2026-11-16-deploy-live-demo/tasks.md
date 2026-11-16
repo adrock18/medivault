@@ -38,7 +38,7 @@
 
   Verify `docker build` succeeds; if Docker is unavailable locally, rely on task 4.4.
 
-- [ ] 4.4 Add an Ubuntu `container` job to `.github/workflows/verify.yml` that:
+- [x] 4.4 Add an Ubuntu `container` job to `.github/workflows/verify.yml` that:
   - builds the image;
   - runs it with local storage;
   - polls `/api/health` and `/medications`;
@@ -66,15 +66,15 @@
 
 ## 6. Live deployment (owner-assisted) and integration check
 
-- [ ] 6.1 With the owner, create the B2 bucket and application key and the Render service from the Blueprint, entering the secrets only in the Render dashboard. Verify that the first deploy goes live and `/api/health` returns `ok` at the public `onrender.com` URL.
-- [ ] 6.2 On the live URL, using a fictional account:
+- [x] 6.1 With the owner, create the B2 bucket and application key and the Render service from the Blueprint, entering the secrets only in the Render dashboard. Verify that the first deploy goes live and `/api/health` returns `ok` at the public `onrender.com` URL.
+- [x] 6.2 On the live URL, using a fictional account:
   - register, load sample data and upload `fictional-prescription.pdf`;
   - scan it and save a medication, then log a dose;
   - trigger a manual redeploy.
 
   Verify that the account, medication, dose log and document are all still present and downloadable afterwards, and that another account cannot access them.
 
-- [ ] 6.3 Confirm `TRUST_PROXY` by comparing logged `req.ip` with the tester's public address, and adjust the value if needed. Then update the README with the actual live URL and the date it was verified. Verify that `npm run verify` and CI pass with the final documentation.
+- [x] 6.3 Confirm `TRUST_PROXY` by comparing logged `req.ip` with the tester's public address, and adjust the value if needed. Outcome: spoofed headers are ignored but some requests resolve to an intermediate proxy address; accepted for the small demo audience and documented as a known limitation. Then update the README with the actual live URL and the date it was verified. Verify that `npm run verify` and CI pass with the final documentation.
 
 ## Workflow follow-up
 

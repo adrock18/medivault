@@ -288,7 +288,9 @@ Missing or malformed storage settings make the server exit with an error naming 
 - **Rollback:** in Render, redeploy a previous successful deploy from the service's Events page. Database migrations only move forward, so roll back application code only to versions that understand the current schema; the bucket keeps both documents and the replica.
 - Pushes deploy automatically only after the GitHub checks pass (`autoDeployTrigger: checksPass`).
 
-The demo is **not live until it has been deployed and verified** with the restart-survival check above.
+**Live demo:** <https://medivault-dlq9.onrender.com> — deployed from `render.yaml` and verified on 2026-11-16: two fictional accounts, a document upload, a medication and a dose log all survived a manual redeploy (Litestream restore from B2), the downloaded PDF was byte-identical to the upload, and the second account could not see or download the first account's data. The first request after an idle period may take about a minute.
+
+**Known limitation:** with `TRUST_PROXY=1`, spoofed `X-Forwarded-For` values are ignored, but some requests are attributed to an intermediate Render/Cloudflare proxy address instead of the visitor. Login and registration rate limiting is therefore approximate (fine for a small demo audience); determine the exact hop chain before relying on it for abuse protection.
 
 ### Other persistent hosts
 
@@ -307,7 +309,7 @@ Express serves both the API and `dist` in production, including SPA deep links. 
 
 The source tree must accompany the build because Node runs the backend TypeScript directly, and `server/migrations` must ship with it; pending migrations run automatically at startup. Production startup refuses to run (exit code 1, no storage created) when `dist` is missing or incomplete, or when `COOKIE_SECURE` is not `true`. Node may print an experimental warning for its built-in SQLite API; this is not a connection or migration failure.
 
-Limitations: medication check-ins appear only while the website is open; email, push, and background reminders are not implemented. Passing `npm run verify` locally means the project is ready to run and present; it does not mean a public instance exists. MediVault is not currently deployed as a live service, and it is a personal record-keeping tool rather than a certified medical device.
+Limitations: medication check-ins appear only while the website is open; email, push, and background reminders are not implemented. Passing `npm run verify` locally means the project is ready to run and present; it does not by itself mean a public instance exists. The public demo above is for fictional data only, and MediVault is a personal record-keeping tool rather than a certified medical device.
 
 ## Organization
 
