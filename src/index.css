@@ -275,3 +275,9 @@
     @apply border-0;
   }
 }
+
+@keyframes dial-draw {
+  from {
+    stroke-dashoffset: 1;
+  }
+}

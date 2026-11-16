@@ -1,6 +1,12 @@
 // @vitest-environment jsdom
 import { afterEach, expect, it, vi } from 'vitest'
-import { cleanup, render, screen, within } from '@testing-library/react'
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  within,
+} from '@testing-library/react'
 import '@testing-library/jest-dom/vitest'
 import { MemoryRouter } from 'react-router-dom'
 import DashboardPage from '../src/pages/DashboardPage'
@@ -86,22 +92,63 @@ it('derives dashboard totals from persisted records, active schedules and exact 
       <DashboardPage />
     </MemoryRouter>,
   )
-  const stat = (label: string) => {
-    const card = screen.getByText(label).closest('[data-slot="card"]')
-    if (!(card instanceof HTMLElement))
-      throw new Error(`Missing stat card: ${label}`)
-    return within(card)
-  }
-  expect(stat('Medical records').getByText('1')).toBeInTheDocument()
-  expect(stat('Active medications').getByText('2')).toBeInTheDocument()
-  expect(stat("Today's doses").getByText('4')).toBeInTheDocument()
+  const todayRegion = within(screen.getByRole('region', { name: 'Today' }))
   expect(
-    stat("Today's doses").getByText('2 pending · 1 skipped'),
+    todayRegion.getByRole('img', {
+      name: /^4 doses today: 1 taken, 1 skipped, 2 not yet logged\./,
+    }),
   ).toBeInTheDocument()
-  expect(stat('Doses taken today').getByText('1')).toBeInTheDocument()
   expect(
-    stat('Doses taken today').getByText('25% of scheduled doses'),
+    todayRegion.getByRole('button', { name: 'Show 1 taken dose' }),
   ).toBeInTheDocument()
+  expect(
+    todayRegion.getByRole('button', { name: 'Show 1 skipped dose' }),
+  ).toBeInTheDocument()
+  const unlogged = todayRegion.getByRole('button', {
+    name: 'Show 2 not yet logged doses',
+  })
+  const undo = { name: 'Undo Example A dose at 08:00' }
+  expect(todayRegion.getByRole('button', undo)).toBeInTheDocument()
+  fireEvent.click(unlogged)
+  expect(unlogged).toHaveAttribute('aria-pressed', 'true')
+  expect(todayRegion.queryByRole('button', undo)).not.toBeInTheDocument()
+  expect(
+    todayRegion.getAllByRole('button', { name: /^Mark .* as taken$/ }),
+  ).toHaveLength(2)
+  fireEvent.click(unlogged)
+  expect(todayRegion.getByRole('button', undo)).toBeInTheDocument()
+  fireEvent.click(
+    todayRegion.getByRole('button', { name: 'Show 1 taken dose' }),
+  )
+  fireEvent.click(
+    todayRegion.getByRole('button', {
+      name: 'Showing taken doses. Clear filter',
+    }),
+  )
+  expect(
+    todayRegion.getAllByRole('button', { name: /^Mark .* as taken$/ }),
+  ).toHaveLength(2)
+  expect(
+    todayRegion.getByRole('list', { name: 'Daily insight' }),
+  ).toHaveTextContent('2 of 4 doses logged today.')
+  const week = within(
+    screen.getByRole('group', { name: 'Dose activity for the last 7 days' }),
+  )
+  expect(week.getAllByRole('button')).toHaveLength(7)
+  expect(week.getByRole('button', { pressed: true })).toHaveAccessibleName(
+    /1 taken, 1 skipped, 2 not yet logged$/,
+  )
+  expect(
+    screen.getByText('1 taken of 2 logged doses in the last 30 days'),
+  ).toBeInTheDocument()
+  expect(screen.getByText('50%')).toBeInTheDocument()
+  expect(
+    screen.getByRole('link', { name: '1 medical record' }),
+  ).toHaveAttribute('href', '/medical-records')
+  expect(
+    screen.getByRole('link', { name: '2 active medications' }),
+  ).toHaveAttribute('href', '/medications')
+  expect(screen.queryByText(/\b(missed|should)\b/i)).not.toBeInTheDocument()
   expect(screen.getByText('Persisted report')).toBeInTheDocument()
   expect(screen.getByRole('link', { name: 'Upload record' })).toHaveAttribute(
     'href',

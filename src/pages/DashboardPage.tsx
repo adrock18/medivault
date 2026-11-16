@@ -1,36 +1,46 @@
+import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import {
   FileText,
-  Pill,
-  CheckCheck,
   Clock3,
   Upload,
   Plus,
   ScanLine,
   ChevronRight,
 } from 'lucide-react'
-import { addDays } from 'date-fns'
+import { addDays, format } from 'date-fns'
 import { useVault } from '../contexts/DataContext'
 import { localDate, medicationStatus, scheduledDoses } from '../lib/utils'
+import {
+  adherence30,
+  clockTime,
+  dailyInsights,
+  loggedStreak,
+  weekBreakdown,
+} from '../lib/dashboard'
 import {
   PageTitle,
   Panel,
   SectionTitle,
-  StatCard,
   EmptyState,
   SafetyNote,
 } from '../components/common'
-import { DoseSchedule } from '../components/DoseSchedule'
+import { DoseTimeline, type DoseFilter } from '../components/DoseSchedule'
+import {
+  AdherenceRing,
+  DailyInsight,
+  DayDial,
+  VaultCounts,
+  WeekActivityChart,
+} from '../components/DashboardVisuals'
 import { MedicalRecordCard } from '../components/MedicalRecordCard'
 import { MedicationReminder } from '../components/MedicationReminder'
 
 export default function DashboardPage() {
   const { profile, healthProfile, records, medications, logs, now } = useVault()
+  const [doseFilter, setDoseFilter] = useState<DoseFilter>('all')
   const today = localDate(now)
   const doses = scheduledDoses(medications, logs, today)
-  const taken = doses.filter((d) => d.log?.status === 'taken').length
-  const skipped = doses.filter((d) => d.log?.status === 'skipped').length
-  const pending = doses.filter((d) => !d.log).length
   const hour = now.getHours()
   const greeting =
     hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening'
@@ -39,7 +49,7 @@ export default function DashboardPage() {
     profile?.full_name ||
     ''
   ).split(' ')[0]
-  const nowTime = `${String(hour).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`
+  const nowTime = clockTime(now)
   const upcoming = Array.from({ length: 7 }, (_, offset) => {
     const day = localDate(addDays(now, offset))
     return scheduledDoses(medications, logs, day).filter(
@@ -48,6 +58,13 @@ export default function DashboardPage() {
   })
     .flat()
     .slice(0, 4)
+  const insights = dailyInsights({
+    doses,
+    medications,
+    records,
+    streak: loggedStreak(medications, logs, now),
+    now,
+  })
   const setup = [
     {
       complete: !!healthProfile,
@@ -93,39 +110,6 @@ export default function DashboardPage() {
           </div>
         }
       />
-      <div className="mb-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <StatCard
-          title="Medical records"
-          value={records.length}
-          subtitle="Documents in your private vault"
-          icon={FileText}
-        />
-        <StatCard
-          title="Active medications"
-          value={
-            medications.filter((m) => medicationStatus(m, today) === 'active')
-              .length
-          }
-          subtitle="Within their treatment dates"
-          icon={Pill}
-        />
-        <StatCard
-          title="Today's doses"
-          value={doses.length}
-          subtitle={`${pending} pending · ${skipped} skipped`}
-          icon={Clock3}
-        />
-        <StatCard
-          title="Doses taken today"
-          value={taken}
-          subtitle={
-            doses.length
-              ? `${Math.round((taken / doses.length) * 100)}% of scheduled doses`
-              : 'No doses scheduled today'
-          }
-          icon={CheckCheck}
-        />
-      </div>
       <MedicationReminder doses={doses} now={now} />
       {setup.length > 0 && (
         <section
@@ -159,20 +143,53 @@ export default function DashboardPage() {
           )}
         </section>
       )}
-      <div className="mb-6 grid grid-cols-1 gap-6 xl:grid-cols-[1.4fr_1fr]">
-        <Panel>
+      <Panel className="mb-6">
+        <section aria-label="Today">
           <SectionTitle
-            title="Today's medication schedule"
-            description="Track doses from your prescribed routine."
+            title="Today"
+            description={format(now, 'EEEE, MMMM d')}
             action={
               <Link to="/medications" className="small-link">
-                View all
+                All medications
                 <ChevronRight size={14} />
               </Link>
             }
           />
-          <DoseSchedule doses={doses} />
-        </Panel>
+          <div className="grid gap-6 lg:grid-cols-[15rem_minmax(0,1fr)] lg:gap-8">
+            <DayDial
+              doses={doses}
+              now={now}
+              filter={doseFilter}
+              onFilterChange={setDoseFilter}
+            />
+            <DoseTimeline
+              doses={doses}
+              filter={doseFilter}
+              onFilterChange={setDoseFilter}
+            />
+          </div>
+          <div className="mt-5 border-t border-slate-100 pt-4">
+            <DailyInsight statements={insights} />
+          </div>
+        </section>
+      </Panel>
+      <section
+        aria-label="Recent activity"
+        className="mb-6 grid gap-6 border-y border-slate-200 py-6 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)] lg:gap-10"
+      >
+        <WeekActivityChart days={weekBreakdown(medications, logs, now)} />
+        <div className="space-y-5 lg:border-l lg:border-slate-200 lg:pl-10">
+          <AdherenceRing value={adherence30(logs, now)} />
+          <VaultCounts
+            records={records.length}
+            activeMedications={
+              medications.filter((m) => medicationStatus(m, today) === 'active')
+                .length
+            }
+          />
+        </div>
+      </section>
+      <div className="mb-6 grid grid-cols-1 gap-6 xl:grid-cols-[1.4fr_1fr]">
         <Panel>
           <SectionTitle
             title="Recent medical records"
@@ -207,67 +224,63 @@ export default function DashboardPage() {
             />
           )}
         </Panel>
-      </div>
-      <div className="grid grid-cols-1 gap-6 xl:grid-cols-[1.4fr_1fr]">
         <Panel>
           <SectionTitle
-            title="Keep prescriptions connected"
-            description="From a saved medical record to a medication you have reviewed."
+            title="Upcoming schedule"
+            description="Next unlogged doses in the next 7 days."
           />
-          <p className="text-sm leading-6 text-muted-foreground">
-            Scan a printed prescription locally, compare the text with the
-            original, and confirm the medication form, strength, dosage, and
-            schedule. Missing or unclear details are never filled in
-            automatically.
-          </p>
-          <p className="mt-4 text-sm font-medium">
-            {
-              medications.filter((medication) => medication.source_record_id)
-                .length
-            }{' '}
-            medication(s) linked to medical records
-          </p>
-          <Link className="small-link mt-3" to="/medications?action=scan">
-            <ScanLine size={16} />
-            Scan and review a prescription
-          </Link>
-        </Panel>
-        <div className="space-y-6">
-          <Panel>
-            <SectionTitle
-              title="Upcoming schedule"
-              description="Next unlogged doses in the next 7 days."
-            />
-            {upcoming.length ? (
-              upcoming.map((d) => (
-                <div
-                  key={`${d.medication.id}-${d.date}-${d.time}`}
-                  className="flex items-center gap-3 border-b border-slate-100 py-3 last:border-0"
-                >
-                  <span className="rounded-lg bg-teal-50 p-2 text-primary">
-                    <Clock3 size={17} />
-                  </span>
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-medium text-slate-700">
-                      {d.medication.name}
-                    </p>
-                    <p className="mt-1 text-xs text-slate-400">
-                      {d.date === today ? 'Today' : d.date} &middot; {d.time}
-                    </p>
-                  </div>
-                  <span className="text-[10px] font-medium text-slate-400">
-                    Scheduled
-                  </span>
+          {upcoming.length ? (
+            upcoming.map((d) => (
+              <div
+                key={`${d.medication.id}-${d.date}-${d.time}`}
+                className="flex items-center gap-3 border-b border-slate-100 py-3 last:border-0"
+              >
+                <span className="rounded-lg bg-teal-50 p-2 text-primary">
+                  <Clock3 size={17} />
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-medium text-slate-700">
+                    {d.medication.name}
+                  </p>
+                  <p className="mt-1 text-xs text-slate-400">
+                    {d.date === today ? 'Today' : d.date} &middot; {d.time}
+                  </p>
                 </div>
-              ))
-            ) : (
-              <p className="py-5 text-sm text-muted-foreground">
-                No upcoming doses in this period.
-              </p>
-            )}
-          </Panel>
-        </div>
+                <span className="text-[10px] font-medium text-slate-400">
+                  Scheduled
+                </span>
+              </div>
+            ))
+          ) : (
+            <p className="py-5 text-sm text-muted-foreground">
+              No upcoming doses in this period.
+            </p>
+          )}
+        </Panel>
       </div>
+      <Panel>
+        <SectionTitle
+          title="Keep prescriptions connected"
+          description="From a saved medical record to a medication you have reviewed."
+        />
+        <p className="max-w-3xl text-sm leading-6 text-muted-foreground">
+          Scan a printed prescription locally, compare the text with the
+          original, and confirm the medication form, strength, dosage, and
+          schedule. Missing or unclear details are never filled in
+          automatically.
+        </p>
+        <p className="mt-4 text-sm font-medium">
+          {
+            medications.filter((medication) => medication.source_record_id)
+              .length
+          }{' '}
+          medication(s) linked to medical records
+        </p>
+        <Link className="small-link mt-3" to="/medications?action=scan">
+          <ScanLine size={16} />
+          Scan and review a prescription
+        </Link>
+      </Panel>
       <SafetyNote />
     </>
   )

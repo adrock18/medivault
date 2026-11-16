@@ -91,4 +91,21 @@ describe('website medication check-ins', () => {
       screen.getByRole('button', { name: /Undo Logged medication/ }),
     ).toBeInTheDocument()
   })
+  it('orders the timeline around a current-time marker and emphasizes the next unlogged dose', () => {
+    const later = {
+      ...dose,
+      medication: { ...dose.medication, id: 'med-3', name: 'Evening item' },
+      time: '20:00',
+    }
+    render(<DoseSchedule doses={[dose, skipped, later]} />)
+    const items = screen
+      .getAllByRole('listitem')
+      .map((item) => item.textContent ?? '')
+    const marker = items.findIndex((text) => text.includes('Now, 09:00'))
+    expect(marker).toBe(2)
+    expect(items[3]).toContain('Evening item')
+    expect(items[3]).toContain('Up next')
+    expect(items[0]).not.toContain('Up next')
+    expect(screen.getAllByText('Up next')).toHaveLength(1)
+  })
 })
