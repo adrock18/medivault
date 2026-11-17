@@ -46,6 +46,7 @@ export type MedicalRecord = Timestamps & {
   file_name: string
   file_type: string
   file_size: number
+  is_favourite: boolean
 }
 export type Medication = Timestamps & {
   id: string

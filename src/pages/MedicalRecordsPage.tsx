@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Upload, FolderHeart, Search } from 'lucide-react'
 import { useVault } from '../contexts/DataContext'
@@ -34,12 +34,15 @@ export default function MedicalRecordsPage() {
   const [search, setSearch] = useState('')
   const [category, setCategory] = useState('')
   const [order, setOrder] = useState<'newest' | 'oldest'>('newest')
+  const [favouritesOnly, setFavouritesOnly] = useState(false)
+  const results = useRef<HTMLSpanElement>(null)
   const mutation = useMutation()
   const upload = params.get('action') === 'upload'
   const filtered = records
     .filter(
       (r) =>
         (!selected || r.id === selected) &&
+        (!favouritesOnly || r.is_favourite) &&
         (!category || r.category === category) &&
         `${r.title} ${r.provider} ${r.file_name}`
           .toLowerCase()
@@ -91,7 +94,7 @@ export default function MedicalRecordsPage() {
         </div>
       )}
       <div className="mb-6 flex flex-wrap items-end gap-4 rounded-2xl border border-slate-200/80 bg-card p-5">
-        <div className="min-w-0 basis-full sm:flex-1">
+        <div className="min-w-0 basis-full sm:min-w-64 sm:flex-1">
           <Field
             label="Search records"
             placeholder="Search by title, provider, or file name..."
@@ -126,7 +129,20 @@ export default function MedicalRecordsPage() {
             ]}
           />
         </div>
-        <span className="pb-3 text-xs text-muted-foreground">
+        <Button
+          variant="outline"
+          aria-pressed={favouritesOnly}
+          onClick={() => setFavouritesOnly((value) => !value)}
+        >
+          Favourites only
+        </Button>
+        <span
+          ref={results}
+          tabIndex={-1}
+          role="status"
+          aria-label="Record results"
+          className="pb-3 text-xs text-muted-foreground focus:outline-2 focus:outline-offset-4 focus:outline-ring"
+        >
           {filtered.length} record{filtered.length !== 1 && 's'}
         </span>
       </div>
@@ -139,6 +155,9 @@ export default function MedicalRecordsPage() {
               onPreview={(record, trigger) => setPreview({ record, trigger })}
               onEdit={() => setEdit(record)}
               onDelete={() => setRemove(record)}
+              onUnfavourite={
+                favouritesOnly ? () => results.current?.focus() : undefined
+              }
               linkedCount={
                 medications.filter(
                   (medication) => medication.source_record_id === record.id,
@@ -153,13 +172,13 @@ export default function MedicalRecordsPage() {
       ) : (
         <div className="rounded-2xl border bg-card">
           <EmptyState
-            icon={search || category ? Search : FolderHeart}
+            icon={search || category || favouritesOnly ? Search : FolderHeart}
             title={
               records.length ? 'No matching records' : 'Your vault is ready'
             }
             description={
               records.length
-                ? 'Try a different search or category.'
+                ? 'Try a different search, category, or favourites filter.'
                 : 'Upload your first prescription, lab report, or medical document to keep it safely organized.'
             }
             action={
@@ -170,6 +189,7 @@ export default function MedicalRecordsPage() {
                     setSearch('')
                     setCategory('')
                     setOrder('newest')
+                    setFavouritesOnly(false)
                     updateParams({ record: null })
                   }}
                 >

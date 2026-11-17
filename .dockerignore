@@ -13,5 +13,15 @@ openspec
 *.sqlite-wal
 *.sqlite-shm
 *.log
+test-results
+playwright-report
 Dockerfile
 .dockerignore
+.local-verification
+tests
+e2e
+vitest.config.ts
+playwright.config.ts
+tsconfig.test.json
+scripts/check-entrypoint.sh
+docker/verify.Dockerfile

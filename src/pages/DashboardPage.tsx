@@ -15,7 +15,7 @@ import {
   adherence30,
   clockTime,
   dailyInsights,
-  loggedStreak,
+  loggingProgress,
   weekBreakdown,
 } from '../lib/dashboard'
 import {
@@ -29,6 +29,7 @@ import {
   AdherenceRing,
   DailyInsight,
   DayDial,
+  LoggingMilestones,
   VaultCounts,
   WeekActivityChart,
 } from '../components/DashboardVisuals'
@@ -62,11 +63,12 @@ export default function DashboardPage() {
   })
     .flat()
     .slice(0, 4)
+  const logging = loggingProgress(logs, now)
   const insights = dailyInsights({
     doses,
     medications,
     records,
-    streak: loggedStreak(medications, logs, now),
+    logging,
     now,
   })
   const setup = [
@@ -211,6 +213,7 @@ export default function DashboardPage() {
             <div className="mt-5 border-t pt-5">
               <AdherenceRing value={adherence30(logs, now)} />
             </div>
+            <LoggingMilestones value={logging} />
           </Panel>
         </div>
       </section>

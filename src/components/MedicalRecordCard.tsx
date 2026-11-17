@@ -9,11 +9,13 @@ import {
   LockKeyhole,
   LoaderCircle,
   ScanLine,
+  Star,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import type { MedicalRecord } from '../lib/database.types'
 import { categories, displayDate, fileSize } from '../lib/utils'
-import { errorMessage } from '../lib/api'
+import { api, errorMessage } from '../lib/api'
+import { useMutation } from '../hooks/useMutation'
 import { viewRecord, downloadRecord } from '../lib/records'
 import { Panel } from './common'
 import { Button } from './ui/button'
@@ -26,6 +28,7 @@ export function MedicalRecordCard({
   onScan,
   linkedCount = 0,
   onPreview,
+  onUnfavourite,
 }: {
   record: MedicalRecord
   onEdit?: () => void
@@ -34,8 +37,22 @@ export function MedicalRecordCard({
   onScan?: () => void
   linkedCount?: number
   onPreview?: (record: MedicalRecord, trigger: HTMLButtonElement) => void
+  onUnfavourite?: () => void
 }) {
   const [busy, setBusy] = useState<'view' | 'download' | null>(null)
+  const favourite = useMutation()
+  async function toggleFavourite() {
+    const wasFavourite = record.is_favourite
+    const saved = await favourite.run(
+      async () => {
+        await api.records.favourite(record.id, !wasFavourite)
+      },
+      wasFavourite
+        ? 'Document removed from favourites.'
+        : 'Document added to favourites.',
+    )
+    if (saved && wasFavourite) onUnfavourite?.()
+  }
   async function access(action: 'view' | 'download') {
     setBusy(action)
     try {
@@ -85,9 +102,37 @@ export function MedicalRecordCard({
         <div className="record-emblem rounded-xl bg-teal-50 p-3 text-primary">
           <FileText size={24} />
         </div>
-        <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-medium text-slate-600">
-          {categories[record.category]}
-        </span>
+        <div className="flex items-center gap-2">
+          <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-medium text-slate-600">
+            {categories[record.category]}
+          </span>
+          <Button
+            variant="ghost"
+            size="icon"
+            aria-label={`Favourite ${record.title}`}
+            aria-pressed={record.is_favourite}
+            aria-busy={favourite.pending}
+            disabled={favourite.pending}
+            title={
+              record.is_favourite
+                ? 'Remove from favourites'
+                : 'Add to favourites'
+            }
+            onClick={() => void toggleFavourite()}
+          >
+            {favourite.pending ? (
+              <LoaderCircle className="animate-spin" />
+            ) : (
+              <Star
+                className={
+                  record.is_favourite
+                    ? 'fill-primary/20 text-primary'
+                    : 'text-muted-foreground'
+                }
+              />
+            )}
+          </Button>
+        </div>
       </div>
       <h2 className="break-words font-semibold text-slate-900">
         {record.title}
@@ -95,6 +140,11 @@ export function MedicalRecordCard({
       <p className="mt-2 break-words text-sm text-muted-foreground">
         {record.provider || 'No provider specified'}
       </p>
+      {favourite.error && (
+        <p role="alert" className="mt-3 text-sm text-destructive">
+          {favourite.error}
+        </p>
+      )}
       <dl className="mt-3 flex flex-wrap gap-x-5 gap-y-1 text-xs">
         <div>
           <dt className="sr-only">Record date</dt>

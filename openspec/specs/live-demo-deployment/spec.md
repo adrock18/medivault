@@ -8,18 +8,19 @@ Run MediVault as a reachable public demonstration whose accounts, records, and d
 
 ### Requirement: Reproducible container packaging
 
-The repository SHALL build a container image that runs the verified production build on the supported Node runtime with production dependencies, required migrations, and local scanning assets. The image SHALL listen on the host-provided port on all interfaces and SHALL contain no secrets, local data, or development artifacts.
+The repository SHALL build an image running the production build on supported Node with production dependencies, required migrations and local scanning assets. It SHALL listen on the host-provided port on all interfaces and contain no secrets, local data or development artifacts, including executable testing material. Image compilation SHALL be distinguished from runtime acceptance; the host readiness gate SHALL remain enabled.
 
 #### Scenario: Build and start the image without credentials
 
-- **WHEN** the image is built from a clean checkout and started in production mode with local storage and secure cookies enabled
-- **THEN** `/api/health` reports success on the host-provided port
-- **AND** a workspace deep link returns the website
+- **WHEN** an operator builds a clean checkout and starts the image in production mode with isolated local storage and secure cookies enabled
+- **THEN** `/api/health` reports success on the host-provided port and a workspace deep link returns the website
+- **AND** the recorded outcome identifies runtime acceptance separately from the CI image-build result
 
 #### Scenario: Image excludes local and secret material
 
 - **WHEN** the built image contents are inspected
-- **THEN** no `.env` file, local data directory, uploaded document, or credential is present
+- **THEN** no environment secret, personal runtime data, uploaded document or executable testing material is present
+- **AND** required migrations and local scanning resources remain available
 
 ### Requirement: Proxy-aware request handling
 
@@ -108,10 +109,55 @@ The public site SHALL display, on sign-in, registration, and every workspace pag
 
 ### Requirement: Operator deployment documentation
 
-Documentation SHALL list the owner-provided accounts, bucket, scoped credentials, and environment variables needed to deploy; explain idle spin-down and cold starts; describe how to verify a restart preserves data; and state that the site is live only after a real deployment is verified.
+Documentation SHALL identify owner prerequisites and settings, cold starts, restart-survival verification, single-writer limits, recovery-point limits, and safe rollback. It SHALL explain replica failures, storage caps, credential/network errors, and document/database consistency limits without exposing secrets. Live status SHALL require actual deployment verification.
 
 #### Scenario: Prepare a first deployment
 
 - **WHEN** an operator follows the deployment documentation with their own Render and Backblaze B2 accounts
 - **THEN** they can create the service and storage without committing any secret
 - **AND** they can verify that data survives a manual restart
+
+#### Scenario: Storage transaction cap blocks restore
+
+- **WHEN** startup reports a storage-provider transaction-cap error while restoring the replica
+- **THEN** the runbook identifies the reported cap as distinct from a generic credential failure
+- **AND** it directs an authorized operator to review provider usage and caps, restore access, redeploy, and verify persisted fictional data
+- **AND** it never recommends bypassing restore, deleting the replica, or opening an empty production database
+
+#### Scenario: Recover from partial document operations
+
+- **WHEN** a document operation reports incomplete cleanup or a missing stored file
+- **THEN** guidance explains the non-atomic database/object boundary and controlled reconciliation using backups or known ownership metadata
+- **AND** destructive repairs, live test writes, and billing changes require an explicit operator decision rather than automatic cleanup
+
+### Requirement: Honest operational health boundaries
+
+Operational guidance SHALL state that application readiness probes database availability, not private document availability or backup freshness. Remote-storage checks SHALL be explicit and low-frequency rather than added to every health request. Backup/restore checks and provider-usage review SHALL not expose object contents, credentials, or personal healthcare data in diagnostics.
+
+#### Scenario: Healthy API during a document-storage outage
+
+- **WHEN** the database health check succeeds while document storage is unavailable
+- **THEN** the operator can distinguish application readiness from document/replica health using the documented checks and sanitized operation errors
+- **AND** the application does not claim backup durability from the health endpoint alone
+
+### Requirement: Controlled local container recovery
+
+Docker recovery SHALL distinguish observed failures from suspected causes and protect other workloads and stored data. Read-only diagnosis SHALL precede repair. Shared-service interruption, storage migration or repair, software replacement and destructive cleanup SHALL require explicit authorization. Diagnostics SHALL remain local and sanitized; recovery SHALL not alter application persistence or bypass restore/readiness gates.
+
+#### Scenario: Docker Desktop reports a SIGBUS crash
+
+- **WHEN** Docker Desktop reports a fatal fault and its daemon is unavailable
+- **THEN** diagnosis records daemon/WSL status, available capacity and relevant local error evidence without asserting an unproven cause
+- **AND** it does not automatically reset Docker, terminate unrelated workloads or upload diagnostic bundles
+
+#### Scenario: Repair could affect other workloads
+
+- **WHEN** the next recovery action would restart shared services, modify a virtual disk or remove stored objects
+- **THEN** the operator sees the proposed action, affected scope and preservation/backup requirements before authorizing it
+- **AND** application data, unrelated WSL distributions and credentials remain outside automatic cleanup
+
+#### Scenario: Local engine recovers
+
+- **WHEN** the local daemon becomes healthy with sufficient capacity for the intended build
+- **THEN** the operator can record actual image build and isolated runtime readiness outcomes
+- **AND** local recovery is not represented as a successful Render deployment or remote backup restoration

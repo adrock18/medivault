@@ -14,6 +14,7 @@ import { useMutation } from '../hooks/useMutation'
 import { api } from '../lib/api'
 import {
   clockTime,
+  loggingConfirmation,
   markState,
   nextDose,
   partOfDay,
@@ -35,7 +36,7 @@ const labels = {
 }
 
 function DoseRow({ dose, isNext }: { dose: ScheduledDose; isNext: boolean }) {
-  const { now } = useVault()
+  const { now, logs } = useVault()
   const mutation = useMutation()
   const timing = doseTiming(dose, now)
   const period = partOfDay(dose.time)
@@ -43,14 +44,19 @@ function DoseRow({ dose, isNext }: { dose: ScheduledDose; isNext: boolean }) {
     period === 'Morning' ? Sun : period === 'Afternoon' ? Sunset : Moon
   const [changes, setChanges] = useState(0)
   async function mark(status: 'taken' | 'skipped') {
-    const ok = await mutation.run(async () => {
-      await api.doses.add({
-        medication_id: dose.medication.id,
-        scheduled_date: dose.date,
-        scheduled_time: dose.time,
-        status,
-      })
-    }, `Dose marked as ${status}.`)
+    let confirmation = `Dose marked as ${status}.`
+    const ok = await mutation.run(
+      async () => {
+        const added = await api.doses.add({
+          medication_id: dose.medication.id,
+          scheduled_date: dose.date,
+          scheduled_time: dose.time,
+          status,
+        })
+        confirmation = loggingConfirmation(logs, added, now)
+      },
+      () => confirmation,
+    )
     if (ok) setChanges((count) => count + 1)
   }
   async function undo() {
@@ -215,9 +221,7 @@ export function DoseTimeline({
             onClick={() => setFilter(tab.value)}
           >
             {tab.label}
-            <span className="ml-1 text-[10px] tabular-nums opacity-70">
-              {tab.count}
-            </span>
+            <span className="ml-1 text-[10px] tabular-nums">{tab.count}</span>
           </Button>
         ))}
         {(filter === 'taken' || filter === 'skipped') && (

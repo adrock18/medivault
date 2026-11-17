@@ -8,14 +8,17 @@ export function useMutation() {
   const [pending, setPending] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const lock = useRef(false)
-  async function run(action: () => Promise<void>, success: string) {
+  async function run(
+    action: () => Promise<void>,
+    success: string | (() => string),
+  ) {
     if (lock.current) return false
     lock.current = true
     setPending(true)
     setError(null)
     try {
       await action()
-      toast.success(success)
+      toast.success(typeof success === 'function' ? success() : success)
       await reload()
       return true
     } catch (err) {

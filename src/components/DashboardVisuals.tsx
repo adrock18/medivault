@@ -1,9 +1,11 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { format } from 'date-fns'
-import { cn, type ScheduledDose } from '../lib/utils'
+import { cn, displayDate, type ScheduledDose } from '../lib/utils'
 import {
   clockTime,
+  loggingMilestones,
+  type loggingProgress,
   markState,
   nextDose,
   type DayCounts,
@@ -203,7 +205,7 @@ export function DayDial({
               d={elapsed}
               pathLength={1}
               fill="none"
-              className="stroke-primary/20 motion-safe:animate-[dial-draw_300ms_ease-out]"
+              className="stroke-primary/20 motion-safe:animate-[dial-draw_200ms_ease-out]"
               strokeWidth={6}
               strokeLinecap="round"
               strokeDasharray="1 1"
@@ -216,7 +218,7 @@ export function DayDial({
             y2={hand.y}
             pathLength={1}
             strokeDasharray="1 1"
-            className="stroke-primary motion-safe:animate-[dial-draw_300ms_ease-out]"
+            className="stroke-primary motion-safe:animate-[dial-draw_200ms_ease-out]"
             strokeWidth={1.5}
             strokeLinecap="round"
             opacity={0.5}
@@ -338,6 +340,48 @@ export function AdherenceRing({
         )}
       </div>
     </div>
+  )
+}
+
+export function LoggingMilestones({
+  value,
+}: {
+  value: ReturnType<typeof loggingProgress>
+}) {
+  return (
+    <section aria-label="Recorded days" className="mt-5 border-t pt-5">
+      <p className="text-sm font-medium">Lifetime logged days</p>
+      <p className="mt-1 text-xl font-semibold tabular-nums">
+        {value.loggedDays} logged {value.loggedDays === 1 ? 'day' : 'days'}
+      </p>
+      <p className="mt-2 text-xs leading-5 text-muted-foreground">
+        Each original scheduled date with a taken or skipped outcome counts
+        once. This is not a completeness or health score.
+      </p>
+      <ul
+        aria-label="Logged-day milestones"
+        className="mt-3 flex flex-wrap gap-2 text-xs"
+      >
+        {loggingMilestones.map((day) => (
+          <li
+            key={day}
+            className={cn(
+              'rounded-full border px-3 py-2',
+              value.reached.includes(day)
+                ? 'border-primary/40 bg-accent text-accent-foreground'
+                : 'text-muted-foreground',
+            )}
+          >
+            {day} days · {value.reached.includes(day) ? 'recorded' : 'not yet'}
+          </li>
+        ))}
+      </ul>
+      <p className="mt-3 text-xs leading-5 text-muted-foreground">
+        {value.runEnding
+          ? `${value.currentRun}-day current run, ending ${displayDate(value.runEnding)}.`
+          : 'No current run ending today or yesterday.'}
+      </p>
+    </section>
   )
 }
 

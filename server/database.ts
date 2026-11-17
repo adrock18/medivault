@@ -2,7 +2,7 @@ import { DatabaseSync, type SQLInputValue } from 'node:sqlite'
 import { mkdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { z } from 'zod'
-import { medicationRow } from '../src/lib/contracts.ts'
+import { medicationRow, recordRow } from '../src/lib/contracts.ts'
 
 export function openDatabase(dataDir: string) {
   mkdirSync(dataDir, { recursive: true, mode: 0o700 })
@@ -26,7 +26,15 @@ export function openDatabase(dataDir: string) {
         'utf8',
       ),
     )
-  else if (version !== 2) {
+  version = db.prepare('PRAGMA user_version').get()?.user_version
+  if (version === 2)
+    db.exec(
+      readFileSync(
+        new URL('./migrations/003_record_favourites.sql', import.meta.url),
+        'utf8',
+      ),
+    )
+  else if (version !== 3) {
     db.close()
     throw new Error(`Unsupported SQLite schema version ${version}.`)
   }
@@ -67,3 +75,10 @@ export const storedMedication = z.preprocess((value) => {
   const row = z.object({ times: z.string() }).passthrough().parse(value)
   return { ...row, times: JSON.parse(row.times) }
 }, medicationRow)
+export const storedRecord = z.preprocess((value) => {
+  const row = z
+    .object({ is_favourite: z.union([z.literal(0), z.literal(1)]) })
+    .passthrough()
+    .parse(value)
+  return { ...row, is_favourite: row.is_favourite === 1 }
+}, recordRow)

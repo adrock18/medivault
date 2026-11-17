@@ -2,6 +2,7 @@ import { subDays } from 'date-fns'
 import type { DoseLog, MedicalRecord, Medication } from './database.types.ts'
 import {
   doseTiming,
+  displayDate,
   localDate,
   scheduledDoses,
   type ScheduledDose,
@@ -77,15 +78,39 @@ export function adherence30(logs: DoseLog[], now: Date) {
     : null
 }
 
-/** Consecutive days before today where every scheduled dose has an outcome. */
-export function loggedStreak(meds: Medication[], logs: DoseLog[], now: Date) {
-  let streak = 0
-  for (let offset = 1; offset <= 60; offset++) {
-    const day = dayBreakdown(meds, logs, localDate(subDays(now, offset)))
-    if (!day.total || day.unlogged) break
-    streak++
+export const loggingMilestones = [3, 7, 30] as const
+
+export function loggingProgress(logs: DoseLog[], now: Date) {
+  const today = localDate(now)
+  const dates = new Set(
+    logs
+      .filter((log) => log.scheduled_date <= today)
+      .map((log) => log.scheduled_date),
+  )
+  let cursor = dates.has(today) ? now : subDays(now, 1)
+  const runEnding = dates.has(localDate(cursor)) ? localDate(cursor) : null
+  let currentRun = 0
+  while (dates.has(localDate(cursor))) {
+    currentRun++
+    cursor = subDays(cursor, 1)
   }
-  return streak
+  return {
+    loggedDays: dates.size,
+    currentRun,
+    runEnding,
+    reached: loggingMilestones.filter((threshold) => threshold <= dates.size),
+  }
+}
+
+export function loggingConfirmation(
+  logs: DoseLog[],
+  added: DoseLog,
+  now: Date,
+) {
+  const before = loggingProgress(logs, now).loggedDays
+  const after = loggingProgress([...logs, added], now).loggedDays
+  const crossed = loggingMilestones.find((day) => before < day && after >= day)
+  return `Dose marked as ${added.status}.${crossed ? ` ${crossed} distinct logged days recorded.` : ''}`
 }
 
 export function nextDose(doses: ScheduledDose[], now: Date) {
@@ -98,13 +123,13 @@ export function dailyInsights({
   doses,
   medications,
   records,
-  streak,
+  logging,
   now,
 }: {
   doses: ScheduledDose[]
   medications: Medication[]
   records: MedicalRecord[]
-  streak: number
+  logging: ReturnType<typeof loggingProgress>
   now: Date
 }): string[] {
   if (!medications.length && !records.length)
@@ -130,9 +155,9 @@ export function dailyInsights({
     statements.push(
       `${earlier} earlier ${earlier === 1 ? 'dose has' : 'doses have'} no log yet today.`,
     )
-  if (streak >= 2)
+  if (logging.currentRun >= 2 && logging.runEnding)
     statements.push(
-      `Every scheduled dose was logged on each of the last ${streak} days.`,
+      `${logging.currentRun} consecutive days with recorded outcomes, ending ${displayDate(logging.runEnding)}.`,
     )
   if (records.length)
     statements.push(

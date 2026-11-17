@@ -1,8 +1,14 @@
-import { useState } from 'react'
+import { lazy, Suspense, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { Download, ShieldCheck, FlaskConical, CheckCircle2 } from 'lucide-react'
+import {
+  Download,
+  ShieldCheck,
+  FlaskConical,
+  CheckCircle2,
+  Printer,
+} from 'lucide-react'
 import { toast } from 'sonner'
 import { useAuth } from '../contexts/AuthContext'
 import { useVault } from '../contexts/DataContext'
@@ -18,15 +24,18 @@ import {
   SubmitButton,
   ErrorState,
   FormDialog,
+  LoadingState,
 } from '../components/common'
 import { Button } from '../components/ui/button'
 import { ThemeSelect } from '../components/ThemeSelect'
+const ActivitySummary = lazy(() => import('../components/ActivitySummary'))
 
 export default function SettingsPage() {
   const { session } = useAuth()
   const data = useVault()
   const [error, setError] = useState<string | null>(null)
   const [sampleOpen, setSampleOpen] = useState(false)
+  const [summaryOpen, setSummaryOpen] = useState(false)
   const sample = useMutation()
   const {
     register,
@@ -166,6 +175,14 @@ export default function SettingsPage() {
               <Download />
               Export my health data
             </Button>
+            <Button
+              className="mt-3 sm:ml-3"
+              variant="outline"
+              onClick={() => setSummaryOpen(true)}
+            >
+              <Printer />
+              Preview activity summary
+            </Button>
           </Panel>
           <Panel className="tint-peach">
             <SectionTitle
@@ -229,6 +246,17 @@ export default function SettingsPage() {
           </Button>
         </div>
       </FormDialog>
+      {summaryOpen && session && (
+        <Suspense
+          fallback={<LoadingState message="Opening activity summary..." />}
+        >
+          <ActivitySummary
+            key={session.user.id}
+            ownerId={session.user.id}
+            onClose={() => setSummaryOpen(false)}
+          />
+        </Suspense>
+      )}
     </>
   )
 }

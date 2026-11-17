@@ -1,9 +1,16 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react'
+import {
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type ReactNode,
+} from 'react'
 import { z } from 'zod'
 import type { Session } from '../lib/contracts'
 import { api, errorMessage } from '../lib/api'
 import { loginSchema, registerSchema } from '../lib/schemas'
 import { AuthContext } from './AuthContext'
+import { cancelThemeTransition } from '../lib/theme'
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null)
@@ -12,6 +19,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [attempt, setAttempt] = useState(0)
   const sequence = useRef(0)
   const authenticating = useRef(false)
+  useLayoutEffect(() => {
+    cancelThemeTransition()
+  }, [session?.user.id])
   useEffect(() => {
     let mounted = true
     async function refresh() {

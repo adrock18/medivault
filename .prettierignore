@@ -4,3 +4,14 @@ package-lock.json
 data
 .env*
 .agents/skills
+playwright-report
+test-results
+.local-verification
+tests
+e2e
+vitest.config.ts
+playwright.config.ts
+tsconfig.test.json
+scripts/check-entrypoint.sh
+docker/verify.Dockerfile
+fictional-prescription.pdf

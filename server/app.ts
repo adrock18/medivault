@@ -15,7 +15,6 @@ import type { SQLInputValue } from 'node:sqlite'
 import {
   profileRow,
   healthProfileRow,
-  recordRow,
   doseLogRow,
   metricRow,
   sessionSchema,
@@ -26,6 +25,7 @@ import {
   passwordSchema,
   profileSchema,
   recordSchema,
+  recordFavouriteSchema,
   medicationSchema,
   metricSchema,
   calendarDateSchema,
@@ -37,6 +37,7 @@ import {
   many,
   transaction,
   storedMedication,
+  storedRecord,
 } from './database.ts'
 import {
   COOKIE_NAME,
@@ -63,6 +64,31 @@ class HttpError extends Error {
   constructor(status: number, message: string) {
     super(message)
     this.status = status
+  }
+}
+const requestFailure =
+  'The server could not complete this request. Please try again.'
+type DocumentOperation =
+  | 'upload'
+  | 'upload-metadata'
+  | 'upload-cleanup'
+  | 'download'
+  | 'download-missing'
+  | 'download-stream'
+  | 'delete-object'
+  | 'delete-metadata'
+class DocumentOperationError extends HttpError {
+  operation: DocumentOperation
+  recordId?: string
+  constructor(
+    operation: DocumentOperation,
+    status: number,
+    message: string,
+    recordId?: string,
+  ) {
+    super(status, message)
+    this.operation = operation
+    this.recordId = recordId
   }
 }
 function validate<T>(schema: z.ZodType<T>, value: unknown): T {
@@ -364,7 +390,7 @@ export function createApp(options: AppOptions) {
       ),
       records: many(
         db,
-        recordRow,
+        storedRecord,
         'SELECT * FROM medical_records WHERE user_id=? ORDER BY created_at DESC,id',
         [id],
       ),
@@ -456,9 +482,9 @@ export function createApp(options: AppOptions) {
     const filePath = `${res.locals.user.id}/${randomUUID()}.${file.name.split('.').pop()!.toLowerCase()}`
     try {
       await documents.put(filePath, req.file.buffer, file.type)
-    } catch (error) {
-      console.error('MediVault document store upload failed:', error)
-      throw new HttpError(
+    } catch {
+      throw new DocumentOperationError(
+        'upload',
         503,
         'The document could not be stored right now. Please try again.',
       )
@@ -466,7 +492,7 @@ export function createApp(options: AppOptions) {
     try {
       const row = save(
         'medical_records',
-        recordRow,
+        storedRecord,
         {
           ...input,
           file_path: filePath,
@@ -477,59 +503,103 @@ export function createApp(options: AppOptions) {
         res.locals.user.id,
       )
       res.status(201).json(row)
-    } catch (error) {
+    } catch {
       try {
         await documents.delete(filePath)
-      } catch (cleanupError) {
-        throw new AggregateError(
-          [error, cleanupError],
+      } catch {
+        throw new DocumentOperationError(
+          'upload-cleanup',
+          500,
           'Upload failed and its file could not be cleaned up. Contact the server administrator.',
         )
       }
-      throw error
+      throw new DocumentOperationError('upload-metadata', 500, requestFailure)
     }
   })
   app.patch('/api/records/:id', (req, res) => {
     res.json(
       save(
         'medical_records',
-        recordRow,
+        storedRecord,
         validate(recordSchema.strict(), req.body),
         res.locals.user.id,
         requestId(req),
       ),
     )
   })
+  app.put('/api/records/:id/favourite', (req, res) => {
+    const input = validate(recordFavouriteSchema, req.body)
+    const id = requestId(req)
+    const userId = res.locals.user.id
+    owned('medical_records', storedRecord, id, userId)
+    const desired = input.is_favourite ? 1 : 0
+    db.prepare(
+      'UPDATE medical_records SET is_favourite=?,updated_at=? WHERE id=? AND user_id=? AND is_favourite<>?',
+    ).run(desired, new Date().toISOString(), id, userId, desired)
+    res.json(owned('medical_records', storedRecord, id, userId))
+  })
   app.get('/api/records/:id/file', async (req, res) => {
     const record = owned(
       'medical_records',
-      recordRow,
+      storedRecord,
       requestId(req),
       res.locals.user.id,
     )
-    const stored = await documents.get(record.file_path)
+    let stored: Awaited<ReturnType<DocumentStore['get']>>
+    try {
+      stored = await documents.get(record.file_path)
+    } catch {
+      throw new DocumentOperationError(
+        'download',
+        500,
+        requestFailure,
+        record.id,
+      )
+    }
     if (!stored)
-      throw new HttpError(
+      throw new DocumentOperationError(
+        'download-missing',
         404,
         'The document file could not be found. Contact your server administrator.',
+        record.id,
       )
     res.type(record.file_type)
     if (req.query.download === '1') res.attachment(record.file_name)
     else res.set('Content-Disposition', 'inline')
     if (stored.size !== undefined)
       res.set('Content-Length', String(stored.size))
-    await pipeline(stored.body, res)
+    try {
+      await pipeline(stored.body, res)
+    } catch {
+      throw new DocumentOperationError(
+        'download-stream',
+        500,
+        requestFailure,
+        record.id,
+      )
+    }
   })
   app.delete('/api/records/:id', async (req, res) => {
     const id = requestId(req)
-    const record = owned('medical_records', recordRow, id, res.locals.user.id)
-    await documents.delete(record.file_path)
+    const record = owned(
+      'medical_records',
+      storedRecord,
+      id,
+      res.locals.user.id,
+    )
     try {
-      remove('medical_records', recordRow, req, res)
-    } catch (error) {
-      throw new AggregateError(
-        [error],
+      await documents.delete(record.file_path)
+    } catch {
+      throw new DocumentOperationError('delete-object', 500, requestFailure, id)
+    }
+    try {
+      remove('medical_records', storedRecord, req, res)
+    } catch {
+      throw new DocumentOperationError(
+        'delete-metadata',
+        500,
         'The file was removed but its details could not be deleted. Retry deletion to finish.',
+        id,
       )
     }
   })
@@ -541,7 +611,7 @@ export function createApp(options: AppOptions) {
     if (input.source_record_id)
       owned(
         'medical_records',
-        recordRow,
+        storedRecord,
         input.source_record_id,
         res.locals.user.id,
       )
@@ -668,6 +738,16 @@ export function createApp(options: AppOptions) {
     )
   }
   const handleError: ErrorRequestHandler = (error: unknown, req, res, next) => {
+    if (error instanceof DocumentOperationError) {
+      const incidentId = randomUUID()
+      if (!res.headersSent) res.set('X-MediVault-Incident', incidentId)
+      // Provider/SQLite errors can contain private paths, metadata or credentials.
+      console.error('MediVault document operation failed.', {
+        operation: error.operation,
+        recordId: error.recordId ?? null,
+        incidentId,
+      })
+    }
     if (res.headersSent) return next(error)
     if (error instanceof HttpError) {
       res.status(error.status).json({ error: error.message })
@@ -715,10 +795,7 @@ export function createApp(options: AppOptions) {
     }
     console.error(`MediVault API error: ${req.method} ${req.path}`, error)
     res.status(500).json({
-      error:
-        error instanceof AggregateError
-          ? error.message
-          : 'The server could not complete this request. Please try again.',
+      error: error instanceof AggregateError ? error.message : requestFailure,
     })
   }
   app.use(handleError)

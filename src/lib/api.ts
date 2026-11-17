@@ -90,6 +90,12 @@ export const api = {
       request('/health-profile', healthProfileRow, json('PUT', values)),
   },
   records: {
+    favourite: (id: string, is_favourite: boolean) =>
+      request(
+        `/records/${encodeURIComponent(id)}/favourite`,
+        recordRow,
+        json('PUT', { is_favourite }),
+      ),
     upload: (values: RecordValues, file: File) => {
       const form = new FormData()
       Object.entries(values).forEach(([key, value]) => form.append(key, value))

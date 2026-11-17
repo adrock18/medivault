@@ -2,6 +2,17 @@
 
 A responsive **medication and medical-records workspace** with React + TypeScript + Vite, Tailwind CSS, shadcn/ui, Express, and persistent SQLite. Prescription scanning runs locally in the browser; no cloud database, OCR account, AI key, or external authentication/storage service is required.
 
+For the stack, module map, architecture/ERD diagrams, request flows, engineering
+decisions and contributor workflow, see the [engineering handbook](docs/README.md).
+
+## Start Here
+
+- [Local setup](#run-the-complete-application)
+- [Features and safety boundaries](#features)
+- [Development and release guide](docs/development.md)
+- [Production build gates](#release-verification-and-build)
+- [Deployment](#deploy) and [operations/recovery](docs/operations.md)
+
 ## Interface
 
 The Daybook layout aligns scheduled times along a shared time spine, with today's check-ins and quick workflows ahead of historical detail. The routine is the dominant glass surface; quieter supporting panels retain the dial, activity chart, and recorded-adherence ring. Light, Dark, and System behavior is unchanged.
@@ -16,7 +27,7 @@ The Today screen puts the medication feed first, with time-of-day icons, explici
 
 Appearance menus, filters, and form dropdowns share a themed, keyboard-accessible select with typeahead, selected-state checkmarks, and viewport-aware popups. Uploads use a document chooser with the selected filename; prescription review retains an explicit confirmation checkbox. Native file dialogs and date inputs remain available.
 
-Cards use a frosted-glass finish with opaque fallbacks, soft edge highlights, and staggered entrances. A slow ambient backdrop adds depth. On sign-in and registration, an original SVG illustration cycles through a capsule, syringe, cream tube, and bottle with crossfades and perspective flips, including a compact mobile version and pause/resume control. Navigation, quick actions, record icons, and medication emblems respond to interaction. Hover effects stay on fine pointers; reduced motion shows a static capsule and collapses other animation and transition durations. Motion never changes health data or medication schedules.
+Cards use a frosted-glass finish with opaque fallbacks and soft edge highlights. One brief route arrival avoids stacked card entrances, and ambient depth stays static. Explicit appearance changes apply readable colors immediately with an optional 420 ms background gloss behind live controls, never page snapshots. On sign-in and registration, an original SVG illustration cycles through a capsule, syringe, cream tube, and bottle with crossfades and perspective flips, including a compact mobile version and pause/resume control. Navigation, quick actions, record icons, and medication emblems respond to interaction. Hover effects stay on fine pointers; reduced motion shows a static capsule and disables nonessential movement. Motion never changes health data or medication schedules.
 
 Soft lavender, mint, peach, and sky accents tint glass surfaces, section icons, and quick actions in both themes. Dark mode uses a near-black navy workspace, deep glass cards, and subdued color washes; light mode retains pastel surfaces. Decorative colors do not change the labeled dose-status colors or chart meanings.
 
@@ -95,7 +106,7 @@ Use `npm run preview -- --host 127.0.0.1 --port 4187 --strictPort` to preview th
 - **Website-only check-ins:** next scheduled dose, due/past-time labels, and separate **To log**/**Logged** views. No email, push, or background notifications.
 - **Dashboard:** real database-derived counts, daily check-ins, prescription-scan/add-medication/upload actions, recent uploads, linked-medication count, and upcoming schedule. Optional setup is based on profile, record, and medication data; medication use is never mandatory.
 - **Appearance:** Light, Dark, and System modes, available before and after sign-in and in Settings. System is the initial default and follows operating-system changes; explicit choices persist in this browser.
-- **Settings:** appearance preference, current-password-verified password update, sensitive-data JSON export, and opt-in fictional sample data.
+- **Settings:** appearance preference, current-password-verified password update, sensitive-data JSON export, private printable activity summary, and opt-in fictional sample data.
 - Responsive navigation, accessible dialogs/labels, validation on client **and server**, loading/empty/error states, success notifications, and mutation locking.
 
 The Health Tracker interface and charts have been retired; old `/health-tracker` bookmarks redirect to Medications. Existing measurements are preserved in SQLite and sensitive-data exports. Legacy metric API endpoints remain for compatibility, but new sample seeding does not create measurements.
@@ -143,31 +154,32 @@ SQLite and documents are **not application-encrypted at rest**. Protect the data
 
 `GET /api/health` continues to return `{ "status": "ok" }` after a database probe. Combined development adds an ephemeral `X-MediVault-Dev-Startup` response header so the launcher can distinguish its own API from a competing listener. This is correlation metadata, **not authentication**, is not saved, and is neither user-configured nor required by standalone/production health clients. Private endpoints still require a valid session.
 
-[server/migrations/001_initial.sql](server/migrations/001_initial.sql) creates the initial tables. [server/migrations/002_prescription_links.sql](server/migrations/002_prescription_links.sql) adds medication form, strength, owned source-record links, and prescription wording without deleting existing rows. Both run automatically as needed and are tracked through SQLite's `user_version`. Source deletion uses `ON DELETE SET NULL`; ownership is checked by the API and SQLite triggers.
+[server/migrations/001_initial.sql](server/migrations/001_initial.sql) creates the initial tables. [server/migrations/002_prescription_links.sql](server/migrations/002_prescription_links.sql) adds medication form, strength, owned source-record links, and prescription wording without deleting existing rows. [server/migrations/003_record_favourites.sql](server/migrations/003_record_favourites.sql) adds constrained, default-false document favourites. Migrations run automatically as needed and are tracked through SQLite's `user_version` (currently 3). Source deletion uses `ON DELETE SET NULL`; ownership is checked by the API and SQLite triggers. Rollback code must support version 3: do not decrement the schema version or remove columns to run an older binary. See [the favourite decision](docs/decisions.md#d7-owner-persistent-desired-state-favourites).
 
-| Endpoint                      | Purpose                                                                  |
-| ----------------------------- | ------------------------------------------------------------------------ |
-| `GET /api/health`             | API/database readiness                                                   |
-| `GET /api/auth/session`       | Current user or `null`                                                   |
-| `POST /api/auth/register`     | Validated registration and session creation                              |
-| `POST /api/auth/login`        | Password login                                                           |
-| `POST /api/auth/logout`       | Invalidate session                                                       |
-| `POST /api/auth/password`     | Verify current password, update, revoke other sessions                   |
-| `GET /api/vault`              | All authenticated user's dashboard/module data                           |
-| `PUT /api/health-profile`     | Create/update the user's health profile                                  |
-| `POST /api/records`           | Multipart upload: `file`, `title`, `category`, `provider`, `record_date` |
-| `PATCH /api/records/:id`      | Update document metadata                                                 |
-| `GET /api/records/:id/file`   | Private viewer content; `?download=1` for attachment                     |
-| `DELETE /api/records/:id`     | Delete the owned file and metadata                                       |
-| `POST /api/medications`       | Add medication                                                           |
-| `PATCH /api/medications/:id`  | Update medication                                                        |
-| `DELETE /api/medications/:id` | Delete medication and cascading dose logs                                |
-| `POST /api/dose-logs`         | Log taken/skipped outcome                                                |
-| `PATCH /api/dose-logs/:id`    | Change a recorded outcome                                                |
-| `DELETE /api/dose-logs/:id`   | Undo a log                                                               |
-| `POST /api/metrics`           | Add measurement                                                          |
-| `PATCH /api/metrics/:id`      | Edit measurement                                                         |
-| `DELETE /api/metrics/:id`     | Delete measurement                                                       |
+| Endpoint                         | Purpose                                                                          |
+| -------------------------------- | -------------------------------------------------------------------------------- |
+| `GET /api/health`                | API/database readiness                                                           |
+| `GET /api/auth/session`          | Current user or `null`                                                           |
+| `POST /api/auth/register`        | Validated registration and session creation                                      |
+| `POST /api/auth/login`           | Password login                                                                   |
+| `POST /api/auth/logout`          | Invalidate session                                                               |
+| `POST /api/auth/password`        | Verify current password, update, revoke other sessions                           |
+| `GET /api/vault`                 | All authenticated user's dashboard/module data                                   |
+| `PUT /api/health-profile`        | Create/update the user's health profile                                          |
+| `POST /api/records`              | Multipart upload: `file`, `title`, `category`, `provider`, `record_date`         |
+| `PATCH /api/records/:id`         | Update document metadata                                                         |
+| `PUT /api/records/:id/favourite` | Strict `{is_favourite: boolean}` desired state; returns the updated owned record |
+| `GET /api/records/:id/file`      | Private viewer content; `?download=1` for attachment                             |
+| `DELETE /api/records/:id`        | Delete the owned file and metadata                                               |
+| `POST /api/medications`          | Add medication                                                                   |
+| `PATCH /api/medications/:id`     | Update medication                                                                |
+| `DELETE /api/medications/:id`    | Delete medication and cascading dose logs                                        |
+| `POST /api/dose-logs`            | Log taken/skipped outcome                                                        |
+| `PATCH /api/dose-logs/:id`       | Change a recorded outcome                                                        |
+| `DELETE /api/dose-logs/:id`      | Undo a log                                                                       |
+| `POST /api/metrics`              | Add measurement                                                                  |
+| `PATCH /api/metrics/:id`         | Edit measurement                                                                 |
+| `DELETE /api/metrics/:id`        | Delete measurement                                                               |
 
 All mutations require `X-MediVault-Request: 1`. JSON bodies use the validated form shapes in [src/lib/schemas.ts](src/lib/schemas.ts); medication times are comma-separated HH:MM strings and metric values are numeric strings, converted on the server. PATCH operations accept the complete relevant form payload. API errors return `{ "error": "Helpful message" }` with an appropriate status. API success responses are runtime-validated by the client.
 
@@ -179,6 +191,7 @@ All mutations require `X-MediVault-Request: 1`. JSON bodies use the validated fo
 - **Due now** is the scheduled minute; **Past scheduled time** indicates a scheduled time that has passed, not an instruction to take a late/extra dose.
 - Check-ins update every minute and on window focus while the website is open.
 - Recorded adherence means **taken ÷ logged doses in the last 30 days**, explicitly excluding unlogged doses.
+- **Logged days** count distinct original scheduled dates with any stored taken or skipped outcome, once per date and excluding future dates. The secondary 3/7/30-day milestones describe record keeping, not dose completeness or health. A current run ends today when logged, otherwise yesterday, and explicitly names its ending date. Undo and medication deletion recompute these values; changing a schedule does not rewrite saved history. Neutral milestone feedback follows a confirmed explicit check-in, never sign-in, reload or background refresh.
 - Schedule edits retain original historical log dates/times. Deleting a medication also deletes its dose history.
 - Measurement times are normalized to UTC ISO timestamps and displayed/filtered in local time. Numeric input limits are sanity checks, not clinical reference ranges.
 - Data refreshes after mutations, on window focus, and every minute. A failed refresh visibly labels the last successful data as stale.
@@ -186,6 +199,8 @@ All mutations require `X-MediVault-Request: 1`. JSON bodies use the validated fo
 - Uploads write the file first, then SQLite metadata. Metadata failures attempt cleanup and surface cleanup failures. File deletion and SQLite metadata deletion are not a cross-filesystem atomic transaction; errors explain when a retry is needed.
 - Sample seeding is explicit opt-in. Successful partial sample entries remain visible if a later request fails; remove them using normal CRUD controls.
 - Vault sorting uses the medical record date, with deterministic upload-time/ID tie-breakers; dashboard recent records remain ordered by upload recency. Clearing vault filters restores newest-record-date order.
+- Document favourites persist privately in SQLite, survive session renewal, and are included as booleans in record responses and JSON exports. **Favourites only** composes with search, category, sort and a linked-record scope. Clear filters removes those discovery constraints, never saved favourite flags. Repeating the same desired-state request does not toggle the flag or change file bytes.
+- **Settings → Preview activity summary** fetches a fresh, frozen in-memory snapshot for inclusive local dates (last 7/30 days or custom). Outcomes retain their original dates/times; medication details are explicitly current, and document metadata is filtered by record date. Profile details are excluded unless selected. Original documents, OCR wording and legacy measurements are excluded; the broader JSON export remains available. Changing inputs, closing, reloading or ending the session clears the snapshot. **Print / Save as PDF** checks the session and opens the browser's own dialog: it does not create a saved report or confirm a successful save. Treat printed/PDF copies as sensitive. See the [print rehearsal](docs/development.md#rehearsing-private-activity-summaries).
 
 ## Try sample data
 
@@ -206,26 +221,25 @@ About ten minutes with a fresh fictional account. No personal data, real prescri
 7. In **Today's schedule**, mark a dose **Taken**, then undo it; show **To log**/**Logged** and the dose history.
 8. Switch **Appearance** between Light and Dark, then **Log out**. Keep the fictional account separate from personal use; sample entries can be removed with the normal delete actions.
 
-## Test and build
+## Release Verification and Build
 
 Requires Node.js 22.18 or newer (`engines` in `package.json`); Node 24 LTS is recommended.
 
 ```powershell
 npm run format:check  # Prettier; generated .agents/skills content is excluded
 npm run lint          # oxlint; any warning fails
-npm run typecheck     # app, server/scripts, tooling config and tests (strict)
-npm test              # runs `npm run build` first (pretest), then every Vitest suite
+npm run typecheck     # app, server/scripts and Vite config (strict)
+npm run build         # strict type checks, then production assets
 npm run check:build   # validates the emitted dist (see below)
 npm run verify        # all of the above in a fail-fast order
-npm run test:integration
 npm audit --omit=dev
 ```
 
-`npm test` builds first because the startup suite exercises the real production output. `npm run test:integration` runs only the backend suite and does not build; to run the startup suite directly with `npx vitest run tests/startup.test.ts`, run `npm run build` first.
-
-The integration suite runs the **real Express handlers**, SQLite migration, cookie sessions, and filesystem uploads using Supertest. Each test gets its own temporary database/directory, cleaned up afterwards; no test credentials or external service is needed.
-
-Coverage includes registration/login/logout, password hashing/cookies, persistence across database reopen, health-profile updates, medication/metric/document CRUD, exact dose uniqueness, two-user read/mutation/file isolation, current-password verification/session revocation, CSRF-style request protection, upload signatures and size limits, validated frontend forms, database-derived dashboard statistics, website reminder boundaries, build-artifact validation, production startup refusal for missing/incomplete builds, and production content types/CSP for application and local scanning resources.
+At the owner's request, automated suites, fixtures, runners and test-only
+configuration/dependencies are excluded from the published tree. Local copies
+are preserved, but a fresh checkout cannot reproduce the earlier functional or
+browser checks. **Build/audit success is not functional regression coverage.**
+See [the verification boundary](docs/development.md#publication-boundary-and-reduced-assurance).
 
 ### One command before a presentation or push
 
@@ -233,11 +247,17 @@ Coverage includes registration/login/logout, password hashing/cookies, persisten
 npm run verify
 ```
 
-`verify` runs, in order and stopping at the first failure: `format:check`, `lint`, `npm test` (which builds first), then `check:build`. Its exit code is that of the failing stage.
+`verify` runs, in order and stopping at the first failure: `format:check`, `lint`, `build` (including strict runtime/tooling type checks), then `check:build`. Its exit code is that of the failing stage.
 
 ### Continuous integration
 
-`.github/workflows/verify.yml` runs on every push and pull request: `npm ci` and `npm run verify` on Node 24 for both Ubuntu and Windows, a `container` job that builds the Docker image, runs it with local storage, polls `/api/health` and `/medications`, and asserts the image has no `/app/.env`, no stored documents and runs as the non-root `node` user, plus a separate `npm audit --omit=dev` job (it depends on the npm registry and is reported separately rather than blocking verification). The jobs use no secrets, accounts, or deployment credentials. Hosted runs start only after this workflow is pushed to GitHub; until then, only local `npm run verify` results exist.
+`.github/workflows/verify.yml` runs on every push and pull request: `npm ci` and
+`npm run verify` on Node 24 for Ubuntu and Windows, Linux deployment-image
+compilation and a separate `npm audit --omit=dev` job. It publishes no executable
+functional/browser harness or container runtime smoke job. Image compilation
+does not prove startup, private-document access or remote restoration. The audit
+depends on registry access. These jobs need no deployment credentials or personal
+accounts; local results do not prove hosted CI passed.
 
 ### Check the built application
 
@@ -248,7 +268,7 @@ npm run check:build
 
 `check:build` reads Vite's emitted `dist/.vite/manifest.json` and fails, listing every problem, if the manifest is missing or invalid, has no entry, references a missing chunk, or if `index.html`, any referenced chunk/style/asset, or any local prescription-scanning file (OCR engine, English language data, PDF.js decoders) is missing or empty. It also fails if any entry file exceeds **500,000 minified bytes** before compression. Shared vendor and lazy route chunks are separate; passing this bound alone is not a claim about total load speed.
 
-**Missing or stale build:** if `check:build`, the startup tests, or production `npm start` report `The production frontend build ... is missing or incomplete`, run `npm run build` and retry. Production startup performs the same completeness check before opening the database, so a broken build never creates storage or starts listening. Development (`npm run dev`, `npm run dev:server`) does not need `dist`.
+**Missing or stale build:** if `check:build` or production `npm start` reports `The production frontend build ... is missing or incomplete`, run `npm run build` and retry. Production startup performs the same completeness check before opening the database, so a broken build never creates storage or starts listening. Development (`npm run dev`, `npm run dev:server`) does not need `dist`.
 
 ### Verify local API connectivity
 
@@ -301,7 +321,7 @@ Missing or malformed storage settings make the server exit with an error naming 
 
 - Free services spin down after about 15 minutes without traffic; the next visit takes roughly a minute while the container starts and restores the database.
 - Run exactly **one instance**. Litestream replication assumes a single writer; never scale out or run a second service against the same replica path.
-- Writes in the last ~10 seconds before an abrupt stop may be lost.
+- The 10-second replication interval is a target, not a guaranteed recovery point; network/provider failures or lag can lose a longer interval. See the [operations and recovery runbook](docs/operations.md).
 - The demo build shows a "Public demo: fictional data only" notice. Do not enter real health information.
 - **Rollback:** in Render, redeploy a previous successful deploy from the service's Events page. Database migrations only move forward, so roll back application code only to versions that understand the current schema; the bucket keeps both documents and the replica.
 - Pushes deploy automatically only after the GitHub checks pass (`autoDeployTrigger: checksPass`).
@@ -337,6 +357,13 @@ Limitations: medication check-ins appear only while the website is open; email, 
 - `src/lib/schemas.ts`: validation shared by forms and backend.
 - `src/contexts/`: session lifecycle and user-scoped data loading.
 - `src/components/`, `src/pages/`: existing responsive healthcare UI.
-- `tests/`: real backend integration plus focused form/domain tests.
+- `scripts/`: development lifecycle and emitted-production-resource checks.
+- `docker/`: production entrypoint; `public/`: shipped public assets.
+- `docs/`: architecture, request flows, decisions, development and operations.
+- `openspec/`: specifications, active plans and stable historical archives.
+
+Local-only verification material and generated OpenSpec integrations are ignored,
+not deleted. Keep runtime data, credentials and those local files out of staged
+releases and Docker contexts.
 
 This is a personal record-keeping MVP, **not a healthcare-compliance certification or medical advice**. Review legal requirements, retention, backups, access controls, and hosting before storing real patient information.

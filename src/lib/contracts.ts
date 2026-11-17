@@ -50,6 +50,7 @@ export const recordRow: z.ZodType<MedicalRecord> = z.object({
   file_name: z.string(),
   file_type: z.string(),
   file_size: z.number(),
+  is_favourite: z.boolean(),
   ...timestamps,
 })
 export const medicationRow: z.ZodType<Medication> = z.object({

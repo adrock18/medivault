@@ -42,7 +42,7 @@ Users SHALL upload PDF, JPG, or PNG documents with title, category, record date,
 
 ### Requirement: Combined document discovery and sorting
 
-The vault SHALL combine case-insensitive, whitespace-trimmed title/provider/file-name search, category filtering, and newest/oldest record-date sorting. Newest SHALL be the default, equal record dates SHALL have deterministic ordering, and displayed results SHALL report their count.
+The vault SHALL combine case-insensitive, whitespace-trimmed title/provider/file-name search, category filtering, an optional favourites-only filter, and newest/oldest record-date sorting. Newest SHALL be the default, equal record dates SHALL have deterministic ordering, and displayed results SHALL report their count. Existing selected-record scope SHALL remain effective.
 
 #### Scenario: Find older laboratory reports
 
@@ -53,8 +53,14 @@ The vault SHALL combine case-insensitive, whitespace-trimmed title/provider/file
 #### Scenario: Clear an unmatched search
 
 - **WHEN** discovery controls produce no matching documents and the user clears filters
-- **THEN** search and category constraints are cleared and newest-first ordering is restored
-- **AND** saved documents are unchanged
+- **THEN** search, category, favourites-only, and selected-record constraints are cleared and newest-first ordering is restored
+- **AND** saved documents and their favourite states are unchanged
+
+#### Scenario: Combine favourites with linked discovery
+
+- **WHEN** the owner enables favourites-only within a selected-record scope and a category or search filter
+- **THEN** only documents matching every active constraint appear with an accurate count
+- **AND** a no-match state offers reset without confusing it with an empty vault
 
 ### Requirement: Clear document identity and actions
 
@@ -124,3 +130,115 @@ Opening, cancelling, or successfully saving metadata edits from a source-linked 
 - **WHEN** the user chooses show-all-records or clear-filters
 - **THEN** the selected-record scope is removed
 - **AND** clear-filters retains its existing behavior of clearing search/category and restoring newest-record-date order
+
+### Requirement: In-app private document inspection
+
+Owners SHALL open a document preview from vault cards and dashboard recent-record entries without losing the workspace. The preview SHALL show document identity and metadata, authorized PDF/image content, Close, Download, and an explicit Open in new tab alternative. Existing edit, delete, scan, and linked-medication workflows SHALL remain available. No content SHALL be sent to an external preview service.
+
+#### Scenario: Inspect a saved image
+
+- **WHEN** an owner activates View for a JPG or PNG record
+- **THEN** an in-app inspection panel displays the authorized image with meaningful alternative text and record metadata
+- **AND** the existing download and new-tab access paths remain available
+
+#### Scenario: Inspect a multipage PDF
+
+- **WHEN** an owner opens a readable multipage PDF
+- **THEN** the preview shows the selected page, its current/total page count, and previous/next controls with correct boundary states
+- **AND** all pages remain reachable without applying the prescription-scanning page limit to document viewing
+
+#### Scenario: Continue an existing document workflow
+
+- **WHEN** the user closes the preview and chooses edit, delete, scan, or a linked-medication action
+- **THEN** that existing workflow remains functional with its original confirmation, review, and authorization safeguards
+
+### Requirement: Recoverable preview feedback
+
+The preview SHALL distinguish loading, loaded content, unavailable documents, and access/render failures. A failure SHALL retain available metadata, explain the problem, and offer retry and authorized alternative access controls. Close SHALL remain available while reading. Failed requests SHALL not display success or substitute unrelated content.
+
+#### Scenario: File access fails
+
+- **WHEN** the file request fails
+- **THEN** the panel displays a helpful error with Retry and remains dismissible
+- **AND** no preview or download success is claimed
+
+#### Scenario: Rendering fails after access succeeds
+
+- **WHEN** a corrupt, protected, or otherwise unreadable PDF cannot be rendered
+- **THEN** the panel identifies a rendering problem rather than showing an empty success state
+- **AND** Open in new tab and Download remain explicit authorized alternatives
+
+### Requirement: Retained preview context
+
+Opening and closing a preview SHALL preserve the vault's source-record scope, search, category, sorting, and scroll position. Closing SHALL return focus to the originating action or a stable page heading if that action no longer exists. Preview selection SHALL not repurpose the existing source-record filter.
+
+#### Scenario: Inspect within filtered linked results
+
+- **WHEN** an owner previews and closes a record while using linked-record scope and discovery controls
+- **THEN** the same scope, controls, result order, scroll position, and usable trigger focus remain
+- **AND** unrelated documents do not appear merely because inspection ended
+
+#### Scenario: Inspect from the dashboard
+
+- **WHEN** an owner opens and closes a recent-record preview
+- **THEN** the dashboard remains at its prior scroll position with focus restored to the view action
+
+### Requirement: Accessible bounded preview lifecycle
+
+Preview SHALL act as a titled, keyboard-accessible modal, using a side panel on desktop and a full-screen presentation on narrow screens. Closing, changing the selected record, or signing out SHALL discard the old visible content and prevent late responses from restoring it. Viewing SHALL retain the existing owner-only file-access rules and SHALL not persist document bytes in browser storage.
+
+#### Scenario: Close before loading completes
+
+- **WHEN** the user closes a preview before its file request finishes
+- **THEN** the late result does not reopen the panel or restore private content
+- **AND** reopening a different record never displays the previous record's bytes under its metadata
+
+#### Scenario: Inspect at 320 pixels
+
+- **WHEN** a user opens a preview at 320 CSS pixels
+- **THEN** its title, close/action controls, and page navigation remain readable and keyboard-operable with at least 44 by 44 pixel targets
+- **AND** zoomed or wide document content is contained without page-level horizontal overflow
+
+#### Scenario: Session changes while inspecting
+
+- **WHEN** the account signs out or its session expires
+- **THEN** private preview content is removed with the authenticated workspace
+- **AND** subsequent document access still requires the current authorized owner
+
+### Requirement: Persisted private document favourites
+
+Owners SHALL explicitly favourite or unfavourite their saved medical records. State SHALL survive reload, session renewal, and backend restart. Existing records SHALL begin unfavourited after upgrade. Setting the same desired state repeatedly SHALL be idempotent and SHALL not replace document bytes, change metadata, or grant access.
+
+#### Scenario: Favourite and revisit a record
+
+- **WHEN** an owner favourites a document and later reloads or signs in again
+- **THEN** the document remains favourited and appears in favourites-only results
+- **AND** existing preview, download, metadata, source links, and scan workflows remain usable
+
+#### Scenario: Repeated desired-state requests
+
+- **WHEN** the same owner submits the same desired favourite state repeatedly or concurrently
+- **THEN** the final state equals the requested state rather than flipping once per request
+- **AND** no duplicate favourite or document is created
+
+#### Scenario: Account boundary and deletion
+
+- **WHEN** another account attempts to read or change a record's favourite state
+- **THEN** the request returns no private metadata and does not change the owner's record
+- **AND** deleting an owned record removes its favourite state without leaving a separate dangling entry
+
+### Requirement: Recoverable accessible favourite controls
+
+Favourite controls SHALL identify the target document and current pressed state, retain visible keyboard focus, and meet the existing touch-target minimum. Pending changes SHALL prevent duplicate interaction. Failure SHALL preserve or restore the last confirmed state and show an explicit error; success SHALL reflect persistence rather than a local-only preference.
+
+#### Scenario: A favourite request fails
+
+- **WHEN** the server rejects or cannot complete a favourite change
+- **THEN** the saved-state presentation remains truthful and the user receives a useful error
+- **AND** no success confirmation is shown and retry remains possible
+
+#### Scenario: Favourite while inspecting filtered results
+
+- **WHEN** a user changes a favourite while using discovery controls or closes the record preview
+- **THEN** the selected-record scope, search, category, sort, and favourites-only selection remain unchanged
+- **AND** if an unfavourited row leaves favourites-only results, focus moves to a stable result or heading rather than the document body

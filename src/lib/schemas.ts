@@ -85,6 +85,9 @@ export const recordSchema = z.object({
     'Record date cannot be in the future.',
   ),
 })
+export const recordFavouriteSchema = z
+  .object({ is_favourite: z.boolean() })
+  .strict()
 export const medicationSchema = z
   .object({
     name: z.string().trim().min(1, 'Enter the medication name.').max(120),

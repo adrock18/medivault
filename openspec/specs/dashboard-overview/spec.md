@@ -30,13 +30,19 @@ The dashboard SHALL derive record counts, active medication counts, scheduled/ta
 
 ### Requirement: Daily tasks take visual priority
 
-The dashboard SHALL place today's medication check-ins and working prescription-scan, add-medication, and upload actions before historical detail. Measurement cards and charts SHALL not appear. It SHALL not place a promotional hero banner ahead of daily tasks.
+The dashboard SHALL place today's medication check-ins and working prescription-scan, add-medication, and upload actions before historical detail. The daily routine SHALL be the dominant reading area, with supporting activity secondary in both desktop composition and narrow-screen reading order. Measurement cards and charts SHALL not appear. It SHALL not place a promotional hero banner ahead of daily tasks.
 
 #### Scenario: Open a dashboard with scheduled doses
 
 - **WHEN** a signed-in user opens a dashboard with today's scheduled doses
 - **THEN** today's routine and its available check-in actions precede historical detail
 - **AND** the three quick actions are available without opening a separate navigation menu
+
+#### Scenario: Read the dashboard on a narrow screen
+
+- **WHEN** the dashboard is viewed at 320 or 375 CSS pixels
+- **THEN** today's routine and quick workflow actions precede the historical activity and recent-record sections in reading order
+- **AND** the floating navigation does not cover the final available action
 
 ### Requirement: Contextual first-use guidance
 
@@ -55,13 +61,14 @@ The dashboard SHALL offer concise links for missing health-profile, document, an
 
 ### Requirement: Honest medication progress
 
-The daily overview SHALL distinguish taken, skipped, and unlogged scheduled doses. Past-time indicators SHALL not automatically count doses as missed, taken, or skipped and SHALL not recommend taking late or additional doses.
+The daily overview SHALL distinguish taken, skipped, and unlogged scheduled doses. A dose whose time has passed without an outcome SHALL be labeled "Not logged". Past-time indicators SHALL not automatically count doses as missed, taken, or skipped and SHALL not recommend taking late or additional doses.
 
 #### Scenario: A scheduled time passes without a log
 
 - **WHEN** a dose's local scheduled time passes and no outcome has been recorded
-- **THEN** the dose remains unlogged and is labeled as past its scheduled time
+- **THEN** the dose remains unlogged and is labeled "Not logged"
 - **AND** taken and skipped totals remain unchanged
+- **AND** the word missed is not used for that dose
 
 ### Requirement: Quick actions open the intended workflow
 
@@ -127,7 +134,7 @@ The dashboard SHALL chart the last seven local days, including today, showing ta
 
 ### Requirement: Factual daily insight
 
-The dashboard SHALL show up to three short insight statements derived only from the user's own schedule, outcome logs, and records. Insights SHALL state facts such as progress, the next scheduled dose, consecutive fully logged days, or unlogged earlier doses. They SHALL not diagnose, give treatment advice, judge health values, or suggest taking late or additional doses.
+The dashboard SHALL show up to three short insight statements derived only from the user's own schedule, outcome logs, and records. Historical consistency SHALL describe days with recorded outcomes, not inferred prescription completeness. Insights SHALL not diagnose, give treatment advice, judge health values, or suggest taking late or additional doses.
 
 #### Scenario: Doses remain later today
 
@@ -142,10 +149,92 @@ The dashboard SHALL show up to three short insight statements derived only from 
 
 #### Scenario: Consistent logging streak
 
-- **WHEN** every scheduled dose was logged on each of the previous three days
-- **THEN** an insight states a three-day fully-logged streak without implying any health outcome
+- **WHEN** each of three consecutive local scheduled dates has at least one stored taken or skipped outcome
+- **THEN** an insight can state three consecutive days with recorded outcomes and identify the ending date
+- **AND** it does not claim that every historically prescribed dose was logged or that health improved
 
 #### Scenario: Nothing to report
 
 - **WHEN** an account has no medications and no records
 - **THEN** the insight panel offers a neutral setup prompt instead of invented statistics
+
+### Requirement: Daybook composition
+
+The dashboard SHALL organize the date, scheduled times, medication identity, and check-in actions into a clearly aligned daily reading flow. Desktop supporting information SHALL occupy a secondary region rather than a uniform grid of equal-emphasis cards. The existing dose dial, state filters, seven-day chart, recorded-adherence ring, insights, and record/upcoming lists SHALL remain available with their existing data semantics.
+
+#### Scenario: Inspect and act on the daily routine
+
+- **WHEN** a user opens the desktop dashboard
+- **THEN** the date and aligned dose times establish the routine's reading flow, with readable medication names, dosage, and explicit actions
+- **AND** visual grouping does not depend on nesting every item inside another decorative card
+
+#### Scenario: Use existing visual drill-downs
+
+- **WHEN** a user selects a dial state or a day in the seven-day chart after the composition change
+- **THEN** the existing timeline filtering or textual day breakdown still works
+- **AND** Taken, Skip, and Undo retain their persistence, pending-state, and failure behavior
+
+#### Scenario: Open an empty account
+
+- **WHEN** the signed-in account has no medications or documents
+- **THEN** the layout provides truthful empty states and optional setup actions
+- **AND** it does not fill the composition with fictional health values or imply that taking medication is mandatory
+
+### Requirement: Honest logged-day milestones
+
+The dashboard SHALL show unique local scheduled dates with recorded taken or skipped outcomes and milestones at three, seven, and thirty such days. Multiple outcomes on one date SHALL count once; future dates SHALL not count. Undo and medication deletion SHALL recompute the result. Milestones SHALL remain secondary to today's check-ins and SHALL not reward additional doses or imply clinical adherence.
+
+#### Scenario: Several outcomes on one day
+
+- **WHEN** an account records multiple taken and skipped outcomes for the same local scheduled date
+- **THEN** that date contributes one logged day
+- **AND** a skipped outcome has the same logged-day contribution as a taken outcome
+
+#### Scenario: Undo or delete the only qualifying outcome
+
+- **WHEN** the last stored outcome for a qualifying date is undone or removed through medication deletion
+- **THEN** the logged-day count and any dependent milestone are recomputed
+- **AND** no cached achievement persists as if the removed log still existed
+
+#### Scenario: Schedule changes after logging
+
+- **WHEN** a medication's dates or times change after an outcome was recorded
+- **THEN** its original saved outcome date still counts as a day with a recorded outcome
+- **AND** no fully-completed historical schedule is inferred from that fact
+
+### Requirement: Explicit current logging-run meaning
+
+A current logging run SHALL count consecutive local scheduled dates with at least one stored outcome, ending today if today qualifies or otherwise yesterday. Older disconnected runs SHALL not be described as current. Calendar arithmetic SHALL use local dates rather than fixed twenty-four-hour UTC intervals.
+
+#### Scenario: Today's first outcome is not yet logged
+
+- **WHEN** yesterday ends a qualifying three-day run and today has no outcome
+- **THEN** the display identifies a three-day run ending yesterday
+- **AND** a day with no scheduled medication is not fabricated as a logged day
+
+#### Scenario: An older run is interrupted
+
+- **WHEN** neither today nor yesterday has a stored outcome
+- **THEN** no positive current run is displayed
+- **AND** lifetime distinct logged-day milestones can remain visible with their separate meaning
+
+#### Scenario: Local daylight-saving boundary
+
+- **WHEN** qualifying dates cross a local daylight-saving or year boundary
+- **THEN** adjacent local calendar dates remain consecutive without duplicate or shifted days
+
+### Requirement: Confirmed and neutral accomplishment feedback
+
+New logging feedback SHALL follow confirmed persistence, keep taken/skipped text explicit, and never encourage medication use or penalize skipped outcomes. Failed or pending mutations SHALL not trigger accomplishment feedback. Reload, passive refresh, and sign-in SHALL not replay an achievement celebration.
+
+#### Scenario: A dose request fails
+
+- **WHEN** a dose logging request is rejected or interrupted
+- **THEN** the user receives the existing helpful error without a success animation or milestone advance
+- **AND** retry and undo semantics remain unchanged
+
+#### Scenario: A persisted check-in crosses a milestone
+
+- **WHEN** a confirmed explicit outcome creates the third distinct logged day
+- **THEN** a brief, dismissible or self-ending neutral acknowledgment can highlight the milestone
+- **AND** equivalent readable confirmation remains available with reduced motion

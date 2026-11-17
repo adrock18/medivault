@@ -8,16 +8,33 @@ const isPreference = (value: string | null): value is ThemePreference =>
   value === 'light' || value === 'dark' || value === 'system'
 const systemDark = () =>
   window.matchMedia('(prefers-color-scheme: dark)').matches
+let glossTimer: ReturnType<typeof setTimeout> | undefined
+let themeFrame = 0
+
+export function cancelThemeTransition() {
+  clearTimeout(glossTimer)
+  glossTimer = undefined
+  document.documentElement.removeAttribute('data-theme-transition')
+}
 
 function applyTheme() {
+  const root = document.documentElement
   const dark =
     preference === 'dark' || (preference === 'system' && systemDark())
-  document.documentElement.classList.toggle('dark', dark)
-  document.documentElement.style.colorScheme = dark ? 'dark' : 'light'
+  root.setAttribute('data-theme-applying', '')
+  root.classList.toggle('dark', dark)
+  root.style.colorScheme = dark ? 'dark' : 'light'
+  // Resolve semantic colors without interpolating individual foregrounds/surfaces.
+  void getComputedStyle(root).color
+  cancelAnimationFrame(themeFrame)
+  themeFrame = requestAnimationFrame(() =>
+    root.removeAttribute('data-theme-applying'),
+  )
   listeners.forEach((listener) => listener())
 }
 
 export function initializeTheme() {
+  cancelThemeTransition()
   try {
     const saved = localStorage.getItem(key)
     preference = isPreference(saved) ? saved : 'system'
@@ -32,8 +49,20 @@ export function initializeTheme() {
 }
 
 export function setThemePreference(value: ThemePreference) {
+  const root = document.documentElement
+  const wasDark = root.classList.contains('dark')
+  cancelThemeTransition()
   preference = value
   applyTheme()
+  if (
+    wasDark !== root.classList.contains('dark') &&
+    !window.matchMedia('(prefers-reduced-motion: reduce)').matches &&
+    typeof CSS !== 'undefined' &&
+    CSS.supports('animation-name', 'theme-gloss')
+  ) {
+    root.setAttribute('data-theme-transition', '')
+    glossTimer = setTimeout(cancelThemeTransition, 420)
+  }
   // Apply the selection even when storage is unavailable, but report persistence failure.
   try {
     localStorage.setItem(key, value)
@@ -47,16 +76,25 @@ export function setThemePreference(value: ThemePreference) {
 
 function subscribe(listener: () => void) {
   const media = window.matchMedia('(prefers-color-scheme: dark)')
-  const systemChanged = () => applyTheme()
+  const reduced = window.matchMedia('(prefers-reduced-motion: reduce)')
+  const systemChanged = () => {
+    cancelThemeTransition()
+    applyTheme()
+  }
+  const motionChanged = () => {
+    if (reduced.matches) cancelThemeTransition()
+  }
   const storage = (event: StorageEvent) => {
     if (event.key === key || event.key === null) initializeTheme()
   }
   listeners.add(listener)
   media.addEventListener('change', systemChanged)
+  reduced.addEventListener('change', motionChanged)
   window.addEventListener('storage', storage)
   return () => {
     listeners.delete(listener)
     media.removeEventListener('change', systemChanged)
+    reduced.removeEventListener('change', motionChanged)
     window.removeEventListener('storage', storage)
   }
 }

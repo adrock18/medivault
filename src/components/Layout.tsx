@@ -1,4 +1,4 @@
-import { Suspense, useState } from 'react'
+import { Suspense, useLayoutEffect, useState } from 'react'
 import {
   Link,
   NavLink,
@@ -31,6 +31,7 @@ import { errorMessage } from '../lib/api'
 import { ThemeSelect } from './ThemeSelect'
 import { navigation } from '../lib/navigation'
 import { CommandPalette } from './CommandPalette'
+import { cancelThemeTransition } from '../lib/theme'
 export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
   return (
     <div className="flex h-full flex-col">
@@ -159,6 +160,9 @@ export default function Layout() {
   const { loading, error, reload, profile, now } = useVault()
   const location = useLocation()
   const skeleton = pageSkeletonFor(location.pathname)
+  useLayoutEffect(() => {
+    cancelThemeTransition()
+  }, [location.pathname])
   return (
     <div className="workspace-shell min-h-screen bg-workspace">
       <div className="ambient-backdrop" aria-hidden="true" />
@@ -199,11 +203,7 @@ export default function Layout() {
                 </div>
               )}
               {(!error || profile) && (
-                <div
-                  key={location.pathname}
-                  data-route-transition
-                  className="motion-safe:animate-in motion-safe:fade-in motion-safe:duration-200"
-                >
+                <div key={location.pathname} data-route-transition>
                   <Suspense fallback={<PageSkeleton variant={skeleton} />}>
                     <Outlet />
                   </Suspense>
