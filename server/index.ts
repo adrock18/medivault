@@ -16,6 +16,8 @@ export function startApi(env: NodeJS.ProcessEnv = process.env) {
     serveFrontend: config.production,
     devStartupId: config.production ? undefined : env.MEDIVAULT_DEV_STARTUP_ID,
     trustProxy: config.trustProxy,
+    ocrSpaceApiKey: config.ocrSpaceApiKey,
+    reminderEmail: config.reminderEmail,
     documentStore: config.s3 ? new S3DocumentStore(config.s3) : undefined,
   })
   const server = createServer(app)

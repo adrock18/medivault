@@ -4,18 +4,35 @@ import { DataContext, type DataState } from './DataContext'
 
 export function DataProvider({ children }: { children: ReactNode }) {
   const [data, setData] = useState<
-    Omit<DataState, 'now' | 'loading' | 'refreshing' | 'error' | 'reload'>
+    Omit<
+      DataState,
+      | 'now'
+      | 'loading'
+      | 'refreshing'
+      | 'error'
+      | 'reload'
+      | 'selectedFamilyMemberId'
+      | 'selectFamilyMember'
+    >
   >({
     profile: null,
+    familyMembers: [],
+    features: {
+      remoteOcrAvailable: false,
+      emailRemindersConfigured: false,
+    },
+    notificationPreferences: null,
     healthProfile: null,
     records: [],
     medications: [],
     logs: [],
-    metrics: [],
+    careTracks: [],
+    visits: [],
   })
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [selectedFamilyMemberId, setSelectedFamilyMemberId] = useState('')
   const [now, setNow] = useState(() => new Date())
   const sequence = useRef(0)
   const reload = useCallback(async () => {
@@ -38,6 +55,15 @@ export function DataProvider({ children }: { children: ReactNode }) {
       }
     }
   }, [])
+  const selectedMember =
+    data.familyMembers.find((member) => member.id === selectedFamilyMemberId) ??
+    data.familyMembers.find((member) => member.relationship === 'self') ??
+    data.familyMembers[0]
+  const familyMemberId = selectedMember?.id ?? ''
+  const medications = data.medications.filter(
+    (medication) => medication.family_member_id === familyMemberId,
+  )
+  const medicationIds = new Set(medications.map((medication) => medication.id))
   useEffect(() => {
     // Initial fetch from the external API; reload's state updates are intentional here.
     // oxlint-disable-next-line react/set-state-in-effect
@@ -57,7 +83,27 @@ export function DataProvider({ children }: { children: ReactNode }) {
   }, [reload])
   return (
     <DataContext.Provider
-      value={{ ...data, now, loading, refreshing, error, reload }}
+      value={{
+        ...data,
+        selectedFamilyMemberId: familyMemberId,
+        selectFamilyMember: setSelectedFamilyMemberId,
+        records: data.records.filter(
+          (record) => record.family_member_id === familyMemberId,
+        ),
+        medications,
+        logs: data.logs.filter((log) => medicationIds.has(log.medication_id)),
+        careTracks: data.careTracks.filter(
+          (track) => track.family_member_id === familyMemberId,
+        ),
+        visits: data.visits.filter(
+          (visit) => visit.family_member_id === familyMemberId,
+        ),
+        now,
+        loading,
+        refreshing,
+        error,
+        reload,
+      }}
     >
       {children}
     </DataContext.Provider>

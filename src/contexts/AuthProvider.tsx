@@ -6,9 +6,9 @@ import {
   type ReactNode,
 } from 'react'
 import { z } from 'zod'
-import type { Session } from '../lib/contracts'
+import type { Session } from '@shared/contracts'
 import { api, errorMessage } from '../lib/api'
-import { loginSchema, registerSchema } from '../lib/schemas'
+import { loginSchema, registerSchema } from '@shared/schemas'
 import { AuthContext } from './AuthContext'
 import { cancelThemeTransition } from '../lib/theme'
 

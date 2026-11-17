@@ -1,16 +1,18 @@
 # MediVault Engineering Handbook
 
-Start with the [repository quick start](../README.md#run-the-complete-application).
+Start with the [repository quick start](../README.md#run-locally).
 This handbook describes the implemented medication-and-records product, not the
 original Supabase concept or a clinically certified system.
 
-| Question                                                       | Read                                            |
-| -------------------------------------------------------------- | ----------------------------------------------- |
-| What runs where? Which module owns a responsibility?           | [Architecture and module map](architecture.md)  |
-| How do authentication, documents, OCR, and dose requests work? | [Data contracts and request flows](flows.md)    |
-| How do I set up, verify, review, and release a change safely?  | [Development and release guide](development.md) |
-| Why were the main engineering choices made?                    | [Decision records](decisions.md)                |
-| How do I triage restore/storage failures or rehearse recovery? | [Operations and recovery](operations.md)        |
+| Question                                                       | Read                                                            |
+| -------------------------------------------------------------- | --------------------------------------------------------------- |
+| What runs where? Which module owns a responsibility?           | [Architecture and module map](architecture.md)                  |
+| How does a browser request reach production storage?           | [System integration and production runtime](system-overview.md) |
+| How do authentication, documents, OCR, and dose requests work? | [Data contracts and request flows](flows.md)                    |
+| How do I set up, verify, review, and release a change safely?  | [Development and release guide](development.md)                 |
+| Why were the main engineering choices made?                    | [Decision records](decisions.md)                                |
+| How do I triage restore/storage failures or rehearse recovery? | [Operations and recovery](operations.md)                        |
+| What does MediVault do today, and what should it add next?     | [Product landscape and staged roadmap](product-roadmap.md)      |
 
 Health information belongs only in private runtime storage. Use fictional data
 for examples, tests, screenshots, and public demonstrations. Neither a passing

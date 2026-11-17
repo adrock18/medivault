@@ -32,6 +32,37 @@ storage; do not delete that storage to fix a port conflict.
 Use a fictional account and Settings' explicit sample-data action for rehearsal.
 Do not use production accounts or the public demo as a test environment.
 
+### Source-attributed local demo examples
+
+The Settings action creates two fictional family profiles, owner-defined care
+tracks/visits, and watermarked PDF examples based on the informative HL7 FHIR R4
+[CBC DiagnosticReport](https://hl7.org/fhir/R4/diagnosticreport-example.json.html)
+and [Azithromycin MedicationRequest](https://hl7.org/fhir/R4/medicationrequest0302.json.html)
+examples. The files are generated for readable upload/OCR rehearsal from the
+published example content; they are not original patient documents, valid
+prescriptions, diagnoses, or medical advice. They are added to the signed-in
+test account. Remove the records, care tracks, and visits through their normal
+controls before deleting the now-empty demo profiles. Profiles with associated
+health data cannot be deleted, and deletion never cascades through that data.
+The operation does not create medication schedules or dose logs.
+
+To rehearse the paths, register an isolated local test account, add the examples
+from **Settings → Explore with sample data**, and choose the relevant demo
+profile in the family selector. The Wile E. Coyote example is for the manual
+record/timeline path. Choose the Donald Duck profile, open **Medications →
+Scan for medications**, select its MedicationRequest example, and scan locally.
+Review the recognized wording against the original. Its staged instructions
+cannot be represented as one repeating MediVault schedule, so do not save a
+schedule based on this example. For a medication workflow, enter only a clearly
+fictional schedule intended for software testing, or use a real prescription
+only in an appropriately authorized private environment.
+
+Two login accounts are not pre-created or seeded with reusable credentials.
+Create accounts locally through the normal registration flow; the sample action
+adds two family profiles to the currently signed-in account. This avoids
+committing default passwords and keeps demo data within the same ownership
+boundaries as ordinary records.
+
 ## Lightweight SDLC
 
 This project uses an iterative/incremental workflow with explicit verification
@@ -97,10 +128,14 @@ full-browser verification command. A fresh checkout cannot reproduce the earlier
 not current CI coverage. Build/audit gates are not substitutes for those checks.
 The predecessor's Linux visual references were never accepted.
 
-Existing local suites/configuration remain ignored and unchanged. Their original
-tooling context is preserved locally under `.local-verification/`; source files
-alone do not guarantee a runnable toolchain after dependency changes. Do not
-force-add them, embed executable suites in documentation or upload private reports.
+Local-only suites/configuration are preserved under the ignored
+`.local-verification/` folder and are not included in the repository. When the
+local Vitest toolchain is installed, run
+`npx vitest run --config .local-verification/vitest.config.ts`. A clean checkout
+does not contain these suites or their test-only dependencies, so source files
+alone do not guarantee a runnable test toolchain after dependency changes. Do
+not force-add them, embed executable suites in documentation, or upload private
+reports.
 Generated `.agents/skills/` integrations are also local; regenerate them with
 `openspec update` when using OpenSpec.
 
@@ -133,7 +168,7 @@ record-keeping values; MediVault does not prescribe.
 In a fictional account, upload two generated documents and use each record's
 star button. Its pressed state reflects the saved flag; pending requests disable
 duplicate interaction. Reload to verify persistence. **Favourites only** combines
-with title/provider/file search, category, record-date ordering and linked-record
+with title/provider/file search, document type, record-date ordering and linked-record
 scope; the result count reflects every active constraint.
 
 Open and close a preview: those discovery settings and trigger focus remain.

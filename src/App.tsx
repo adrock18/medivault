@@ -24,13 +24,21 @@ import {
   EmptyState,
 } from './components/common'
 import Layout from './components/Layout'
-import AuthPage from './pages/AuthPage'
+import AuthPage from '@/features/auth/pages/AuthPage'
 import { useTheme } from './lib/theme'
-const DashboardPage = lazy(() => import('./pages/DashboardPage'))
-const ProfilePage = lazy(() => import('./pages/ProfilePage'))
-const MedicalRecordsPage = lazy(() => import('./pages/MedicalRecordsPage'))
-const MedicationsPage = lazy(() => import('./pages/MedicationsPage'))
-const SettingsPage = lazy(() => import('./pages/SettingsPage'))
+const DashboardPage = lazy(
+  () => import('@/features/dashboard/pages/DashboardPage'),
+)
+const ProfilePage = lazy(() => import('@/features/profile/pages/ProfilePage'))
+const MedicalRecordsPage = lazy(
+  () => import('@/features/records/pages/MedicalRecordsPage'),
+)
+const MedicationsPage = lazy(
+  () => import('@/features/medications/pages/MedicationsPage'),
+)
+const SettingsPage = lazy(
+  () => import('@/features/settings/pages/SettingsPage'),
+)
 
 class ErrorBoundary extends Component<
   { children: ReactNode },

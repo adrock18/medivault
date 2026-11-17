@@ -22,6 +22,7 @@ import {
   DemoNotice,
   PageSkeleton,
   type PageSkeletonVariant,
+  SelectField,
 } from './common'
 import { Button } from './ui/button'
 import { useAuth } from '../contexts/AuthContext'
@@ -71,11 +72,23 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
 export function Header({ onMenu }: { onMenu: () => void }) {
   const location = useLocation()
   const { session, signOut } = useAuth()
-  const { profile, refreshing } = useVault()
+  const {
+    profile,
+    refreshing,
+    familyMembers,
+    selectedFamilyMemberId,
+    selectFamilyMember,
+  } = useVault()
+  const selectedMember = familyMembers.find(
+    (member) => member.id === selectedFamilyMemberId,
+  )
   const navigate = useNavigate()
   const [signingOut, setSigningOut] = useState(false)
   const name =
-    profile?.full_name || session?.user.email?.split('@')[0] || 'Your account'
+    selectedMember?.full_name ??
+    profile?.full_name ??
+    session?.user.email?.split('@')[0] ??
+    'Your account'
   async function logout() {
     setSigningOut(true)
     try {
@@ -100,7 +113,9 @@ export function Header({ onMenu }: { onMenu: () => void }) {
           <Menu />
         </Button>
         <span className="hidden text-sm text-slate-400 sm:block">
-          Personal workspace
+          {selectedMember?.relationship === 'self'
+            ? 'Personal workspace'
+            : `${selectedMember?.full_name ?? 'Family'} workspace`}
         </span>
         <ChevronRight className="hidden size-3 text-slate-300 sm:block" />
         <span className="truncate text-sm font-semibold text-slate-700">
@@ -115,6 +130,19 @@ export function Header({ onMenu }: { onMenu: () => void }) {
         )}
       </div>
       <div className="flex shrink-0 items-center gap-1 sm:gap-3">
+        {familyMembers.length > 1 && (
+          <div className="w-36 sm:w-48">
+            <SelectField
+              label="Viewing profile"
+              value={selectedFamilyMemberId}
+              onValueChange={selectFamilyMember}
+              options={familyMembers.map((member) => ({
+                value: member.id,
+                label: member.full_name,
+              }))}
+            />
+          </div>
+        )}
         <CommandPalette />
         <ThemeSelect />
         <Link
@@ -126,7 +154,11 @@ export function Header({ onMenu }: { onMenu: () => void }) {
             <p className="max-w-40 truncate text-sm font-medium text-slate-800">
               {name}
             </p>
-            <p className="text-[11px] text-slate-400">Personal account</p>
+            <p className="text-[11px] text-slate-400">
+              {selectedMember?.relationship === 'self'
+                ? 'Personal account'
+                : 'Family profile'}
+            </p>
           </div>
           <span className="flex size-11 items-center justify-center rounded-full border-4 border-teal-50 bg-teal-100 text-sm font-semibold text-primary">
             {name.slice(0, 2).toUpperCase()}

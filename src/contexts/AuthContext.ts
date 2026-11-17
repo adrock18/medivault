@@ -1,7 +1,7 @@
 import { createContext, useContext } from 'react'
 import { z } from 'zod'
-import type { Session } from '../lib/contracts'
-import { loginSchema, registerSchema } from '../lib/schemas'
+import type { Session } from '@shared/contracts'
+import { loginSchema, registerSchema } from '@shared/schemas'
 
 export type AuthState = {
   session: Session | null

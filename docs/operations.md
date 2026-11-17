@@ -148,14 +148,18 @@ destructive repair tool is supplied by this change.
 
 ## Migrations and rollback
 
-Schema version 3 adds default-false favourites without replacing documents or
-IDs. Startup applies forward migrations transactionally and rejects unknown newer
-versions. Before a live migration, preserve a coordinated backup and verify a
-compatible restore.
+Schema version 3 added default-false favourites. Version 4 added
+owner-managed family profiles and backfilled existing records, medications, and
+measurements to each account's `self` profile. Version 5 added notification
+preferences and per-dose reminder-delivery tracking. Version 6 adds care tracks,
+visits, and record-to-visit organization while preserving historical measurement
+rows for account export. Startup applies forward migrations transactionally and
+rejects unknown newer versions. Before a live migration, preserve a coordinated
+backup and verify a compatible restore.
 
 Prefer a forward fix. Application rollback is safe only to code that understands
 the current schema and contract; an older successful deploy can still reject
-`user_version=3`. Never decrement `user_version`, drop columns or delete storage
+`user_version=6`. Never decrement `user_version`, drop columns or delete storage
 to force old code to start. Restoring an older coordinated backup is a separate
 authorized recovery operation with explicit loss of later writes, not routine
 code rollback.

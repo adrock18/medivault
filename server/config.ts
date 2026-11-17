@@ -11,6 +11,11 @@ export type S3Settings = {
   accessKeyId: string
   secretAccessKey: string
 }
+export type ReminderEmailSettings = {
+  resendApiKey: string
+  from: string
+  cronSecret: string
+}
 
 function trustProxyHops(value: string | undefined) {
   if (value === undefined || value === '') return undefined
@@ -57,6 +62,25 @@ export function apiConfig(env: NodeJS.ProcessEnv = process.env) {
   const storage = env.DOCUMENT_STORAGE || 'local'
   if (storage !== 'local' && storage !== 's3')
     throw new Error('DOCUMENT_STORAGE must be "local" or "s3".')
+  const reminderValues = [
+    env.RESEND_API_KEY?.trim(),
+    env.EMAIL_FROM?.trim(),
+    env.REMINDER_CRON_SECRET?.trim(),
+  ]
+  const reminderConfigured = reminderValues.some(Boolean)
+  if (reminderConfigured && reminderValues.some((value) => !value))
+    throw new Error(
+      'Set RESEND_API_KEY, EMAIL_FROM, and REMINDER_CRON_SECRET together to enable email reminders.',
+    )
+  const reminderEmail = reminderConfigured
+    ? {
+        resendApiKey: reminderValues[0]!,
+        from: reminderValues[1]!,
+        cronSecret: reminderValues[2]!,
+      }
+    : undefined
+  if (reminderEmail && reminderEmail.cronSecret.length < 32)
+    throw new Error('REMINDER_CRON_SECRET must be at least 32 characters.')
   return {
     port,
     host: env.HOST ?? '127.0.0.1',
@@ -65,6 +89,8 @@ export function apiConfig(env: NodeJS.ProcessEnv = process.env) {
     appOrigin: env.APP_ORIGIN,
     production,
     trustProxy: trustProxyHops(env.TRUST_PROXY),
+    ocrSpaceApiKey: env.OCR_SPACE_API_KEY?.trim() || undefined,
+    reminderEmail,
     s3: storage === 's3' ? s3Settings(env) : undefined,
   }
 }

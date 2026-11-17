@@ -21,17 +21,10 @@ playwright-report/
 test-results/
 *.local
 /.local-verification/
+/personal-learning/
 
-# Local-only verification and generated integrations
-/tests/
-/e2e/
-/vitest.config.ts
-/playwright.config.ts
-/tsconfig.test.json
-/scripts/check-entrypoint.sh
-/docker/verify.Dockerfile
+# Generated integrations
 /.agents/skills/
-/fictional-prescription.pdf
 
 # Editor directories and files
 .vscode/*

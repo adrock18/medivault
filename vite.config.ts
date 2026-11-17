@@ -16,7 +16,10 @@ export default defineConfig(({ mode }) => {
   return {
     plugins: [react(), tailwindcss(), localOcrAssets()],
     resolve: {
-      alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) },
+      alias: {
+        '@': fileURLToPath(new URL('./src', import.meta.url)),
+        '@shared': fileURLToPath(new URL('./shared', import.meta.url)),
+      },
     },
     server: { proxy },
     preview: { proxy },

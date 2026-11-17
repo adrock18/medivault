@@ -29,7 +29,7 @@ documented choices, not claims of security or healthcare certification.
 - **Consequences:** Session lookup/revocation is server-owned; production needs
   HTTPS/Secure cookies. There is no email-based recovery flow. Browser downloads
   already saved cannot be revoked by logout.
-- **Where:** [auth](../server/auth.ts), [session handlers](../server/app.ts),
+- **Where:** [auth helpers](../server/auth.ts), [session handlers](../server/routes/auth.ts),
   [AuthProvider](../src/contexts/AuthProvider.tsx).
 
 ## D3. Private file delivery and explicit compensation
@@ -42,21 +42,25 @@ documented choices, not claims of security or healthcare certification.
   systems are not atomic; partial failures need explicit errors and controlled
   reconciliation, not success-shaped fallbacks.
 - **Where:** [document store](../server/document-store.ts),
-  [document handlers](../server/app.ts), [flows](flows.md#documents).
+  [document routes](../server/routes/records.ts), [flows](flows.md#documents).
 
-## D4. Local OCR is an editable draft, not interpretation
+## D4. Local-first OCR is an editable draft, not interpretation
 
 - **Context:** Printed prescription text may be useful but recognition can fail.
-- **Decision:** Serve PDF/OCR workers locally and require human review plus normal
-  form validation before saving explicit wording.
-- **Alternatives:** Cloud AI/OCR, automatic medication creation, inferring doses
-  from strength or shorthand.
+- **Decision:** Serve PDF/OCR workers locally by default and require human
+  review plus normal form validation before saving explicit wording. A
+  server-keyed OCR.Space path is optional and requires consent for each scan;
+  its free tier must not receive real or sensitive medical documents.
+- **Alternatives:** Unconsented remote processing, an LLM/medical interpretation
+  step, automatic medication creation, or inferring doses from strength or
+  shorthand.
 - **Consequences:** Larger lazy worker assets and mobile processing cost. English,
-  page/pixel limits and cancellation are explicit. No claim of handwriting,
-  clinical interpretation or guaranteed recognition.
-- **Where:** [OCR](../src/lib/ocr.ts),
-  [scanner](../src/components/PrescriptionScanner.tsx),
-  [draft parser](../src/lib/prescription.ts).
+  page/pixel limits and cancellation are explicit. Remote OCR has third-party
+  disclosure and provider-limit risks; local remains the fallback. No claim of
+  handwriting, clinical interpretation or guaranteed recognition.
+- **Where:** [OCR](../src/features/records/lib/ocr.ts),
+  [scanner](../src/features/medications/components/PrescriptionScanner.tsx),
+  [draft parser](../src/features/medications/lib/prescription.ts).
 
 ## D5. Recorded outcomes and projected history are distinct
 
@@ -72,8 +76,8 @@ documented choices, not claims of security or healthcare certification.
   or have no current ending date. Local calendar arithmetic preserves DST/year
   adjacency. Recorded adherence remains taken divided by logged outcomes in the
   last 30 days, excluding unlogged entries.
-- **Where:** [calendar](../src/lib/calendar.ts),
-  [dashboard helpers](../src/lib/dashboard.ts),
+- **Where:** [calendar](../src/features/medications/lib/calendar.ts),
+  [dashboard helpers](../src/features/dashboard/lib/dashboard.ts),
   [dose constraints](../server/migrations/001_initial.sql).
 
 ## D6. Derived logging milestones, not stored achievements
@@ -90,9 +94,9 @@ documented choices, not claims of security or healthcare certification.
   follows only an explicit successful check-in crossing a known threshold; static
   progress does not replay feedback on reload, refresh or sign-in. No healthcare
   recommendation or cached achievement is introduced.
-- **Where:** [shared derivation](../src/lib/dashboard.ts),
-  [check-in](../src/components/DoseSchedule.tsx),
-  [secondary display](../src/components/DashboardVisuals.tsx).
+- **Where:** [shared derivation](../src/features/dashboard/lib/dashboard.ts),
+  [check-in](../src/features/medications/components/DoseSchedule.tsx),
+  [secondary display](../src/features/dashboard/components/DashboardVisuals.tsx).
 
 ## D7. Owner-persistent desired-state favourites
 
@@ -119,8 +123,8 @@ documented choices, not claims of security or healthcare certification.
   to a coordinated pre-migration database/document backup requires a separately
   authorized restore and loses later writes; it is not a routine code rollback.
 - **Where:** [migration](../server/migrations/003_record_favourites.sql),
-  [SQL representation](../server/database.ts), [handler](../server/app.ts),
-  [discovery](../src/pages/MedicalRecordsPage.tsx).
+  [SQL representation](../server/database.ts), [handler](../server/routes/records.ts),
+  [discovery](../src/features/records/pages/MedicalRecordsPage.tsx).
 
 ## D8. Frozen private summaries and browser-owned printing
 
@@ -145,8 +149,8 @@ documented choices, not claims of security or healthcare certification.
   independent translation active. CSS-wide `initial` resets preserve the actual
   independent properties. Real PDF readback caught the resulting off-page text;
   checking a white preview or element dimensions alone was insufficient.
-- **Where:** [projection](../src/lib/summary.ts),
-  [summary](../src/components/ActivitySummary.tsx),
+- **Where:** [projection](../src/features/dashboard/lib/summary.ts),
+  [summary](../src/features/dashboard/components/ActivitySummary.tsx),
   [print layout](../src/index.css),
   [manual rehearsal](development.md#rehearsing-private-activity-summaries).
 
@@ -214,6 +218,47 @@ documented choices, not claims of security or healthcare certification.
   [CI](../.github/workflows/verify.yml),
   [development guide](development.md),
   [historical quality evidence](../openspec/changes/archive/2026-11-17-care-workspace-quality-upgrade/review.md).
+
+## D12. Owner-managed family profiles, not shared accounts
+
+- **Context:** One signed-in account needs to organize care details for more
+  than one person without introducing identity, consent, and access-lifecycle
+  systems under a short MVP scope.
+- **Decision:** Migration 004 creates owner-managed family profiles and assigns
+  each record, medication and retained measurement to one profile. The header
+  selector filters the current view. A prescription-to-medication link must
+  stay within the same owner and family profile.
+- **Alternatives:** Duplicate accounts, shared credentials, caregiver roles, or
+  family-member logins.
+- **Consequences:** Members do not authenticate independently, grant access,
+  or hold a separate health-profile form. The account owner can see and manage
+  all household data. Sharing/revocation/audit and member-specific account
+  deletion remain separate design work.
+- **Migration / rollback:** Existing data is backfilled to each account's
+  `self` profile. Current schema version is 6; migrations are forward-only.
+- **Where:** [family migration](../server/migrations/004_family_members.sql),
+  [vault endpoints](../server/routes/vault.ts),
+  [family selector](../src/components/Layout.tsx),
+  [family assignment](../src/contexts/DataProvider.tsx).
+
+## D13. Generic opt-in reminders require an external scheduler
+
+- **Context:** A user may want an email nudge, but a sleeping/free web host
+  cannot promise precise background delivery.
+- **Decision:** Store explicit per-account opt-in and IANA time zone. An
+  external scheduler calls a bearer-secret-protected endpoint; Resend receives
+  generic messages with no medicine or family-member names. Unique
+  medication/date/time delivery rows and provider idempotency keys reduce
+  duplicates.
+- **Alternatives:** In-app-only messaging mislabeled as background alerts,
+  email by default, or introducing a continuously running worker/service.
+- **Consequences:** The operator must configure Resend and a scheduler. Email
+  remains best-effort, may be delayed or missed, and is not an emergency
+  service, dose outcome, or treatment instruction. Failed sends can be retried
+  by later scheduler calls.
+- **Where:** [reminder migration](../server/migrations/005_email_reminders.sql),
+  [notification routes](../server/routes/notifications.ts),
+  [settings](../src/features/settings/pages/SettingsPage.tsx).
 
 ## Decision template for future changes
 

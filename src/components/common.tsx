@@ -465,6 +465,7 @@ export function ConfirmationDialog({
   title,
   description,
   busy,
+  error,
   onConfirm,
 }: {
   open: boolean
@@ -472,6 +473,7 @@ export function ConfirmationDialog({
   title: string
   description: string
   busy: boolean
+  error?: string | null
   onConfirm: () => void
 }) {
   // Keep the last open description so the close animation never shows a cleared value.
@@ -492,6 +494,11 @@ export function ConfirmationDialog({
           <AlertDialogTitle>{title}</AlertDialogTitle>
           <AlertDialogDescription>{shownDescription}</AlertDialogDescription>
         </AlertDialogHeader>
+        {error && (
+          <p role="alert" className="text-sm text-destructive">
+            {error}
+          </p>
+        )}
         <AlertDialogFooter>
           <Button variant="outline" disabled={busy} onClick={onClose}>
             Cancel

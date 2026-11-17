@@ -2,7 +2,7 @@ import { DatabaseSync, type SQLInputValue } from 'node:sqlite'
 import { mkdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { z } from 'zod'
-import { medicationRow, recordRow } from '../src/lib/contracts.ts'
+import { medicationRow, recordRow } from '../shared/contracts.ts'
 
 export function openDatabase(dataDir: string) {
   mkdirSync(dataDir, { recursive: true, mode: 0o700 })
@@ -27,14 +27,43 @@ export function openDatabase(dataDir: string) {
       ),
     )
   version = db.prepare('PRAGMA user_version').get()?.user_version
-  if (version === 2)
+  if (version === 2) {
     db.exec(
       readFileSync(
         new URL('./migrations/003_record_favourites.sql', import.meta.url),
         'utf8',
       ),
     )
-  else if (version !== 3) {
+    version = 3
+  }
+  if (version === 3) {
+    db.exec(
+      readFileSync(
+        new URL('./migrations/004_family_members.sql', import.meta.url),
+        'utf8',
+      ),
+    )
+    version = 4
+  }
+  if (version === 4) {
+    db.exec(
+      readFileSync(
+        new URL('./migrations/005_email_reminders.sql', import.meta.url),
+        'utf8',
+      ),
+    )
+    version = 5
+  }
+  if (version === 5) {
+    db.exec(
+      readFileSync(
+        new URL('./migrations/006_care_organization.sql', import.meta.url),
+        'utf8',
+      ),
+    )
+    version = 6
+  }
+  if (version !== 6) {
     db.close()
     throw new Error(`Unsupported SQLite schema version ${version}.`)
   }

@@ -1,9 +1,27 @@
 import { createContext, useContext } from 'react'
-import type { VaultData } from '../lib/contracts'
-import type { Profile } from '../lib/database.types'
+import type { VaultData } from '@shared/contracts'
+import type { FamilyMember, Profile } from '@shared/database.types'
 
-export type DataState = Omit<VaultData, 'profile'> & {
+export type DataState = Omit<
+  VaultData,
+  | 'profile'
+  | 'records'
+  | 'medications'
+  | 'logs'
+  | 'careTracks'
+  | 'visits'
+  | 'notificationPreferences'
+> & {
   profile: Profile | null
+  notificationPreferences: VaultData['notificationPreferences'] | null
+  selectedFamilyMemberId: string
+  selectFamilyMember: (id: string) => void
+  familyMembers: FamilyMember[]
+  records: VaultData['records']
+  medications: VaultData['medications']
+  logs: VaultData['logs']
+  careTracks: VaultData['careTracks']
+  visits: VaultData['visits']
   now: Date
   loading: boolean
   refreshing: boolean

@@ -6,9 +6,22 @@ import {
   medicationRow,
   recordRow,
   doseLogRow,
-} from './contracts'
-import type { ProfileValues, MedicationValues, RecordValues } from './schemas'
-import { loginSchema, registerSchema, passwordSchema } from './schemas'
+  familyMemberRow,
+  notificationPreferencesRow,
+  accountExportSchema,
+  careTrackRow,
+  careVisitRow,
+} from '@shared/contracts'
+import type {
+  ProfileValues,
+  NotificationPreferencesValues,
+  MedicationValues,
+  RecordValues,
+  CareTrackValues,
+  CareVisitValues,
+} from '@shared/schemas'
+import type { FamilyMemberValues } from '@shared/schemas'
+import { loginSchema, registerSchema, passwordSchema } from '@shared/schemas'
 
 export function errorMessage(error: unknown) {
   return error instanceof Error
@@ -85,9 +98,66 @@ export const api = {
       request('/auth/password', z.void(), json('POST', values)),
   },
   vault: () => request('/vault', vaultSchema),
+  exportData: () => request('/account/export', accountExportSchema),
+  ocr: {
+    remote: (id: string, signal?: AbortSignal) =>
+      request(
+        `/records/${encodeURIComponent(id)}/ocr`,
+        z.object({ text: z.string() }),
+        { ...json('POST', { confirm_external_processing: true }), signal },
+      ),
+  },
+  family: {
+    create: (values: FamilyMemberValues) =>
+      request('/family-members', familyMemberRow, json('POST', values)),
+    update: (id: string, values: FamilyMemberValues) =>
+      request(
+        `/family-members/${encodeURIComponent(id)}`,
+        familyMemberRow,
+        json('PATCH', values),
+      ),
+    remove: (id: string) =>
+      request(`/family-members/${encodeURIComponent(id)}`, z.void(), {
+        method: 'DELETE',
+      }),
+  },
+  notifications: {
+    save: (values: NotificationPreferencesValues) =>
+      request(
+        '/notification-preferences',
+        notificationPreferencesRow,
+        json('PUT', values),
+      ),
+  },
   profile: {
     save: (values: ProfileValues) =>
       request('/health-profile', healthProfileRow, json('PUT', values)),
+  },
+  care: {
+    createTrack: (values: CareTrackValues) =>
+      request('/care-tracks', careTrackRow, json('POST', values)),
+    updateTrack: (id: string, values: CareTrackValues) =>
+      request(
+        `/care-tracks/${encodeURIComponent(id)}`,
+        careTrackRow,
+        json('PATCH', values),
+      ),
+    removeTrack: (id: string) =>
+      request(`/care-tracks/${encodeURIComponent(id)}`, z.void(), {
+        method: 'DELETE',
+      }),
+    createVisit: (values: CareVisitValues) =>
+      request('/care-visits', careVisitRow, json('POST', values)),
+    updateVisit: (id: string, values: CareVisitValues) =>
+      request(
+        `/care-visits/${encodeURIComponent(id)}`,
+        careVisitRow,
+        json('PATCH', values),
+      ),
+    removeVisit: (id: string) =>
+      request(`/care-visits/${encodeURIComponent(id)}`, z.void(), {
+        method: 'DELETE',
+      }),
   },
   records: {
     favourite: (id: string, is_favourite: boolean) =>
