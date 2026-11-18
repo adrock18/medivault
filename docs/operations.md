@@ -93,7 +93,9 @@ nonblank writes. The UI/API use only the separate fields; no legacy text is
 displayed or guessed apart. Existing visits/documents need their names entered
 again. Newly uploaded documents copy names from the selected visit as editable
 snapshots; changing a visit later does not rewrite saved document metadata.
-Readiness checks require both new columns on both tables.
+Also apply `provider_readiness_metadata` before the matching API release.
+Its security-invoker readiness RPC checks both new columns on both tables
+through PostgreSQL catalogs. It changes no patient data or table grants.
 
 Validate the migration on an isolated database and confirm explicit permission
 for this all-account text reset before applying it anywhere else. Deploy the
@@ -126,6 +128,10 @@ Startup checks required settings, complete production assets and a bounded
 managed-schema readiness RPC before listening. `/api/health` checks remote
 database readiness and returns 503 when unavailable. It does not check Auth,
 document bytes or backups. Do not add a storage read to each health poll.
+The service role intentionally lacks direct access to patient tables. Readiness
+must use the metadata-only RPC, not table selects or broader service-role grants.
+If startup fails, inspect the sanitized readiness error code before the generic
+startup error; do not repeat the provider reset to troubleshoot readiness.
 
 For unavailable services, check Supabase project status, inactivity/plan limits,
 API keys, bucket policy and network access. Preserve sanitized incident IDs and

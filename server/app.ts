@@ -231,18 +231,18 @@ export function createApp(options: AppOptions) {
    */
   async function readiness() {
     try {
-      const [schema, records, visits] = await Promise.all([
-        admin.rpc('check_app_readiness'),
-        admin
-          .from('medical_records')
-          .select('hospital_name,doctor_name')
-          .limit(0),
-        admin.from('care_visits').select('hospital_name,doctor_name').limit(0),
-      ])
-      return (
-        !schema.error && schema.data === true && !records.error && !visits.error
-      )
-    } catch {
+      const schema = await admin.rpc('check_app_readiness')
+      if (schema.error || schema.data !== true) {
+        console.error('Managed schema readiness check failed.', {
+          code: schema.error?.code || 'SCHEMA_NOT_READY',
+        })
+        return false
+      }
+      return true
+    } catch (error) {
+      console.error('Managed schema readiness request could not complete.', {
+        name: error instanceof Error ? error.name : 'UnknownError',
+      })
       return false
     }
   }
