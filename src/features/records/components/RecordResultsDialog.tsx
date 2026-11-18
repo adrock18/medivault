@@ -217,6 +217,7 @@ function ResultEditor({
       busy={mutation.pending}
       title="Review report results"
       description={`${record.title} · ${member?.full_name ?? 'Selected profile'}. Nothing is saved until you review and confirm.`}
+      className="sm:max-w-[calc(100vw-2rem)] xl:max-w-6xl"
     >
       <form
         noValidate
@@ -226,129 +227,163 @@ function ResultEditor({
             setReviewed(false)
         }}
       >
-        <fieldset disabled={busy} className="space-y-5">
-          <div className="flex flex-wrap gap-2">
-            <Button type="button" variant="outline" onClick={() => void scan()}>
-              <ScanLine /> Read text locally
-            </Button>
-            <a
-              className="small-link"
-              href={`/api/records/${encodeURIComponent(record.id)}/file`}
-              target="_blank"
-              rel="noopener noreferrer"
+        <fieldset disabled={busy} className="space-y-6">
+          <div className="grid min-w-0 gap-6 lg:grid-cols-2">
+            <section
+              aria-label="Report text"
+              className="min-w-0 space-y-4 rounded-2xl border bg-muted/20 p-4"
             >
-              Open original report
-            </a>
-          </div>
-          {scanBusy && (
-            <p role="status" className="rounded-xl bg-muted p-3 text-sm">
-              {progress}
-            </p>
-          )}
-          {text && (
-            <>
-              <TextField
-                label="Extracted report text"
-                value={text}
-                onChange={(event) => setText(event.target.value)}
-                rows={6}
-                hint="OCR can mix up table columns. Correct the text and check values against the original. No external OCR or AI service is used."
-              />
-              <Button type="button" variant="outline" onClick={fillDraft}>
-                {fields.length
-                  ? 'Replace draft from this text'
-                  : 'Suggest results from this text'}
-              </Button>
-            </>
-          )}
-          <Field
-            label="Measurement date *"
-            type="date"
-            max={localDate()}
-            readOnly={!!existing}
-            registration={register('measured_on')}
-            error={errors.measured_on?.message}
-            hint={
-              existing
-                ? 'Confirmed measurement dates are fixed. Upload a corrected report separately if its measurement date was wrong.'
-                : 'Use the actual checkup/specimen date from the report, not today or its upload date.'
-            }
-          />
-          <p className="text-xs leading-5 text-muted-foreground">
-            Keep different specimens or conditions separate using Context, such
-            as fasting, random, blood or urine. Copy only reference ranges
-            actually printed on the report. Leave unknown fields blank.
-          </p>
-          {fields.map((field, index) => (
-            <div key={field.id} className="space-y-3 rounded-2xl border p-4">
-              <div className="flex items-center justify-between gap-3">
-                <h3 className="text-sm font-semibold">Result {index + 1}</h3>
+              <h3 className="text-sm font-semibold">Read the report</h3>
+              <div className="flex flex-wrap gap-2">
                 <Button
                   type="button"
-                  variant="ghost"
-                  size="icon"
-                  aria-label={`Remove result ${index + 1}`}
-                  onClick={() => {
-                    remove(index)
-                    setReviewed(false)
-                  }}
+                  variant="outline"
+                  onClick={() => void scan()}
                 >
-                  <Trash2 />
+                  <ScanLine /> Read text locally
                 </Button>
+                <a
+                  className="small-link"
+                  href={`/api/records/${encodeURIComponent(record.id)}/file`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  Open original report
+                </a>
               </div>
-              <div className="grid gap-3 sm:grid-cols-2">
-                <Field
-                  label="Test or measurement *"
-                  placeholder="e.g. Weight or Hemoglobin"
-                  registration={register(`results.${index}.name`)}
-                  error={errors.results?.[index]?.name?.message}
-                />
-                <Field
-                  label="Reported result *"
-                  placeholder="e.g. 72, Negative, or <5"
-                  registration={register(`results.${index}.value`)}
-                  error={errors.results?.[index]?.value?.message}
-                />
-                <Field
-                  label="Unit"
-                  placeholder="e.g. kg or g/dL"
-                  registration={register(`results.${index}.unit`)}
-                  error={errors.results?.[index]?.unit?.message}
-                />
-                <Field
-                  label="Context / specimen"
-                  placeholder="As stated on the report"
-                  registration={register(`results.${index}.context`)}
-                  error={errors.results?.[index]?.context?.message}
-                />
-                <Field
-                  label="Printed reference range"
-                  registration={register(`results.${index}.reference_range`)}
-                  error={errors.results?.[index]?.reference_range?.message}
-                />
-              </div>
-            </div>
-          ))}
-          {errors.results?.message && (
-            <ErrorState message={errors.results.message} />
-          )}
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => {
-              append({
-                name: '',
-                value: '',
-                unit: '',
-                context: '',
-                reference_range: '',
-              })
-              setReviewed(false)
-            }}
-            disabled={fields.length >= 100}
-          >
-            <Plus /> Add result manually
-          </Button>
+              {scanBusy && (
+                <p role="status" className="rounded-xl bg-muted p-3 text-sm">
+                  {progress}
+                </p>
+              )}
+              {text && (
+                <>
+                  <TextField
+                    label="Extracted report text"
+                    value={text}
+                    onChange={(event) => setText(event.target.value)}
+                    rows={6}
+                    className="field-sizing-fixed h-64 min-h-48 resize-y lg:h-96"
+                    hint="OCR can mix up table columns. Correct the text and check values against the original. No external OCR or AI service is used."
+                  />
+                  <Button type="button" variant="outline" onClick={fillDraft}>
+                    {fields.length
+                      ? 'Replace draft from this text'
+                      : 'Suggest results from this text'}
+                  </Button>
+                </>
+              )}
+              {!text && !scanBusy && (
+                <p className="text-sm leading-6 text-muted-foreground">
+                  Read the document to extract its text, or enter results
+                  manually. Compare all suggested values with the original
+                  before confirming.
+                </p>
+              )}
+            </section>
+            <section
+              aria-label="Reviewed results"
+              className="min-w-0 space-y-5"
+            >
+              <h3 className="text-sm font-semibold">Check the results</h3>
+              <Field
+                label="Measurement date *"
+                type="date"
+                max={localDate()}
+                readOnly={!!existing}
+                registration={register('measured_on')}
+                error={errors.measured_on?.message}
+                hint={
+                  existing
+                    ? 'Confirmed measurement dates are fixed. Upload a corrected report separately if its measurement date was wrong.'
+                    : 'Use the actual checkup/specimen date from the report, not today or its upload date.'
+                }
+              />
+              <p className="text-xs leading-5 text-muted-foreground">
+                Keep different specimens or conditions separate using Context,
+                such as fasting, random, blood or urine. Copy only reference
+                ranges actually printed on the report. Leave unknown fields
+                blank.
+              </p>
+              {fields.map((field, index) => (
+                <div
+                  key={field.id}
+                  className="space-y-3 rounded-2xl border p-4"
+                >
+                  <div className="flex items-center justify-between gap-3">
+                    <h3 className="text-sm font-semibold">
+                      Result {index + 1}
+                    </h3>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      aria-label={`Remove result ${index + 1}`}
+                      onClick={() => {
+                        remove(index)
+                        setReviewed(false)
+                      }}
+                    >
+                      <Trash2 />
+                    </Button>
+                  </div>
+                  <div className="aligned-fields grid gap-3 sm:grid-cols-2">
+                    <Field
+                      label="Test or measurement *"
+                      placeholder="e.g. Weight or Hemoglobin"
+                      registration={register(`results.${index}.name`)}
+                      error={errors.results?.[index]?.name?.message}
+                    />
+                    <Field
+                      label="Reported result *"
+                      placeholder="e.g. 72, Negative, or <5"
+                      registration={register(`results.${index}.value`)}
+                      error={errors.results?.[index]?.value?.message}
+                    />
+                    <Field
+                      label="Unit"
+                      placeholder="e.g. kg or g/dL"
+                      registration={register(`results.${index}.unit`)}
+                      error={errors.results?.[index]?.unit?.message}
+                    />
+                    <Field
+                      label="Context / specimen"
+                      placeholder="As stated on the report"
+                      registration={register(`results.${index}.context`)}
+                      error={errors.results?.[index]?.context?.message}
+                    />
+                    <Field
+                      label="Printed reference range"
+                      registration={register(
+                        `results.${index}.reference_range`,
+                      )}
+                      error={errors.results?.[index]?.reference_range?.message}
+                    />
+                  </div>
+                </div>
+              ))}
+              {errors.results?.message && (
+                <ErrorState message={errors.results.message} />
+              )}
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  append({
+                    name: '',
+                    value: '',
+                    unit: '',
+                    context: '',
+                    reference_range: '',
+                  })
+                  setReviewed(false)
+                }}
+                disabled={fields.length >= 100}
+              >
+                <Plus /> Add result manually
+              </Button>
+            </section>
+          </div>
           <p className="rounded-xl bg-muted p-3 text-xs leading-5 text-muted-foreground">
             Height (cm), Weight (kg) and Blood group update existing profile
             fields only when they are the latest reviewed measurements. Other

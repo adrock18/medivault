@@ -76,6 +76,12 @@ wrap. Its shared label/control/help tracks keep controls aligned without moving
 errors or hints away from their own fields. Typed dates retain a fieldset and
 legend; do not hide their labels by removing the accessible association.
 
+`FormDialog` accepts a caller-specific `className` for larger workspaces while
+ordinary forms keep their compact default. Report review uses a wide dialog:
+source text and result entry sit side by side from 1024px, stacking on smaller
+screens. Its extracted-text area has a bounded, internally scrollable height;
+long reports must not stretch it to the full document length.
+
 Verify actual control tops, bottoms and heights, not just page overflow. Check
 320, 390, 768, 1440 and wide desktop layouts in both themes, with long text,
 validation messages and open dropdowns. Intentional calendar scrolling must keep
@@ -89,6 +95,14 @@ sends six text fields. Deriving the limit prevents future schema/parser drift,
 such as the seven-field regression introduced by the reverted split. Keep strict
 metadata validation, the single-file limit, the 10 MB file limit and bounded field sizes enabled; do not
 raise limits arbitrarily to work around an upload failure.
+
+### Report-result suggestions
+
+The local parser requires explicit supported labels and units. It also accepts
+a label, value and unit on three consecutive extracted lines, as produced by
+some text-based PDFs. It does not search arbitrarily distant text for a unit,
+convert pounds to kilograms or infer a measurement date. Review suggestions
+and the report's actual measurement date before saving.
 
 Use a fictional account and Settings' explicit sample-data action for rehearsal.
 Do not use production accounts or the public demo as a test environment.

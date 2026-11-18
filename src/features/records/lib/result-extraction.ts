@@ -63,9 +63,12 @@ export function extractResultSuggestions(text: string): ReviewedResult[] {
     },
   ]
   const suggestions: ReviewedResult[] = []
-  for (const line of text.split(/\r?\n/).map((value) => value.trim())) {
+  const lines = text.split(/\r?\n/).map((value) => value.trim())
+  for (let index = 0; index < lines.length; index++) {
+    // PDF extraction can put a label, value and unit on three consecutive lines.
+    const candidate = lines.slice(index, index + 3).join('\n')
     for (const item of patterns) {
-      const match = item.pattern.exec(line)
+      const match = item.pattern.exec(candidate)
       if (!match) continue
       const value =
         item.name === 'Blood group'

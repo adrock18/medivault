@@ -467,6 +467,7 @@ export function FormDialog({
   description,
   busy = false,
   children,
+  className,
 }: {
   open: boolean
   onClose: () => void
@@ -474,6 +475,7 @@ export function FormDialog({
   description: string
   busy?: boolean
   children: ReactNode
+  className?: string
 }) {
   return (
     <Dialog
@@ -484,7 +486,10 @@ export function FormDialog({
     >
       <DialogContent
         aria-busy={busy}
-        className="medical-form-dialog max-h-[90dvh] grid-cols-1 overflow-y-auto rounded-2xl p-5 shadow-xl sm:max-w-lg sm:p-7"
+        className={cn(
+          'medical-form-dialog max-h-[90dvh] grid-cols-1 overflow-y-auto rounded-2xl p-5 shadow-xl sm:max-w-lg sm:p-7',
+          className,
+        )}
         showCloseButton={!busy}
       >
         <DialogHeader className="mb-2 pr-12">
