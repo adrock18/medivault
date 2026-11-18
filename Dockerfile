@@ -5,7 +5,6 @@ WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci
 COPY . .
-ENV VITE_PUBLIC_DEMO=true
 RUN npm run build && npm run check:build
 
 FROM node:24-bookworm-slim
