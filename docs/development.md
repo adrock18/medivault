@@ -75,12 +75,21 @@ Use `aligned-fields` on multi-column grids of these wrappers when labels can
 wrap. Its shared label/control/help tracks keep controls aligned without moving
 errors or hints away from their own fields. Typed dates retain a fieldset and
 legend; do not hide their labels by removing the accessible association.
+Medication start and optional end dates use the shared day/month/year `DateField`,
+matching document uploads instead of opening a browser-native calendar popup.
 
 `FormDialog` accepts a caller-specific `className` for larger workspaces while
-ordinary forms keep their compact default. Report review uses a wide dialog:
-source text and result entry sit side by side from 1024px, stacking on smaller
-screens. Its extracted-text area has a bounded, internally scrollable height;
-long reports must not stretch it to the full document length.
+ordinary forms keep their compact default. Report review and prescription
+scanning use wide dialogs: source text and review entry sit side by side from
+1024px, stacking on smaller screens. Their extracted-text areas have bounded,
+internally scrollable heights; long reports must not stretch them to the full
+document length.
+
+The desktop dashboard keeps daily context and upcoming doses beside the main
+workspace in a flexible column at least 360px wide. Weekly activity uses a
+separate full-width row instead of extending that sidebar. Within the activity
+card, the weekly chart and logging summaries sit side by side from 900px and
+stack on smaller screens.
 
 Verify actual control tops, bottoms and heights, not just page overflow. Check
 320, 390, 768, 1440 and wide desktop layouts in both themes, with long text,
@@ -98,45 +107,38 @@ raise limits arbitrarily to work around an upload failure.
 
 ### Report-result suggestions
 
+Prescription suggestions support form-first medicine entries and name-first spray
+products directly followed by an explicit spray dose. Only complete, simple
+once-daily, twice-daily or three-times-daily instructions prefill frequency;
+conditional or abbreviated regimens remain custom. No dates or dose times are
+inferred. These bounded patterns are not a general prescription interpreter:
+unrecognized text requires manual entry and every suggestion requires review
+against the original before saving.
+
 The local parser requires explicit supported labels and units. It also accepts
 a label, value and unit on three consecutive extracted lines, as produced by
 some text-based PDFs. It does not search arbitrarily distant text for a unit,
 convert pounds to kilograms or infer a measurement date. Review suggestions
 and the report's actual measurement date before saving.
 
-Use a fictional account and Settings' explicit sample-data action for rehearsal.
+Use a fictional account and manually uploaded test documents for rehearsal.
 Do not use production accounts or the public demo as a test environment.
 
 ### Source-attributed local demo examples
 
-The Settings action creates two fictional family profiles, owner-defined care
-tracks/visits, and watermarked PDF examples based on the informative HL7 FHIR R4
+The retained development fixtures use watermarked PDF examples based on the informative HL7 FHIR R4
 [CBC DiagnosticReport](https://hl7.org/fhir/R4/diagnosticreport-example.json.html)
 and [Azithromycin MedicationRequest](https://hl7.org/fhir/R4/medicationrequest0302.json.html)
 examples. The files are generated for readable upload/OCR rehearsal from the
 published example content; they are not original patient documents, valid
-prescriptions, diagnoses, or medical advice. They are added to the signed-in
-test account. Remove the records, care tracks, and visits through their normal
-controls before deleting the now-empty demo profiles. Profiles with associated
-health data cannot be deleted, and deletion never cascades through that data.
-The operation does not create medication schedules or dose logs.
+prescriptions, diagnoses, or medical advice.
 
-To rehearse the paths, register an isolated local test account, add the examples
-from **Settings → Explore with sample data**, and choose the relevant demo
-profile in the family selector. The Wile E. Coyote example is for the manual
-record/timeline path. Choose the Donald Duck profile, open **Medications →
-Scan for medications**, select its MedicationRequest example, and scan locally.
-Review the recognized wording against the original. Its staged instructions
-cannot be represented as one repeating MediVault schedule, so do not save a
-schedule based on this example. For a medication workflow, enter only a clearly
-fictional schedule intended for software testing, or use a real prescription
-only in an appropriately authorized private environment.
-
-Two login accounts are not pre-created or seeded with reusable credentials.
-Create accounts locally through the normal registration flow; the sample action
-adds two family profiles to the currently signed-in account. This avoids
-committing default passwords and keeps demo data within the same ownership
-boundaries as ordinary records.
+Settings no longer exposes sample-data creation or the informational Privacy
+essentials panel. Existing records and privacy protections are unchanged, and
+the export warning remains visible. Create isolated test accounts through normal
+registration and add fictional profiles and documents manually; no reusable
+login credentials are seeded. Staged prescription instructions must not be
+reduced to one repeating schedule for a demo.
 
 ## Lightweight SDLC
 

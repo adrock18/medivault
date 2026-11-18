@@ -796,11 +796,15 @@
 
 @media (min-width: 1280px) {
   .daybook {
-    grid-template-columns: minmax(0, 1fr) 320px;
+    grid-template-columns: minmax(0, 1.5fr) minmax(360px, 1fr);
   }
 
   .daybook-summary {
     grid-column: 2;
+  }
+
+  .daybook-activity {
+    grid-column: 1 / -1;
   }
 }
 

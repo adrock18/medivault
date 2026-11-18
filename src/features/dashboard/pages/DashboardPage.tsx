@@ -275,7 +275,7 @@ export default function DashboardPage() {
             )}
           </Panel>
         </div>
-        <div className="daybook-summary grid min-w-0 gap-5 min-[900px]:grid-cols-2 xl:grid-cols-1">
+        <div className="daybook-summary grid min-w-0 gap-5">
           {pendingFollowUps.length > 0 && (
             <Panel className="daybook-secondary">
               <SectionTitle
@@ -329,13 +329,6 @@ export default function DashboardPage() {
               <DailyInsight statements={insights} />
             </div>
           </Panel>
-          <Panel className="daybook-secondary tint-mint">
-            <WeekActivityChart days={weekBreakdown(medications, logs, now)} />
-            <div className="mt-5 border-t pt-5">
-              <AdherenceRing value={adherence30(logs, now)} />
-            </div>
-            <LoggingMilestones value={logging} />
-          </Panel>
           <Panel className="tint-peach">
             <SectionTitle
               title="Upcoming schedule"
@@ -374,6 +367,15 @@ export default function DashboardPage() {
                 No upcoming doses in this period.
               </p>
             )}
+          </Panel>
+        </div>
+        <div className="daybook-activity min-w-0">
+          <Panel className="daybook-secondary tint-mint grid min-w-0 gap-6 min-[900px]:grid-cols-2">
+            <WeekActivityChart days={weekBreakdown(medications, logs, now)} />
+            <div className="min-w-0 border-t pt-5 min-[900px]:border-t-0 min-[900px]:border-l min-[900px]:pt-0 min-[900px]:pl-6">
+              <AdherenceRing value={adherence30(logs, now)} />
+              <LoggingMilestones value={logging} />
+            </div>
           </Panel>
         </div>
       </section>

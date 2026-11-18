@@ -1,26 +1,18 @@
 /**
  * Account settings and explicit data tools. Handles password change, appearance,
- * private JSON export, printable summaries and opt-in fictional samples.
+ * private JSON export and printable summaries.
  */
 
 import { lazy, Suspense, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import {
-  Download,
-  ShieldCheck,
-  FlaskConical,
-  CheckCircle2,
-  Printer,
-} from 'lucide-react'
+import { Download, CheckCircle2, Printer } from 'lucide-react'
 import { toast } from 'sonner'
 import { useAuth } from '@/contexts/AuthContext'
 import { useVault } from '@/contexts/DataContext'
-import { useMutation } from '@/hooks/useMutation'
 import { api, errorMessage } from '@/lib/api'
 import { passwordSchema } from '@shared/schemas'
-import { addSampleData } from '@/features/demo/sampleData'
 import {
   PageTitle,
   Panel,
@@ -28,7 +20,6 @@ import {
   Field,
   SubmitButton,
   ErrorState,
-  FormDialog,
   LoadingState,
 } from '@/components/common'
 import { Button } from '@/components/ui/button'
@@ -42,9 +33,7 @@ export default function SettingsPage() {
   const { session } = useAuth()
   const data = useVault()
   const [error, setError] = useState<string | null>(null)
-  const [sampleOpen, setSampleOpen] = useState(false)
   const [summaryOpen, setSummaryOpen] = useState(false)
-  const sample = useMutation()
   const {
     register,
     handleSubmit,
@@ -92,19 +81,6 @@ export default function SettingsPage() {
     } catch (err) {
       toast.error(errorMessage(err))
     }
-  }
-  /**
-   * Add clearly labeled fictional data only after the user requests it and keep
-   * failures visible.
-   */
-  async function seed() {
-    if (
-      await sample.run(
-        () => addSampleData(),
-        'Clearly labeled sample data added to your account.',
-      )
-    )
-      setSampleOpen(false)
   }
   return (
     <>
@@ -196,68 +172,7 @@ export default function SettingsPage() {
             </Button>
           </div>
         </Panel>
-        <Panel className="tint-peach">
-          <SectionTitle
-            title="Explore with sample data"
-            description="Source-attributed, fictional examples for manual upload and OCR review."
-          />
-          <p className="mb-5 text-sm leading-6 text-muted-foreground">
-            Add two clearly labeled family profiles, care visits, and
-            source-attributed FHIR example reports to your account. The
-            prescription example is for OCR review only; its multi-stage dosage
-            is not copied into a medication schedule.
-          </p>
-          <Button variant="outline" onClick={() => setSampleOpen(true)}>
-            <FlaskConical />
-            Add sample data
-          </Button>
-        </Panel>
-        <div className="rounded-2xl border border-teal-100 bg-teal-50 p-5 xl:col-span-2">
-          <ShieldCheck className="mb-3 text-primary" size={25} />
-          <h2 className="text-sm font-semibold text-teal-900">
-            Privacy essentials
-          </h2>
-          <p className="mt-2 text-sm leading-6 text-teal-800">
-            Documents stay in private storage. Every file request checks your
-            session and ownership. Downloads and exports are sensitive; keep
-            local copies secure.
-          </p>
-          <p className="mt-3 text-xs leading-5 text-teal-800">
-            Medication status updates while the website is open. No medication
-            reminder emails are sent. Follow your prescribed schedule.
-          </p>
-        </div>
       </div>
-      <FormDialog
-        open={sampleOpen}
-        onClose={() => setSampleOpen(false)}
-        busy={sample.pending}
-        title="Add fictional FHIR examples?"
-        description="This adds two demo profiles, visits, and source-attributed example documents. No existing personal records are overwritten."
-      >
-        {sample.error && <ErrorState message={sample.error} />}
-        <p className="text-sm leading-6 text-muted-foreground">
-          Use a test account for exploration. The examples reproduce fictional,
-          informative HL7 FHIR R4 data and are watermarked as test material.
-          They are not real records, valid prescriptions, or medical advice. OCR
-          only creates a review draft; no medication schedule or dose logs are
-          inferred. If a request fails partway through, successful entries
-          remain visible; retrying resumes without duplicating matching demo
-          profiles, visits, or documents.
-        </p>
-        <div className="mt-3 flex flex-wrap justify-end gap-2">
-          <Button
-            variant="outline"
-            disabled={sample.pending}
-            onClick={() => setSampleOpen(false)}
-          >
-            Cancel
-          </Button>
-          <Button disabled={sample.pending} onClick={() => void seed()}>
-            {sample.pending ? 'Adding FHIR examples...' : 'Add FHIR examples'}
-          </Button>
-        </div>
-      </FormDialog>
       {summaryOpen && session && (
         <Suspense
           fallback={<LoadingState message="Opening activity summary..." />}

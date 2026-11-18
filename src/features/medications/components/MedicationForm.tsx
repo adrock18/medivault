@@ -22,6 +22,7 @@ import {
   ErrorState,
 } from '@/components/common'
 import { Button } from '@/components/ui/button'
+import { DateField } from '@/components/DateField'
 import { medicationForms } from '@shared/database.types'
 import { useVault } from '@/contexts/DataContext'
 
@@ -192,17 +193,33 @@ export function MedicationForm({
             hint="Enter your prescribed times in 24-hour HH:MM format, separated by commas. Times follow the local clock, including when traveling."
           />
           <div className="aligned-fields grid gap-4 sm:grid-cols-2">
-            <Field
-              label="Start date *"
-              type="date"
-              registration={register('start_date')}
-              error={errors.start_date?.message}
+            <Controller
+              name="start_date"
+              control={control}
+              render={({ field }) => (
+                <DateField
+                  label="Start date *"
+                  value={field.value}
+                  onChange={field.onChange}
+                  onBlur={field.onBlur}
+                  inputRef={field.ref}
+                  error={errors.start_date?.message}
+                />
+              )}
             />
-            <Field
-              label="End date (optional)"
-              type="date"
-              registration={register('end_date')}
-              error={errors.end_date?.message}
+            <Controller
+              name="end_date"
+              control={control}
+              render={({ field }) => (
+                <DateField
+                  label="End date (optional)"
+                  value={field.value}
+                  onChange={field.onChange}
+                  onBlur={field.onBlur}
+                  inputRef={field.ref}
+                  error={errors.end_date?.message}
+                />
+              )}
             />
           </div>
           <TextField
