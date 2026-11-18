@@ -20,7 +20,7 @@ import {
 import { useVault } from '@/contexts/DataContext'
 import { useMutation } from '@/hooks/useMutation'
 import { useQueryParams } from '@/hooks/useQueryParams'
-import { documentKinds, localDate, providerSummary } from '@/lib/utils'
+import { documentKinds, localDate } from '@/lib/utils'
 import { api } from '@/lib/api'
 import { deleteRecord } from '../lib/records'
 import type { CareVisit, MedicalRecord } from '@shared/database.types'
@@ -98,7 +98,7 @@ function RecordsWorkspace() {
         (!selectedVisit || record.visit_id === selectedVisit) &&
         (!importantOnly || record.is_favourite) &&
         (!kind || record.document_kind === kind) &&
-        `${record.title} ${record.hospital_name} ${record.doctor_name} ${record.file_name}`
+        `${record.title} ${record.provider} ${record.file_name}`
           .toLowerCase()
           .includes(search.trim().toLowerCase()),
     )
@@ -282,7 +282,7 @@ function RecordsWorkspace() {
               {visit.title}
             </span>
             <span className="mt-1 block break-words text-xs text-muted-foreground">
-              {providerSummary(visit) || 'Hospital and doctor not recorded'}
+              {visit.provider || 'Hospital / Doctor not recorded'}
               {track ? ` · ${track.title}` : ' · Standalone visit'}
             </span>
             <span className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
@@ -502,7 +502,7 @@ function RecordsWorkspace() {
               <div className="min-w-0">
                 <p
                   id="records-important-label"
-                  className="text-sm leading-none font-medium"
+                  className="text-sm leading-5 font-medium"
                 >
                   Marked records
                 </p>

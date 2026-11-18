@@ -145,10 +145,7 @@ export const notificationPreferencesSchema = z
 export type NotificationPreferencesValues = z.infer<
   typeof notificationPreferencesSchema
 >
-const providerFields = {
-  hospital_name: z.string().trim().max(160, 'Use at most 160 characters.'),
-  doctor_name: z.string().trim().max(160, 'Use at most 160 characters.'),
-}
+const providerField = z.string().trim().max(323, 'Use at most 323 characters.')
 export const recordSchema = z.object({
   family_member_id: z.uuid('Select a family profile.'),
   visit_id: z.union([z.literal(''), z.uuid('Select a valid visit.')]),
@@ -166,7 +163,7 @@ export const recordSchema = z.object({
     'insurance_claim',
     'other',
   ]),
-  ...providerFields,
+  provider: providerField,
   record_date: date.refine(
     (value) => value <= localDate(),
     'Record date cannot be in the future.',
@@ -198,7 +195,7 @@ export const careVisitSchema = z
       'telehealth',
       'other',
     ]),
-    ...providerFields,
+    provider: providerField,
     visit_date: date.refine(
       (value) => value <= localDate(),
       'Visit date cannot be in the future.',

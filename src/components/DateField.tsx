@@ -62,8 +62,10 @@ export function DateField({
   }
 
   return (
-    <fieldset className="min-w-0 space-y-2" aria-invalid={!!error}>
-      <legend className="p-0 text-sm leading-none font-medium">{label}</legend>
+    <fieldset data-slot="date-field" className="min-w-0" aria-invalid={!!error}>
+      <legend className="mb-2 p-0 text-sm leading-5 font-medium">
+        {label}
+      </legend>
       <div className="grid grid-cols-[1fr_1fr_1.4fr] gap-2 [&_label]:sr-only">
         {(['day', 'month', 'year'] as const).map((part) => (
           <Field
@@ -88,7 +90,9 @@ export function DateField({
         id={helpId}
         role={error ? 'alert' : undefined}
         className={
-          error ? 'text-xs text-red-700' : 'text-xs text-muted-foreground'
+          error
+            ? 'mt-2 text-xs leading-5 text-red-700'
+            : 'mt-2 text-xs leading-5 text-muted-foreground'
         }
       >
         {error || 'Type the day, month, and four-digit year.'}

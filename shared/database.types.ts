@@ -101,8 +101,7 @@ export type MedicalRecord = Timestamps & {
   category: Category
   document_kind: DocumentKind
   visit_id: string | null
-  hospital_name: string
-  doctor_name: string
+  provider: string
   record_date: string
   file_path: string
   file_name: string
@@ -151,8 +150,7 @@ export type CareVisit = Timestamps & {
   title: string
   reason: string
   setting: VisitSetting
-  hospital_name: string
-  doctor_name: string
+  provider: string
   visit_date: string
   notes: string
 }

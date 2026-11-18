@@ -7,7 +7,6 @@ import { z } from 'zod'
 import type { VaultData } from '@shared/contracts'
 import { calendarDateSchema } from '@shared/schemas'
 import { localDate } from '@shared/health'
-import { providerSummary } from '@/lib/utils'
 
 export const summaryRangeSchema = z
   .object({ from: calendarDateSchema, to: calendarDateSchema })
@@ -100,7 +99,7 @@ export function activitySnapshot(
       id: record.id,
       title: record.title,
       category: record.category,
-      provider: providerSummary(record),
+      provider: record.provider,
       date: record.record_date,
     }))
     .sort((a, b) => a.date.localeCompare(b.date) || a.id.localeCompare(b.id))

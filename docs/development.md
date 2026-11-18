@@ -63,6 +63,33 @@ authorized, isolated project with disposable fictional data, never a project
 containing data that must be retained. Verify signup/confirmation separately
 with an owner-controlled mailbox.
 
+### Shared form layout
+
+Use the shared `Field`, `SelectField` and `TextField` wrappers for labeled
+controls. Their grid gaps space only in-flow content: do not replace them with
+sibling margins, because Base UI selects also render an out-of-flow hidden input.
+Inputs and selects default to 44px; utilities can explicitly request another
+size, such as the records toolbar's 48px controls.
+
+Use `aligned-fields` on multi-column grids of these wrappers when labels can
+wrap. Its shared label/control/help tracks keep controls aligned without moving
+errors or hints away from their own fields. Typed dates retain a fieldset and
+legend; do not hide their labels by removing the accessible association.
+
+Verify actual control tops, bottoms and heights, not just page overflow. Check
+320, 390, 768, 1440 and wide desktop layouts in both themes, with long text,
+validation messages and open dropdowns. Intentional calendar scrolling must keep
+every date reachable without widening the page.
+
+### Record upload limits
+
+The multipart parser derives its text-field limit from the shared record schema
+and allows one additional part for the file. The combined Hospital / Doctor form
+sends six text fields. Deriving the limit prevents future schema/parser drift,
+such as the seven-field regression introduced by the reverted split. Keep strict
+metadata validation, the single-file limit, the 10 MB file limit and bounded field sizes enabled; do not
+raise limits arbitrarily to work around an upload failure.
+
 Use a fictional account and Settings' explicit sample-data action for rehearsal.
 Do not use production accounts or the public demo as a test environment.
 

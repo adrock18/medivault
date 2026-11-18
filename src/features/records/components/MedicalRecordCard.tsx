@@ -20,12 +20,7 @@ import {
 } from 'lucide-react'
 import { toast } from 'sonner'
 import type { MedicalRecord } from '@shared/database.types'
-import {
-  documentKinds,
-  displayDate,
-  fileSize,
-  providerSummary,
-} from '@/lib/utils'
+import { documentKinds, displayDate, fileSize } from '@/lib/utils'
 import { api, errorMessage } from '@/lib/api'
 import { useMutation } from '@/hooks/useMutation'
 import { viewRecord, downloadRecord } from '../lib/records'
@@ -163,7 +158,7 @@ export function MedicalRecordCard({
         {record.title}
       </h2>
       <p className="mt-2 break-words text-sm text-muted-foreground">
-        {providerSummary(record) || 'Hospital and doctor not specified'}
+        {record.provider || 'Hospital / Doctor not specified'}
       </p>
       {importance.error && (
         <p role="alert" className="mt-3 text-sm text-destructive">

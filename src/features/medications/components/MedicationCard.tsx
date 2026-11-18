@@ -20,7 +20,6 @@ import {
   documentKinds,
   frequencies,
   cn,
-  providerSummary,
 } from '@/lib/utils'
 import { Panel } from '@/components/common'
 import { Button } from '@/components/ui/button'
@@ -123,9 +122,7 @@ export function MedicationCard({
                 <span className="mt-0.5 block truncate text-xs text-muted-foreground">
                   {documentKinds[sourceRecord.document_kind]} ·{' '}
                   {displayDate(sourceRecord.record_date)}
-                  {providerSummary(sourceRecord)
-                    ? ` · ${providerSummary(sourceRecord)}`
-                    : ''}
+                  {sourceRecord.provider ? ` · ${sourceRecord.provider}` : ''}
                 </span>
               )}
             </span>

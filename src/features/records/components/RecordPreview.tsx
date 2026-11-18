@@ -8,12 +8,7 @@ import { Download, ExternalLink, LockKeyhole } from 'lucide-react'
 import { toast } from 'sonner'
 import type { MedicalRecord } from '@shared/database.types'
 import { api, errorMessage } from '@/lib/api'
-import {
-  documentKinds,
-  displayDate,
-  fileSize,
-  providerSummary,
-} from '@/lib/utils'
+import { documentKinds, displayDate, fileSize } from '@/lib/utils'
 import { downloadRecord, viewRecord } from '../lib/records'
 import { Button } from '@/components/ui/button'
 import {
@@ -123,7 +118,7 @@ export function RecordPreview({
             {displayDate(record.record_date)}
           </DialogDescription>
           <p className="mt-2 break-words text-sm text-muted-foreground">
-            {providerSummary(record) || 'Hospital and doctor not specified'}
+            {record.provider || 'Hospital / Doctor not specified'}
           </p>
           <p className="mt-1 break-words text-xs text-muted-foreground">
             {record.file_name}, {fileSize(record.file_size)}

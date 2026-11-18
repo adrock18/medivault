@@ -40,18 +40,6 @@ export const documentKinds = {
   insurance_claim: 'Insurance claim',
   other: 'Other',
 } as const
-/** Summarize explicitly entered facility/clinician names without legacy text. */
-export function providerSummary(details: {
-  hospital_name: string
-  doctor_name: string
-}) {
-  return [
-    details.hospital_name && `Hospital: ${details.hospital_name}`,
-    details.doctor_name && `Doctor: ${details.doctor_name}`,
-  ]
-    .filter(Boolean)
-    .join(' · ')
-}
 export const frequencies = {
   once_daily: 'Once daily',
   twice_daily: 'Twice daily',

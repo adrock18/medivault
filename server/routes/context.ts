@@ -7,6 +7,7 @@ import type { Request, Response, RequestHandler } from 'express'
 import multer from 'multer'
 import { z } from 'zod'
 import * as contracts from '../../shared/contracts.ts'
+import { recordSchema } from '../../shared/schemas.ts'
 import { MAX_FILE_SIZE } from '../../shared/documents.ts'
 import type { TablesInsert, TablesUpdate } from '../supabase.types.ts'
 import type { DocumentStore } from '../document-store.ts'
@@ -233,6 +234,7 @@ export function createRouteContext(options: {
     res.status(204).end()
   }
 
+  const recordFieldCount = Object.keys(recordSchema.shape).length
   return {
     ...options,
     ...contracts,
@@ -248,8 +250,8 @@ export function createRouteContext(options: {
       limits: {
         fileSize: MAX_FILE_SIZE,
         files: 1,
-        fields: 6,
-        parts: 7,
+        fields: recordFieldCount,
+        parts: recordFieldCount + 1,
         fieldSize: 4096,
       },
     }),

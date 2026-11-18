@@ -79,30 +79,31 @@ It preserves legacy text and RLS; it does not split existing allergies, erase
 contacts or reinterpret medical notes. Retain the hosted migration version in
 local history rather than applying a renamed duplicate.
 
-### Hospital/doctor split and scoped reset
+### Restore the combined Hospital / Doctor field
 
-Apply `separate_visit_document_providers` before deploying this release.
-It adds non-null `hospital_name` and `doctor_name` text columns, initially
-blank, on visits and medical records. **With explicit owner authorization,
-this migration clears the old combined `provider` text for all accounts.**
-It does not delete rows, stored files, relationships or other health fields.
-This intentionally destructive field reset is not a general database reset.
+For the combined-field release, apply
+`20261118175417_restore_combined_provider.sql` before the matching application
+cutover. The hosted demo migration was applied with explicit authorization on
+18 November 2026; retain that version rather than applying a renamed duplicate.
+Do not revert or reapply the two already-published split/readiness migrations.
 
-The retired `provider` column remains empty and constrained against new
-nonblank writes. The UI/API use only the separate fields; no legacy text is
-displayed or guessed apart. Existing visits/documents need their names entered
-again. Newly uploaded documents copy names from the selected visit as editable
-snapshots; changing a visit later does not rewrite saved document metadata.
-Also apply `provider_readiness_metadata` before the matching API release.
-Its security-invoker readiness RPC checks both new columns on both tables
-through PostgreSQL catalogs. It changes no patient data or table grants.
+The new migration removes the constraint that blocked nonblank `provider`
+writes, joins each saved Hospital and Doctor with `/`, and drops the two
+split columns. A blank side adds no separator. The 323-character limit preserves
+two maximum-length 160-character names without truncation. Rows, ownership,
+document bytes, relationships and unrelated fields remain unchanged.
+Previously cleared text cannot be recovered by this migration.
 
-Validate the migration on an isolated database and confirm explicit permission
-for this all-account text reset before applying it anywhere else. Deploy the
-matching API/frontend together and refresh old browser tabs. Old versions
-cannot keep accepting the retired provider input. Rolling back application code
-does not restore cleared text; recovery of that text requires an authorized
-pre-migration backup. A Git push alone does not apply database migrations.
+New documents copy the selected visit's combined provider as an editable
+snapshot; editing a visit later does not rewrite saved documents. The upload
+parser follows the six-field metadata schema instead of hardcoded counts.
+Readiness remains security-invoker and catalog-only; no patient-table grants
+are added. It verifies the provider columns and the new length constraints.
+
+Validate locally, then obtain release authorization before applying hosted
+changes. Deploy matching API/frontend and refresh old tabs together with the
+schema cutover: the split-field application is incompatible with the new schema.
+A Git push alone does not apply database migrations.
 
 Run `npm run verify` and `npm audit --omit=dev`, publish the verified revision,
 then deploy it. Record the actual revision and URL. Restore `checksPass`

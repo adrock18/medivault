@@ -66,8 +66,6 @@ export type Database = {
       }
       care_visits: {
         Row: {
-          hospital_name: string
-          doctor_name: string
           care_track_id: string | null
           created_at: string
           family_member_id: string
@@ -82,8 +80,6 @@ export type Database = {
           visit_date: string
         }
         Insert: {
-          hospital_name?: string
-          doctor_name?: string
           care_track_id?: string | null
           created_at?: string
           family_member_id: string
@@ -98,8 +94,6 @@ export type Database = {
           visit_date: string
         }
         Update: {
-          hospital_name?: string
-          doctor_name?: string
           care_track_id?: string | null
           created_at?: string
           family_member_id?: string
@@ -356,8 +350,6 @@ export type Database = {
       }
       medical_records: {
         Row: {
-          hospital_name: string
-          doctor_name: string
           category: string
           created_at: string
           document_kind: string
@@ -376,8 +368,6 @@ export type Database = {
           visit_id: string | null
         }
         Insert: {
-          hospital_name?: string
-          doctor_name?: string
           category: string
           created_at?: string
           document_kind?: string
@@ -396,8 +386,6 @@ export type Database = {
           visit_id?: string | null
         }
         Update: {
-          hospital_name?: string
-          doctor_name?: string
           category?: string
           created_at?: string
           document_kind?: string

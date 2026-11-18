@@ -13,7 +13,6 @@ import type {
   VisitFollowUp,
 } from '@shared/database.types'
 import { EmptyState, SectionTitle } from '@/components/common'
-import { providerSummary } from '@/lib/utils'
 
 type Props = {
   careTracks: CareTrack[]
@@ -63,9 +62,7 @@ export function CareHistoryGraph({
                 <p className="mt-1 text-xs capitalize text-muted-foreground">
                   {record.document_kind.replaceAll('_', ' ')} ·{' '}
                   {record.record_date}
-                  {providerSummary(record)
-                    ? ` · ${providerSummary(record)}`
-                    : ''}
+                  {record.provider ? ` · ${record.provider}` : ''}
                 </p>
                 {linkedMedications.length > 0 && (
                   <ul
@@ -125,7 +122,7 @@ export function CareHistoryGraph({
           </div>
           <p className="mt-1 break-words text-sm text-muted-foreground">
             {visit.reason || visit.setting.replaceAll('_', ' ')}
-            {providerSummary(visit) ? ` · ${providerSummary(visit)}` : ''}
+            {visit.provider ? ` · ${visit.provider}` : ''}
           </p>
           {followUp && (
             <p className="mt-3 break-words rounded-lg bg-muted/50 p-3 text-xs text-muted-foreground">

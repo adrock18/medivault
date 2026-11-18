@@ -62,8 +62,7 @@ export function UploadDialog({
           visit_id: record.visit_id ?? '',
           title: record.title,
           document_kind: record.document_kind,
-          hospital_name: record.hospital_name,
-          doctor_name: record.doctor_name,
+          provider: record.provider,
           record_date: record.record_date,
         }
       : {
@@ -71,8 +70,7 @@ export function UploadDialog({
           visit_id: defaultVisitId,
           title: '',
           document_kind: defaultKind,
-          hospital_name: defaultVisit?.hospital_name ?? '',
-          doctor_name: defaultVisit?.doctor_name ?? '',
+          provider: defaultVisit?.provider ?? '',
           record_date: localDate(),
         },
   })
@@ -223,18 +221,12 @@ export function UploadDialog({
                       (visit) => visit.id === field.value,
                     )
                     const nextVisit = visits.find((visit) => visit.id === value)
-                    // Preserve document-specific overrides independently for each name.
-                    for (const name of [
-                      'hospital_name',
-                      'doctor_name',
-                    ] as const) {
-                      const current = getValues(name)
-                      if (!current || current === previousVisit?.[name])
-                        setValue(name, nextVisit?.[name] ?? '', {
-                          shouldDirty: true,
-                          shouldValidate: true,
-                        })
-                    }
+                    const current = getValues('provider')
+                    if (!current || current === previousVisit?.provider)
+                      setValue('provider', nextVisit?.provider ?? '', {
+                        shouldDirty: true,
+                        shouldValidate: true,
+                      })
                     field.onChange(value)
                   }}
                   disabled={mutation.pending}
@@ -251,22 +243,14 @@ export function UploadDialog({
               )}
             />
           </div>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <Field
-              label="Hospital"
-              placeholder="Hospital, clinic or laboratory"
-              registration={register('hospital_name')}
-              error={errors.hospital_name?.message}
-            />
-            <Field
-              label="Doctor"
-              placeholder="Doctor's name"
-              registration={register('doctor_name')}
-              error={errors.doctor_name?.message}
-            />
-          </div>
+          <Field
+            label="Hospital / Doctor"
+            placeholder="Hospital, clinic or doctor's name"
+            registration={register('provider')}
+            error={errors.provider?.message}
+          />
           <p className="text-xs text-muted-foreground">
-            Filled from the selected visit. You can change either name for this
+            Filled from the selected visit. You can change this text for the
             document.
           </p>
           {mutation.error && <ErrorState message={mutation.error} />}

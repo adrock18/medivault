@@ -60,8 +60,7 @@ export function CareDialog({
       title: visit?.title ?? '',
       reason: visit?.reason ?? '',
       setting: visit?.setting ?? 'primary_care',
-      hospital_name: visit?.hospital_name ?? '',
-      doctor_name: visit?.doctor_name ?? '',
+      provider: visit?.provider ?? '',
       visit_date: visit?.visit_date ?? localDate(),
       notes: visit?.notes ?? '',
     },
@@ -217,20 +216,12 @@ export function CareDialog({
                 )}
               />
             </div>
-            <div className="grid gap-4 sm:grid-cols-2">
-              <Field
-                label="Hospital"
-                placeholder="Hospital, clinic or laboratory"
-                registration={visitForm.register('hospital_name')}
-                error={visitForm.formState.errors.hospital_name?.message}
-              />
-              <Field
-                label="Doctor"
-                placeholder="Doctor's name"
-                registration={visitForm.register('doctor_name')}
-                error={visitForm.formState.errors.doctor_name?.message}
-              />
-            </div>
+            <Field
+              label="Hospital / Doctor"
+              placeholder="Hospital, clinic or doctor's name"
+              registration={visitForm.register('provider')}
+              error={visitForm.formState.errors.provider?.message}
+            />
             <SelectField
               label="Care track"
               value={visitCareTrack}

@@ -282,6 +282,9 @@ documented choices, not claims of security or healthcare certification.
 
 ## Separate hospital/doctor names
 
+**Superseded for the next release by the combined-field decision below.**
+The published split migrations remain part of the immutable migration history.
+
 - **Problem:** a combined provider input cannot reliably distinguish a facility
   from a clinician and requires repeated typing for documents in the same visit.
 - **Decision:** store validated Hospital and Doctor names separately on visits
@@ -296,6 +299,20 @@ documented choices, not claims of security or healthcare certification.
   submissions must fail rather than silently erase structured names.
 - **Recovery:** the field reset is intentional and not reversible by a code
   rollback; restoring old text would require an authorized backup restore.
+
+## Restore one Hospital / Doctor field
+
+- **Decision:** at the user's request, restore one optional combined provider
+  field on visits and documents, without reverting the other records or CSS fixes.
+- **Preservation:** migrate current names into `Hospital / Doctor` wording,
+  omitting empty sides. Permit 323 characters so the two former 160-character
+  values and separator fit without data loss.
+- **Upload regression:** derive multipart field/part limits from the shared
+  schema; reverting the UI alone is not the root fix for parser/schema drift.
+- **Release:** use a new versioned migration, not an old-commit rollback or
+  replay of the field reset. Deploy matching schema/API/frontend together.
+  Readiness remains metadata-only and service-role patient-table grants stay
+  restricted.
 
 ## Decision template for future changes
 

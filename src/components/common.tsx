@@ -363,7 +363,7 @@ export function Field({
   }) {
   const id = useId()
   return (
-    <div className="space-y-2">
+    <div data-slot="field" className="grid min-w-0 content-start gap-2">
       <Label htmlFor={id}>{label}</Label>
       <Input
         id={id}
@@ -399,7 +399,7 @@ export function TextField({
 }: FieldCommon & TextareaHTMLAttributes<HTMLTextAreaElement>) {
   const id = useId()
   return (
-    <div className="space-y-2">
+    <div data-slot="field" className="grid min-w-0 content-start gap-2">
       <Label htmlFor={id}>{label}</Label>
       <Textarea
         id={id}
@@ -434,7 +434,7 @@ export function SelectField({
 }: Omit<FieldCommon, 'registration'> & SelectProps) {
   const id = useId()
   return (
-    <div className="space-y-2">
+    <div data-slot="field" className="grid min-w-0 content-start gap-2">
       <Label htmlFor={id}>{label}</Label>
       <Select
         id={id}

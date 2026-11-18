@@ -152,8 +152,7 @@ erDiagram
     UUID family_member_id FK
     UUID visit_id FK
     TEXT document_kind
-    TEXT hospital_name
-    TEXT doctor_name
+    TEXT provider
     TEXT file_path UK
     DATE record_date
     BOOLEAN is_favourite
@@ -191,8 +190,7 @@ erDiagram
     UUID care_track_id FK
     DATE visit_date
     TEXT setting
-    TEXT hospital_name
-    TEXT doctor_name
+    TEXT provider
   }
   visit_follow_ups {
     UUID id PK

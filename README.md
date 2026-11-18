@@ -22,8 +22,8 @@ it.
 - **Medical records vault:** upload, search, categorize, preview, download, and
   delete private PDF/JPG/PNG documents, grouped by family profile, optional care
   track, and dated visit. Mark key documents **Important!** for quick filtering.
-  Hospital and Doctor are separate fields on visits and documents.
-  New documents inherit the selected visit's names as editable
+  Visits and documents use one optional **Hospital / Doctor** field.
+  New documents inherit the selected visit's provider as an editable
   defaults. Visit and record dates support typed day/month/year entry.
 - **Family profiles:** organize each managed person's medical records and
   medication schedule under the account owner's login.

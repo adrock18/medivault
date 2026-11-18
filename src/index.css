@@ -334,52 +334,66 @@
   .data-table tr:last-child td {
     @apply border-0;
   }
-}
 
-.select-trigger {
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-  min-width: 0;
-  min-height: 48px;
-  width: 100%;
-  padding: 10px 14px;
-  border: 1px solid var(--input);
-  border-radius: 14px;
-  background: var(--card);
-  color: var(--foreground);
-  font-size: 14px;
-  text-align: left;
-  transition:
-    background 160ms,
-    border-color 160ms,
-    box-shadow 160ms;
-}
+  .select-trigger {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+    height: 44px;
+    min-height: 44px;
+    width: 100%;
+    padding: 8px 12px;
+    border: 1px solid var(--input);
+    border-radius: 12px;
+    background: var(--card);
+    color: var(--foreground);
+    font-size: 14px;
+    line-height: 20px;
+    text-align: left;
+    transition:
+      background 160ms,
+      border-color 160ms,
+      box-shadow 160ms;
+  }
 
-.profile-personal-fields .select-trigger {
-  min-height: 44px;
-  padding-block: 8px;
-  border-radius: 12px;
-}
+  .select-trigger-compact {
+    width: auto;
+    max-width: 150px;
+    border-radius: 99px;
+    background: transparent;
+  }
 
-.medical-form-dialog .select-trigger {
-  min-height: 44px;
-  padding-block: 8px;
-  border-radius: 12px;
+  @media (min-width: 640px) {
+    /* Share label/control/help tracks so wrapped labels cannot stagger controls. */
+    .aligned-fields > [data-slot='field'] {
+      grid-row: span 3;
+      grid-template-rows: subgrid;
+    }
+
+    .aligned-fields > [data-slot='field'] > [data-slot='label'] {
+      grid-row: 1;
+    }
+
+    .aligned-fields
+      > [data-slot='field']
+      > :is(
+        [data-slot='input'],
+        [data-slot='textarea'],
+        [data-slot='select-trigger']
+      ) {
+      grid-row: 2;
+    }
+
+    .aligned-fields > [data-slot='field'] > p {
+      grid-row: 3;
+    }
+  }
 }
 
 .medical-form-dialog form,
-.medical-form-dialog fieldset,
-.medical-form-dialog .space-y-2 {
+.medical-form-dialog fieldset {
   min-width: 0;
-}
-
-.select-trigger-compact {
-  min-height: 44px;
-  width: auto;
-  max-width: 150px;
-  border-radius: 99px;
-  background: transparent;
 }
 
 .select-trigger:hover:not(:disabled),

@@ -483,11 +483,11 @@ function FamilyProfiles() {
         separate login. Use the profile selector in the header to view one
         person's records and medication schedule at a time.
       </p>
-      <div className="grid gap-3 sm:grid-cols-2">
+      <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2">
         {familyMembers.map((member) => (
           <article
             key={member.id}
-            className="flex flex-wrap items-center justify-between gap-3 rounded-xl border bg-card p-4"
+            className="flex min-w-0 flex-wrap items-center justify-between gap-3 rounded-xl border bg-card p-4"
           >
             <div className="min-w-0 flex-1 basis-32">
               <h3 className="truncate text-sm font-semibold">

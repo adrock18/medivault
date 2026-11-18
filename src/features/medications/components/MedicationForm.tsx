@@ -10,13 +10,7 @@ import { Check } from 'lucide-react'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useMutation } from '@/hooks/useMutation'
 import { medicationSchema, type MedicationValues } from '@shared/schemas'
-import {
-  displayDate,
-  documentKinds,
-  frequencies,
-  localDate,
-  providerSummary,
-} from '@/lib/utils'
+import { displayDate, documentKinds, frequencies, localDate } from '@/lib/utils'
 import { api } from '@/lib/api'
 import type { Medication } from '@shared/database.types'
 import {
@@ -128,7 +122,7 @@ export function MedicationForm({
               label: member.full_name,
             }))}
           />
-          <div className="grid gap-4 sm:grid-cols-2">
+          <div className="aligned-fields grid gap-4 sm:grid-cols-2">
             <Field
               label="Medicine name *"
               placeholder="e.g. Metformin"
@@ -142,7 +136,7 @@ export function MedicationForm({
               error={errors.dosage?.message}
             />
           </div>
-          <div className="grid gap-4 sm:grid-cols-2">
+          <div className="aligned-fields grid gap-4 sm:grid-cols-2">
             <Controller
               name="form"
               control={control}
@@ -197,7 +191,7 @@ export function MedicationForm({
             error={errors.times?.message}
             hint="Enter your prescribed times in 24-hour HH:MM format, separated by commas. Times follow the local clock, including when traveling."
           />
-          <div className="grid gap-4 sm:grid-cols-2">
+          <div className="aligned-fields grid gap-4 sm:grid-cols-2">
             <Field
               label="Start date *"
               type="date"
@@ -234,7 +228,7 @@ export function MedicationForm({
                   ...records.map((record) => ({
                     value: record.id,
                     label: record.title,
-                    description: `${documentKinds[record.document_kind]} · ${displayDate(record.record_date)}${providerSummary(record) ? ` · ${providerSummary(record)}` : ''}`,
+                    description: `${documentKinds[record.document_kind]} · ${displayDate(record.record_date)}${record.provider ? ` · ${record.provider}` : ''}`,
                   })),
                 ]}
                 error={errors.source_record_id?.message}
