@@ -250,6 +250,47 @@ export function createSupabaseAuthGateway(
       return { user }
     },
 
+    async resendConfirmation(req, res, input) {
+      const request = createRequest(req, res)
+      request.clearLegacyCookie()
+      const { error } = await runAuthRequest(request, () =>
+        request.client.auth.resend({
+          type: 'signup',
+          email: input.email.trim().toLowerCase(),
+          options: {
+            emailRedirectTo: new URL(
+              '/api/auth/callback',
+              callbackOrigin(req, settings),
+            ).toString(),
+          },
+        }),
+      )
+      if (error) {
+        request.discardCookies()
+        const details = errorDetails(error)
+        if (
+          details.code === 'user_not_found' ||
+          details.code === 'email_already_confirmed'
+        )
+          return
+        if (
+          details.code === 'over_email_send_rate_limit' ||
+          details.code === 'over_request_rate_limit' ||
+          details.status === 429
+        )
+          throw new HttpError(
+            429,
+            'The confirmation email limit has been reached. Please wait before trying again.',
+          )
+        if (isUnavailable(error)) throw unavailable()
+        throw new HttpError(
+          400,
+          'Unable to request a confirmation email. Please try again or contact the project administrator.',
+        )
+      }
+      request.commitCookies()
+    },
+
     async login(req, res, input) {
       const request = createRequest(req, res)
       request.clearLegacyCookie()
@@ -262,6 +303,11 @@ export function createSupabaseAuthGateway(
       if (error) {
         request.discardCookies()
         const details = errorDetails(error)
+        if (details.code === 'email_not_confirmed')
+          throw new HttpError(
+            400,
+            'Confirm your email before signing in. Use Resend confirmation email if you need a new link.',
+          )
         if (isUnavailable(error)) throw unavailable()
         if (
           details.code === 'invalid_credentials' ||
@@ -340,7 +386,7 @@ export function createSupabaseAuthGateway(
       )
     },
 
-    async callback(req, res, code) {
+    async callback(req, res, code, providerError) {
       const origin = callbackOrigin(req, settings)
       const request = createRequest(req, res)
       request.clearLegacyCookie()
@@ -348,6 +394,16 @@ export function createSupabaseAuthGateway(
         const url = new URL('/login', origin)
         url.searchParams.set('auth', authStatus)
         return url.toString()
+      }
+      if (providerError) {
+        request.discardCookies()
+        return {
+          location: loginLocation(
+            providerError === 'otp_expired'
+              ? 'confirmation-expired'
+              : 'confirmation-failed',
+          ),
+        }
       }
       if (!code) {
         request.commitCookies()

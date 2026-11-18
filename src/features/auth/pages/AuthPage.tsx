@@ -1,4 +1,4 @@
-import { Link, Navigate, useSearchParams } from 'react-router-dom'
+import { Link, Navigate, useLocation, useSearchParams } from 'react-router-dom'
 import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -16,6 +16,7 @@ import { errorMessage } from '@/lib/api'
 import { useAuth } from '@/contexts/AuthContext'
 import { ThemeSelect } from '@/components/ThemeSelect'
 import { MedicationShowcase } from '../components/MedicationShowcase'
+import { ConfirmationResend } from '../components/ConfirmationResend'
 
 function LoginForm() {
   const { signIn } = useAuth()
@@ -60,7 +61,11 @@ function LoginForm() {
     </form>
   )
 }
-function RegisterForm() {
+function RegisterForm({
+  onConfirmationRequired,
+}: {
+  onConfirmationRequired: (email: string) => void
+}) {
   const { signUp } = useAuth()
   const [error, setError] = useState<string | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
@@ -76,10 +81,12 @@ function RegisterForm() {
     setNotice(null)
     try {
       const result = await signUp(values)
-      if ('confirmation_required' in result)
+      if ('confirmation_required' in result) {
         setNotice(
-          'This project requires email confirmation before you can sign in. If Supabase sends a confirmation message, open it in this browser to continue. If you do not receive one, contact the project administrator.',
+          'Check your inbox and spam folder for a confirmation email. Open the newest link in this browser. If no email arrives, use Resend confirmation email below. Already confirmed? Sign in.',
         )
+        onConfirmationRequired(values.email)
+      }
     } catch (err) {
       setError(errorMessage(err))
     }
@@ -138,17 +145,32 @@ export default function AuthPage({
 }) {
   const { session } = useAuth()
   const [searchParams] = useSearchParams()
+  const location = useLocation()
+  const [confirmationEmail, setConfirmationEmail] = useState('')
   const [motionPaused, setMotionPaused] = useState(false)
+  const hashParams = new URLSearchParams(location.hash.slice(1))
+  const providerError =
+    searchParams.get('error_code') ||
+    searchParams.get('error') ||
+    hashParams.get('error_code') ||
+    hashParams.get('error')
+  const authStatus = providerError
+    ? providerError === 'otp_expired'
+      ? 'confirmation-expired'
+      : 'confirmation-failed'
+    : searchParams.get('auth')
   const callbackMessage = {
     'confirmation-missing-code':
-      'The confirmation link did not include a sign-in code. Open the complete link or sign in.',
+      'The confirmation link did not include a sign-in code. Try signing in if you already confirmed your email; otherwise request a new confirmation email below.',
     'confirmation-missing-verifier':
-      'Open the confirmation link in the same browser and device where you registered. If that is not possible, sign in or register again.',
+      'Automatic sign-in could not finish in this browser. Your email may already be confirmed; try signing in. Otherwise request a new confirmation email below and open it in this browser.',
     'confirmation-expired':
-      'That confirmation link is expired or has already been used. Sign in or register again to receive a new link.',
+      'This confirmation link is invalid, expired or has already been used. If you already confirmed your email, sign in. Otherwise request a new confirmation email below.',
+    'confirmation-failed':
+      'Email confirmation could not be completed. If you already confirmed your email, sign in. Otherwise request a new confirmation email below.',
     'confirmation-unavailable':
       'The authentication service is temporarily unavailable. Retry the confirmation link shortly.',
-  }[searchParams.get('auth') ?? '']
+  }[authStatus ?? '']
   if (session) return <Navigate to="/dashboard" replace />
   return (
     <div className="auth-shell flex min-h-screen flex-col bg-workspace">
@@ -215,7 +237,15 @@ export default function AuthPage({
                 {callbackMessage}
               </div>
             )}
-            {registration ? <RegisterForm /> : <LoginForm />}
+            {registration ? (
+              <RegisterForm onConfirmationRequired={setConfirmationEmail} />
+            ) : (
+              <LoginForm />
+            )}
+            <ConfirmationResend
+              key={`${registration}-${confirmationEmail}`}
+              initialEmail={confirmationEmail}
+            />
             <p className="mt-6 text-center text-sm text-muted-foreground">
               {registration ? 'Already have an account?' : 'New to MediVault?'}{' '}
               <Link

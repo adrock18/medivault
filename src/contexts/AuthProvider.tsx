@@ -9,7 +9,11 @@ import { z } from 'zod'
 import type { Session } from '@shared/contracts'
 import type { RegistrationResult } from '@shared/contracts'
 import { api, errorMessage } from '../lib/api'
-import { loginSchema, registerSchema } from '@shared/schemas'
+import {
+  confirmationEmailSchema,
+  loginSchema,
+  registerSchema,
+} from '@shared/schemas'
 import { AuthContext } from './AuthContext'
 import { cancelThemeTransition } from '../lib/theme'
 
@@ -87,6 +91,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   async function signUp(values: z.infer<typeof registerSchema>) {
     return authenticate(() => api.auth.register(values))
   }
+  async function resendConfirmation(
+    values: z.infer<typeof confirmationEmailSchema>,
+  ) {
+    if (authenticating.current)
+      throw new Error('An authentication request is already running.')
+    authenticating.current = true
+    sequence.current++
+    try {
+      await api.auth.resendConfirmation(values)
+    } finally {
+      authenticating.current = false
+    }
+  }
   async function signOut() {
     if (authenticating.current)
       throw new Error('An authentication request is already running.')
@@ -113,6 +130,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         },
         signIn,
         signUp,
+        resendConfirmation,
         signOut,
       }}
     >

@@ -2,7 +2,11 @@ import { createContext, useContext } from 'react'
 import { z } from 'zod'
 import type { Session } from '@shared/contracts'
 import type { RegistrationResult } from '@shared/contracts'
-import { loginSchema, registerSchema } from '@shared/schemas'
+import {
+  confirmationEmailSchema,
+  loginSchema,
+  registerSchema,
+} from '@shared/schemas'
 
 export type AuthState = {
   session: Session | null
@@ -14,6 +18,9 @@ export type AuthState = {
     values: z.infer<typeof registerSchema>,
   ) => Promise<RegistrationResult>
   signOut: () => Promise<void>
+  resendConfirmation: (
+    values: z.infer<typeof confirmationEmailSchema>,
+  ) => Promise<void>
 }
 export const AuthContext = createContext<AuthState | null>(null)
 export function useAuth() {

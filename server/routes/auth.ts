@@ -1,5 +1,7 @@
 import { Router } from 'express'
+import { rateLimit } from 'express-rate-limit'
 import {
+  confirmationEmailSchema,
   loginSchema,
   passwordSchema,
   registerSchema,
@@ -9,6 +11,16 @@ import { validate, type RouteContext } from './context.ts'
 export function publicAuthRoutes(context: RouteContext) {
   const router = Router()
   const { auth, authLimit } = context
+  const resendLimit = rateLimit({
+    windowMs: 60_000,
+    limit: 1,
+    standardHeaders: 'draft-8',
+    legacyHeaders: false,
+    message: {
+      error:
+        'Please wait one minute before requesting another confirmation email.',
+    },
+  })
   router.get('/auth/session', async (req, res) => {
     const user = await auth.getSession(req, res)
     res.json(user ? { user } : null)
@@ -29,9 +41,28 @@ export function publicAuthRoutes(context: RouteContext) {
       await auth.login(req, res, validate(loginSchema.strict(), req.body)),
     )
   })
+  router.post(
+    '/auth/resend-confirmation',
+    authLimit,
+    resendLimit,
+    async (req, res) => {
+      await auth.resendConfirmation(
+        req,
+        res,
+        validate(confirmationEmailSchema.strict(), req.body),
+      )
+      res.status(204).end()
+    },
+  )
   router.get('/auth/callback', async (req, res) => {
     const code = typeof req.query.code === 'string' ? req.query.code : undefined
-    const { location } = await auth.callback(req, res, code)
+    const providerError =
+      typeof req.query.error_code === 'string'
+        ? req.query.error_code
+        : typeof req.query.error === 'string'
+          ? req.query.error
+          : undefined
+    const { location } = await auth.callback(req, res, code, providerError)
     res.redirect(303, location)
   })
   router.post('/auth/logout', async (req, res) => {

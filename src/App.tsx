@@ -12,6 +12,7 @@ import {
   Route,
   Routes,
   Link,
+  useLocation,
 } from 'react-router-dom'
 import { Toaster } from 'sonner'
 import { useAuth } from './contexts/AuthContext'
@@ -78,6 +79,7 @@ function ProtectedRoute() {
 }
 function AppRoutes() {
   const { loading, error, retry, session } = useAuth()
+  const location = useLocation()
   if (loading)
     return <LoadingState message="Opening your health workspace..." />
   if (error)
@@ -106,7 +108,16 @@ function AppRoutes() {
       </Route>
       <Route
         path="/"
-        element={<Navigate to={session ? '/dashboard' : '/login'} replace />}
+        element={
+          <Navigate
+            to={
+              session
+                ? '/dashboard'
+                : `/login${location.search}${location.hash}`
+            }
+            replace
+          />
+        }
       />
       <Route
         path="*"

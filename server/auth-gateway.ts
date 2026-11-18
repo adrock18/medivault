@@ -2,6 +2,7 @@ import type { Request, Response } from 'express'
 import type { z } from 'zod'
 import type { RegistrationResult, Session } from '../shared/contracts.ts'
 import {
+  confirmationEmailSchema,
   loginSchema,
   passwordSchema,
   registerSchema,
@@ -26,6 +27,11 @@ export type AuthGateway = {
     res: Response,
     input: z.infer<typeof loginSchema>,
   ): Promise<Session>
+  resendConfirmation(
+    req: Request,
+    res: Response,
+    input: z.infer<typeof confirmationEmailSchema>,
+  ): Promise<void>
   logout(req: Request, res: Response): Promise<void>
   changePassword(
     req: Request,
@@ -36,6 +42,7 @@ export type AuthGateway = {
     req: Request,
     res: Response,
     code: string | undefined,
+    providerError?: string,
   ): Promise<{ location: string }>
 }
 

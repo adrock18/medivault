@@ -30,7 +30,12 @@ import type {
   VisitFollowUpValues,
 } from '@shared/schemas'
 import type { FamilyMemberValues } from '@shared/schemas'
-import { loginSchema, registerSchema, passwordSchema } from '@shared/schemas'
+import {
+  confirmationEmailSchema,
+  loginSchema,
+  registerSchema,
+  passwordSchema,
+} from '@shared/schemas'
 
 export function errorMessage(error: unknown) {
   return error instanceof Error
@@ -102,6 +107,8 @@ export const api = {
       request('/auth/login', sessionSchema, json('POST', values)),
     register: (values: z.infer<typeof registerSchema>) =>
       request('/auth/register', registrationResultSchema, json('POST', values)),
+    resendConfirmation: (values: z.infer<typeof confirmationEmailSchema>) =>
+      request('/auth/resend-confirmation', z.void(), json('POST', values)),
     logout: () => request('/auth/logout', z.void(), { method: 'POST' }),
     password: (values: z.infer<typeof passwordSchema>) =>
       request('/auth/password', z.void(), json('POST', values)),

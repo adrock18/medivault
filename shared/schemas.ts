@@ -25,8 +25,10 @@ const numberOrBlank = (min: number, max: number) =>
         `Enter a value between ${min} and ${max}.`,
       ),
   ])
-export const loginSchema = z.object({
+export const confirmationEmailSchema = z.object({
   email: z.email('Enter a valid email address.'),
+})
+export const loginSchema = confirmationEmailSchema.extend({
   password: z.string().min(1, 'Enter your password.').max(128),
 })
 export const registerSchema = loginSchema
