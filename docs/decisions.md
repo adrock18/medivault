@@ -3,39 +3,41 @@
 Each record states context, decision, alternatives and consequences. These are
 documented choices, not claims of security or healthcare certification.
 
-## D1. Single-origin modular monolith and SQLite
+## D1. Single-origin modular monolith and managed persistence
 
 - **Context:** A personal medication/records MVP needs reliable ownership and a
   small deployment, not independently scaled services.
-- **Decision:** Keep React + Express on one origin, Node SQLite with WAL/foreign
-  keys/strict migrations, and shared validated contracts.
-- **Alternatives:** Supabase or a separately operated PostgreSQL service;
-  microservices/ORM migration. These add migration and operations work without a
-  measured requirement.
-- **Consequences:** One writer per SQLite replica. Complete owned datasets and
+- **Decision:** Keep React + Express on one origin with Supabase PostgreSQL,
+  RLS, versioned migrations and shared validated contracts. Supabase replaces the
+  original SQLite/B2 runtime after replica transaction limits blocked operation.
+- **Alternatives:** Retain replica supervision, operate PostgreSQL separately,
+  or rewrite the browser around direct database calls.
+- **Consequences:** Managed services and private environment settings are required.
+  Complete owned datasets and
   buffered uploads suit current small accounts, not an established production
   capacity guarantee. Measure history size, latency and concurrent memory before
   introducing pagination/aggregation or streaming.
-- **Where:** [app](../server/app.ts), [database](../server/database.ts),
+- **Where:** [app](../server/app.ts), [managed migrations](../supabase/migrations),
   [configuration](../server/config.ts).
 
-## D2. Opaque cookie sessions
+## D2. Supabase Auth with HttpOnly cookies
 
 - **Context:** Browser scripts do not need a bearer token in persistent storage.
-- **Decision:** Store an opaque random token in an HttpOnly/Lax cookie, its
-  SHA-256 hash in SQLite, and scrypt password hashes with independent salts.
-- **Alternatives:** JWT/localStorage, third-party identity. Neither is required
-  for this same-origin MVP.
-- **Consequences:** Session lookup/revocation is server-owned; production needs
+- **Decision:** Supabase owns credentials and sessions; a request-scoped SSR
+  client manages HttpOnly/Lax cookies and validates users through Auth.
+- **Alternatives:** JavaScript-accessible tokens or retaining custom passwords
+  and sessions alongside the new provider.
+- **Consequences:** Confirmation-aware signup and a same-browser PKCE callback
+  are supported. Production needs
   HTTPS/Secure cookies. There is no email-based recovery flow. Browser downloads
   already saved cannot be revoked by logout.
-- **Where:** [auth helpers](../server/auth.ts), [session handlers](../server/routes/auth.ts),
+- **Where:** [auth gateway](../server/supabase-auth.ts), [session handlers](../server/routes/auth.ts),
   [AuthProvider](../src/contexts/AuthProvider.tsx).
 
 ## D3. Private file delivery and explicit compensation
 
 - **Context:** Medical documents cannot be public static assets.
-- **Decision:** Keep owner-scoped local/B2 bytes and deliver through authenticated
+- **Decision:** Keep owner-scoped private Supabase bytes and deliver through authenticated
   API checks; compensate if metadata creation fails after upload.
 - **Alternatives:** Public bucket, bearer/presigned links, database-stored files.
 - **Consequences:** The server streams every authorized request. Separate storage
@@ -78,7 +80,7 @@ documented choices, not claims of security or healthcare certification.
   last 30 days, excluding unlogged entries.
 - **Where:** [calendar](../src/features/medications/lib/calendar.ts),
   [dashboard helpers](../src/features/dashboard/lib/dashboard.ts),
-  [dose constraints](../server/migrations/001_initial.sql).
+  [dose constraints](../supabase/migrations/20261118043725_account_medication_guards.sql).
 
 ## D6. Derived logging milestones, not stored achievements
 
@@ -102,8 +104,8 @@ documented choices, not claims of security or healthcare certification.
 
 - **Context:** A user needs a private, durable way to find important documents
   without duplicating files or changing the existing date-based order.
-- **Decision:** Migration 003 adds `medical_records.is_favourite`, an integer
-  constrained to 0/1 with default 0. The SQL boundary validates that representation;
+- **Decision:** `medical_records.is_favourite` is a PostgreSQL boolean,
+  default false. The SQL boundary validates that representation;
   API contracts require a boolean without a permissive missing-field default.
   `PUT /api/records/:id/favourite` accepts only `{is_favourite:boolean}`, checks
   ownership and normal mutation protections, and returns the canonical record.
@@ -116,14 +118,10 @@ documented choices, not claims of security or healthcare certification.
   record deletion removes it. JSON export includes the canonical boolean.
   Pending controls lock, failures keep confirmed state and expose retry, and an
   unfavourited filtered row returns focus to the persistent result count.
-- **Migration / rollback:** Existing v1/v2 databases upgrade forward to version
-  3 and existing documents begin unfavourited. Keep rollback code compatible with
-  schema version 3. Older code rejecting newer versions must not be forced to
-  open the database by decrementing `user_version` or dropping columns. Reverting
-  to a coordinated pre-migration database/document backup requires a separately
-  authorized restore and loses later writes; it is not a routine code rollback.
-- **Where:** [migration](../server/migrations/003_record_favourites.sql),
-  [SQL representation](../server/database.ts), [handler](../server/routes/records.ts),
+- **Migration / rollback:** Fresh managed records begin unfavourited. Use
+  compatible Supabase-capable revisions; old SQLite releases cannot read new data.
+- **Where:** [schema](../supabase/migrations/20261118042554_base_schema.sql),
+  [handler](../server/routes/records.ts),
   [discovery](../src/features/records/pages/MedicalRecordsPage.tsx).
 
 ## D8. Frozen private summaries and browser-owned printing
@@ -185,19 +183,18 @@ documented choices, not claims of security or healthcare certification.
 
 - **Context:** A storage transaction cap denied replica listing during startup.
   Application readiness alone cannot demonstrate backup or document health.
-- **Decision:** Preserve restore-before-Node and nonzero refusal on restore
-  failure. Earlier isolated verification used local fake commands and both absent
-  and existing databases; that harness is now local-only. Keep real-provider
-  recovery separately authorized.
-- **Alternatives:** Bypass restore, start empty, poll the bucket with every health
+- **Decision:** Validate required configuration, build artifacts and managed
+  schema readiness before listening. Never create an empty local fallback.
+  Keep real-provider recovery separately authorized.
+- **Alternatives:** Bypass readiness, start empty, poll the bucket with every health
   request, automatically raise caps, or infer durability from API readiness.
-- **Consequences:** Restore faults may keep the service unavailable rather than
-  silently presenting an empty account. One writer, sync lag, coordinated
-  database/document backups and compatible forward migrations are operational
+- **Consequences:** Managed-service faults may keep the service unavailable rather than
+  silently presenting an empty account. Coordinated database/document backups
+  and compatible forward migrations are operational
   constraints. Document-operation diagnostics expose operation/opaque correlation,
   not provider messages or private paths. Fault tests establish compensation and
   explicit partial errors, not a distributed transaction or remote durability.
-- **Where:** [entrypoint](../docker/entrypoint.sh),
+- **Where:** [startup](../server/index.ts),
   [operator procedures](operations.md).
 
 ## D11. Production-only published verification
@@ -224,20 +221,23 @@ documented choices, not claims of security or healthcare certification.
 - **Context:** One signed-in account needs to organize care details for more
   than one person without introducing identity, consent, and access-lifecycle
   systems under a short MVP scope.
-- **Decision:** Migration 004 creates owner-managed family profiles and assigns
+- **Decision:** The managed schema creates owner-managed family profiles and assigns
   each record, medication and retained measurement to one profile. The header
   selector filters the current view. A prescription-to-medication link must
-  stay within the same owner and family profile.
+  stay within the same owner and family profile. A separate relation stores health
+  details for non-owner profiles separately while preserving the existing
+  account-owner health profile.
 - **Alternatives:** Duplicate accounts, shared credentials, caregiver roles, or
   family-member logins.
 - **Consequences:** Members do not authenticate independently, grant access,
-  or hold a separate health-profile form. The account owner can see and manage
-  all household data. Sharing/revocation/audit and member-specific account
-  deletion remain separate design work.
-- **Migration / rollback:** Existing data is backfilled to each account's
-  `self` profile. Current schema version is 6; migrations are forward-only.
-- **Where:** [family migration](../server/migrations/004_family_members.sql),
+  or hold a separate login. The account owner can see and manage all household
+  profiles and health data. Sharing/revocation/audit and member-specific
+  account deletion remain separate design work.
+- **Migration / rollback:** Fresh accounts bootstrap one self profile. Legacy
+  data is not imported; managed migrations are forward-only.
+- **Where:** [managed schema](../supabase/migrations/20261118042554_base_schema.sql),
   [vault endpoints](../server/routes/vault.ts),
+  [profile editor](../src/features/profile/pages/ProfilePage.tsx),
   [family selector](../src/components/Layout.tsx),
   [family assignment](../src/contexts/DataProvider.tsx).
 
@@ -256,7 +256,7 @@ documented choices, not claims of security or healthcare certification.
   remains best-effort, may be delayed or missed, and is not an emergency
   service, dose outcome, or treatment instruction. Failed sends can be retried
   by later scheduler calls.
-- **Where:** [reminder migration](../server/migrations/005_email_reminders.sql),
+- **Where:** [reminder migration](../supabase/migrations/20261118050139_account_aggregates_reminder_worker.sql),
   [notification routes](../server/routes/notifications.ts),
   [settings](../src/features/settings/pages/SettingsPage.tsx).
 

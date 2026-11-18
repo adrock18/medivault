@@ -44,26 +44,26 @@ medical advice. A scheduled dose is not proof that a dose was taken or missed;
 users record outcomes explicitly.
 
 The former health-measurement tracker is not an active product/API feature.
-Existing historical measurements are preserved in SQLite and included only in
-the owner's full account export.
+The archived-measurement export shape is retained, but this fresh Supabase
+release does not import old accounts, documents or measurements.
 
 ## Technology
 
-| Area                | Technology                                                                    |
-| ------------------- | ----------------------------------------------------------------------------- |
-| Frontend            | React, TypeScript, Vite, React Router                                         |
-| UI                  | Tailwind CSS, Base UI/shadcn-style primitives, Lucide                         |
-| Forms and contracts | React Hook Form, Zod                                                          |
-| Backend             | Node.js, Express 5, same-origin JSON/multipart API                            |
-| Database            | SQLite via Node's built-in `node:sqlite`, migrations and foreign keys         |
-| Documents           | Private local storage or an S3-compatible object store                        |
-| OCR/PDF             | Local Tesseract.js/PDF.js; optional consent-gated OCR.Space processing        |
-| Email reminders     | Optional Resend API integration with an external scheduler                    |
-| Hosting example     | Render container, with Litestream SQLite replication and private B2 documents |
+| Area                | Technology                                                                  |
+| ------------------- | --------------------------------------------------------------------------- |
+| Frontend            | React, TypeScript, Vite, React Router                                       |
+| UI                  | Tailwind CSS, Base UI/shadcn-style primitives, Lucide                       |
+| Forms and contracts | React Hook Form, Zod                                                        |
+| Backend             | Node.js, Express 5, same-origin JSON/multipart API                          |
+| Authentication      | Supabase Auth with server-managed HttpOnly cookies                          |
+| Database            | Supabase PostgreSQL, versioned migrations and owner-scoped RLS              |
+| Documents           | Private Supabase Storage behind validated, authenticated API routes         |
+| OCR/PDF             | Local Tesseract.js/PDF.js; optional consent-gated OCR.Space processing      |
+| Email reminders     | Optional Resend API integration with an external scheduler                  |
+| Hosting example     | Stateless Render container; managed database and documents survive restarts |
 
-This repository currently uses **Express and SQLite**, not Supabase. The
-architecture keeps the browser, API, database, and document access in clear
-boundaries without requiring a separately operated database service.
+React and Express remain on one origin. Supabase supplies authentication,
+PostgreSQL and private Storage; no local database, B2 or Litestream is required.
 
 ## How the application fits together
 
@@ -73,8 +73,9 @@ flowchart LR
   React --> Client["src/lib/api.ts"]
   Client -->|"same-origin /api + HttpOnly cookie"| Express["Express middleware"]
   Express --> Routes["server/routes/*"]
-  Routes --> SQLite[("Private SQLite")]
-  Routes --> Files["Private document store"]
+  Express --> Auth["Supabase Auth"]
+  Routes --> DB[("Supabase PostgreSQL + RLS")]
+  Routes --> Files["Private Supabase Storage"]
   React -->|"local PDF/OCR workers"| OCR["PDF.js / Tesseract"]
   React -->|"explicit per-scan consent"| Express
   Express -->|"optional remote OCR"| OCRSpace["OCR.Space"]
@@ -91,25 +92,28 @@ serves the built frontend and API from the same Express application. See the
 
 ## Run locally
 
-Requirements: Node.js **22.18 or newer** and npm.
+Requirements: Node.js **22.18 or newer**, npm and a configured Supabase project.
 
 ```powershell
 npm ci
+# Copy .env.example to .env and supply your Supabase server settings.
 npm run dev
 ```
 
 Open <http://127.0.0.1:5187>, create a fictional account, and use the app. The
 development launcher starts Vite and Express together and checks API readiness.
-By default, runtime data is stored locally:
-
-- `data/medivault.sqlite` (plus SQLite WAL/SHM files while running)
-- `data/documents/<user-id>/<random-file-name>`
-
-The `data/` directory is ignored by Git and must not be deleted to restart the
-server. Use a protected local directory and fictional data for development.
+Apply the versioned [Supabase migrations](supabase/migrations) once before
+starting. Runtime startup verifies schema readiness; it never runs migrations
+or creates an empty local fallback. Use fictional data for development.
 
 Optional settings are documented in [.env.example](.env.example). Never put
 server credentials in a `VITE_` variable or commit a populated `.env` file.
+The Supabase server configuration uses `SUPABASE_URL`,
+`SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_SECRET_KEY`, and
+`SUPABASE_DOCUMENT_BUCKET`; keep all four server-side. Production also requires
+an HTTPS `APP_ORIGIN` and `COOKIE_SECURE=true`. Local Supabase-backed development
+can explicitly set `APP_ORIGIN=http://127.0.0.1:5187`. Existing accounts and data are not imported: register again after cutover.
+Configure the Site URL and exact `/api/auth/callback` redirect in Supabase Auth.
 Remote OCR is disabled by default and should not receive real medical
 documents. Email reminders require all three `RESEND_API_KEY`, `EMAIL_FROM`,
 and `REMINDER_CRON_SECRET` values plus an external scheduler calling
@@ -128,7 +132,8 @@ src/
 shared/             types, Zod schemas and client/server contracts
 server/
   routes/           auth, vault, care, records, medications and reminders
-  migrations/       versioned SQLite schema changes (currently v6)
+supabase/
+  migrations/       versioned PostgreSQL schema, RLS, RPCs and private bucket
 docs/               architecture, flows, decisions, operations and development
 ```
 
@@ -153,12 +158,12 @@ for the exact verification boundary.
 
 ## Security and project limits
 
-- Passwords are hashed; the browser receives an HttpOnly session cookie.
-- User-owned rows are scoped by the authenticated account in the API.
+- Supabase Auth owns passwords; the browser receives HttpOnly session cookies.
+- Ordinary data requests use the signed-in user's authorization and PostgreSQL RLS.
 - Medical documents are stored outside the public frontend and streamed only
   after an authenticated ownership check.
-- SQLite and documents are **not application-encrypted at rest**. Protect the
-  host storage and use fictional data in the public demo.
+- The server-only secret key is used for controlled storage and worker operations,
+  never shipped to the frontend. Use fictional data in the public demo.
 - MediVault is an educational portfolio project, not a medical device, care
   provider, or HIPAA-compliance claim. It does not diagnose, prescribe, or
   recommend treatment.

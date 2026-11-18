@@ -23,11 +23,13 @@ export function DataProvider({ children }: { children: ReactNode }) {
     },
     notificationPreferences: null,
     healthProfile: null,
+    familyHealthProfiles: [],
     records: [],
     medications: [],
     logs: [],
     careTracks: [],
     visits: [],
+    followUps: [],
   })
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
@@ -97,6 +99,9 @@ export function DataProvider({ children }: { children: ReactNode }) {
         ),
         visits: data.visits.filter(
           (visit) => visit.family_member_id === familyMemberId,
+        ),
+        followUps: data.followUps.filter(
+          (followUp) => followUp.family_member_id === familyMemberId,
         ),
         now,
         loading,

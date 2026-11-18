@@ -3,22 +3,26 @@
 ## Context and stack
 
 MediVault is a same-origin modular monolith: one React application and one Express
-process, with SQLite and a private document store. The primary workflows organize
+process, with Supabase Auth, PostgreSQL and private Storage. The primary workflows organize
 existing prescriptions, explicitly record outcomes, and manage medical documents.
 The retired measurement UI is not a missing dashboard feature: compatibility APIs
 and JSON export retain earlier measurements.
 
-| Layer            | Technology and reason                                                                                                                               |
-| ---------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Browser          | React, TypeScript, React Router and lazy pages: typed interactive workflows without loading OCR on sign-in.                                         |
-| Presentation     | Tailwind, shadcn/Base UI, Geist and Lucide: shared tokens, accessible primitives and consistent controls.                                           |
-| Forms/contracts  | React Hook Form and shared Zod schemas: client guidance plus authoritative server validation and validated responses.                               |
-| Application      | Express on Node 24 LTS (minimum 22.18): serves API and production frontend together.                                                                |
-| Database         | Node `node:sqlite`, WAL, foreign keys, strict tables and forward SQL migrations: a small single-writer deployment without another database service. |
-| Files            | Private local directory or S3-compatible B2 objects: bytes are delivered only through authenticated API requests.                                   |
-| Document reading | PDF.js and Tesseract run locally by default; optional OCR.Space processing is server-keyed and consent-gated per scan.                              |
-| Email reminders  | Optional Resend delivery from a bearer-protected scheduler endpoint; no provider credentials are needed for local development.                      |
-| Verification     | Vitest, Testing Library, Supertest, startup/build checks; see [workflow](development.md) for what each proves.                                      |
+The server validates Supabase sessions, then uses a request-scoped user client
+for ordinary PostgreSQL reads and writes. The server-only secret client handles
+validated object mutations, schema readiness and optional reminder-worker RPCs.
+
+| Layer            | Technology and reason                                                                                                  |
+| ---------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| Browser          | React, TypeScript, React Router and lazy pages: typed interactive workflows without loading OCR on sign-in.            |
+| Presentation     | Tailwind, shadcn/Base UI, Geist and Lucide: shared tokens, accessible primitives and consistent controls.              |
+| Forms/contracts  | React Hook Form and shared Zod schemas: client guidance plus authoritative server validation and validated responses.  |
+| Application      | Express on Node 24 LTS (minimum 22.18): serves API and production frontend together.                                   |
+| Database         | Supabase PostgreSQL with owner-scoped RLS, composite foreign keys and versioned migrations.                            |
+| Files            | Private Supabase Storage; bytes are delivered only through authenticated API requests.                                 |
+| Document reading | PDF.js and Tesseract run locally by default; optional OCR.Space processing is server-keyed and consent-gated per scan. |
+| Email reminders  | Optional Resend delivery from a bearer-protected scheduler endpoint, disabled until configured.                        |
+| Verification     | Vitest, Testing Library, Supertest, startup/build checks; see [workflow](development.md) for what each proves.         |
 
 ```mermaid
 flowchart LR
@@ -27,16 +31,16 @@ flowchart LR
   Browser -->|"Local processing"| Workers["PDF.js / OCR workers"]
   Browser -->|"Per-scan consent"| Express
   Express -->|"Optional OCR forwarding"| OCR["OCR.Space"]
-  Express --> SQLite[("Private SQLite")]
-  Express --> Documents["Private document store"]
+  Express --> Auth["Supabase Auth"]
+  Express --> DB[("Supabase PostgreSQL + RLS")]
+  Express --> Documents["Private Supabase Storage"]
   Scheduler["External scheduler"] -->|"Bearer secret"| Express
   Express -->|"Generic email"| Resend["Resend"]
   Other["Other account"] -->|"Ownership checked on every request"| Express
 ```
 
-Workers are browser processes, not cloud services. SQLite cannot provide
-PostgreSQL RLS: API ownership conditions, relational constraints and filesystem
-access controls are the relevant boundaries here.
+OCR workers are browser processes. API ownership checks and PostgreSQL RLS
+independently restrict ordinary data access; secret clients are server-only.
 
 ## Runtime and deployment
 
@@ -50,150 +54,211 @@ flowchart TB
   end
   subgraph Hosted["Single Render container"]
     TLS["Host HTTPS proxy"] --> App["Express API + immutable dist"]
-    Entry["Entrypoint"] --> Restore["Litestream restore"]
-    Restore -->|"Only after success"| App
-    App --> DB[("Local SQLite WAL")]
-    DB --> Replicate["Litestream"]
+    Startup["Validate settings and build"] --> Ready["Managed schema readiness"]
+    Ready -->|"Only after success"| App
+    App --> DB[("Supabase PostgreSQL")]
   end
-  Replicate --> B2["Private B2 replica prefix"]
-  B2 --> Restore
-  App --> Files["Private B2 document prefix"]
+  App --> Files["Private Supabase Storage"]
 ```
 
-Run exactly one writer per replica path. Replication's configured ten-second sync
-interval is not zero-data-loss backup. API readiness probes SQLite; it does not
-prove B2 availability or replica freshness. Files and database changes cannot
-commit atomically. See [flow failure branches](flows.md#documents).
+Host filesystem replacement does not erase managed data. API readiness probes
+the managed schema, not Auth, document availability or backup recoverability.
+Files and database changes cannot commit atomically.
+See [flow failure branches](flows.md#documents).
 
-## Data model
+## Managed PostgreSQL schema
 
 ```mermaid
 erDiagram
-  users ||--o{ sessions : owns
-  users ||--|| profiles : identifies
+  auth_users ||--|| profiles : bootstraps
   profiles ||--o| health_profiles : details
   profiles ||--o{ family_members : manages
   family_members ||--o{ medical_records : organizes
   family_members ||--o{ medications : organizes
   family_members ||--o{ care_tracks : groups
   family_members ||--o{ care_visits : organizes
+  family_members ||--o| family_health_profiles : details
   care_tracks o|--o{ care_visits : groups
   care_visits o|--o{ medical_records : contains
+  care_visits ||--o| visit_follow_ups : originates
   profiles ||--o{ medication_logs : owns
   medications ||--o{ medication_logs : outcomes
   medical_records o|--o{ medications : source
   profiles ||--o{ health_metrics : archived
-  users ||--|| notification_preferences : configures
+  profiles ||--|| notification_preferences : configures
   medications ||--o{ reminder_deliveries : delivery
-  users {
-    TEXT id PK
-    TEXT email UK
-    TEXT password_hash
-  }
-  sessions {
-    TEXT token_hash PK
-    TEXT user_id FK
-    INTEGER expires_at
+  auth_users {
+    UUID id PK
   }
   profiles {
-    TEXT id PK,FK
+    UUID id PK,FK
     TEXT full_name
   }
   health_profiles {
-    TEXT id PK
-    TEXT user_id FK,UK
+    UUID id PK
+    UUID user_id FK,UK
+  }
+  family_health_profiles {
+    UUID family_member_id PK,FK
+    UUID user_id FK
+    TEXT blood_group
+    FLOAT height_cm
+    FLOAT weight_kg
   }
   family_members {
-    TEXT id PK
-    TEXT user_id FK
+    UUID id PK
+    UUID user_id FK
     TEXT relationship
   }
   medical_records {
-    TEXT id PK
-    TEXT user_id FK
-    TEXT family_member_id FK
-    TEXT visit_id FK
+    UUID id PK
+    UUID user_id FK
+    UUID family_member_id FK
+    UUID visit_id FK
     TEXT document_kind
     TEXT file_path UK
-    TEXT record_date
-    INTEGER is_favourite
+    DATE record_date
+    BOOLEAN is_favourite
   }
   medications {
-    TEXT id PK
-    TEXT user_id FK
-    TEXT times
-    TEXT start_date
-    TEXT end_date
-    TEXT source_record_id FK
-    TEXT family_member_id FK
+    UUID id PK
+    UUID user_id FK
+    TIME_ARRAY times
+    DATE start_date
+    DATE end_date
+    UUID source_record_id FK
+    UUID family_member_id FK
   }
   care_tracks {
-    TEXT id PK
-    TEXT user_id FK
-    TEXT family_member_id FK
+    UUID id PK
+    UUID user_id FK
+    UUID family_member_id FK
     TEXT kind
   }
   care_visits {
-    TEXT id PK
-    TEXT user_id FK
-    TEXT family_member_id FK
-    TEXT care_track_id FK
-    TEXT visit_date
+    UUID id PK
+    UUID user_id FK
+    UUID family_member_id FK
+    UUID care_track_id FK
+    DATE visit_date
     TEXT setting
   }
+  visit_follow_ups {
+    UUID id PK
+    UUID user_id FK
+    UUID family_member_id FK
+    UUID visit_id FK,UK
+    DATE due_date
+    TEXT instruction
+    UUID source_record_id FK
+    TEXT status
+    UUID completed_visit_id FK
+  }
   medication_logs {
-    TEXT id PK
-    TEXT user_id FK
-    TEXT medication_id FK
-    TEXT scheduled_date
-    TEXT scheduled_time
+    UUID id PK
+    UUID user_id FK
+    UUID medication_id FK
+    DATE scheduled_date
+    TIME scheduled_time
     TEXT status
   }
   health_metrics {
-    TEXT id PK
-    TEXT user_id FK
-    TEXT measured_at
-    TEXT family_member_id FK
+    UUID id PK
+    UUID user_id FK
+    TIMESTAMPTZ measured_at
+    UUID family_member_id FK
   }
   notification_preferences {
-    TEXT user_id PK,FK
-    INTEGER email_reminders_enabled
+    UUID user_id PK,FK
+    BOOLEAN email_reminders_enabled
     TEXT timezone
   }
   reminder_deliveries {
-    TEXT id PK
-    TEXT medication_id FK
-    TEXT scheduled_date
-    TEXT scheduled_time
+    UUID id PK
+    UUID medication_id FK
+    DATE scheduled_date
+    TIME scheduled_time
     TEXT status
   }
 ```
 
-The diagram omits descriptive fields/timestamps; the authoritative definitions
-are [initial migration](../server/migrations/001_initial.sql),
-[prescription-link migration](../server/migrations/002_prescription_links.sql)
-and [favourites migration](../server/migrations/003_record_favourites.sql),
-[family-profile migration](../server/migrations/004_family_members.sql),
-[reminder migration](../server/migrations/005_email_reminders.sql), and
-[care-organization migration](../server/migrations/006_care_organization.sql).
-The current schema version is 6. Existing users' records, medications, and
-historical measurements are backfilled to their `self` family profile.
-Measurements have no active UI or mutation API; existing rows are retained for
-account export. Outcomes have a unique
-`(medication_id, scheduled_date, scheduled_time)` coordinate; a composite
-medication/owner foreign key prevents cross-owner logs. Triggers validate times
-and source ownership. A prescription source must belong to the same account and
-family profile as its medication. Family profiles organize records and do not
-grant separate identities or access. Deleting a source sets the link to null,
-while deleting a medication cascades its logs.
-Only empty non-owner family profiles can be deleted. The API checks all
-profile-owned data in a transaction and returns a conflict rather than
-cascade-deleting it; archived historical measurements also prevent deletion.
+The authoritative schema and guards are in
+[Supabase migrations](../supabase/migrations), including the account aggregate
+and reminder-worker functions.
+Supabase Auth owns credentials and sessions; application tables contain no
+password or session material. Applying these migrations creates no legacy users
+or healthcare data. Fresh Auth accounts receive one `profiles` row, one `self`
+family member (`id = user_id`) and default-off notification preferences from a
+transactional Auth trigger.
+
+Exposed healthcare tables have RLS enabled and explicit least-privilege grants.
+Anonymous requests have no public-schema/table access; authenticated requests
+are owner-filtered, with resulting-row owner checks for writes. `profiles` is
+read-only to its owner, while `health_metrics` is select-only because its UI and
+mutation API are retired. `reminder_deliveries` has no ordinary-user grants and
+an explicit deny policy. The Auth bootstrap function is in the unexposed
+`private` schema, has a fixed search path and does not inherit default PUBLIC
+execution. The server secret key is not used for ordinary owner CRUD.
+
+`get_account_vault_data` and `get_account_export_data` are SECURITY INVOKER
+functions. They derive the owner from `auth.uid()`, rely on the same table grants
+and RLS as direct reads, and return deterministically ordered JSON aggregates in
+one row so large collections are not truncated by the Data API row limit. Their
+typed result contracts preserve nulls, numeric/boolean values, date-only fields
+and `HH:mm` schedule times.
+
+`get_due_reminder_candidates`, `claim_reminder_delivery` and
+`complete_reminder_delivery` are SECURITY DEFINER worker functions with an empty
+search path. Their EXECUTE grants are revoked from PUBLIC, `anon` and
+`authenticated`, and granted only to `service_role`; the underlying
+`reminder_deliveries` table remains unavailable to ordinary users. Candidate
+results contain owner IDs and dose coordinates, not recipient addresses. Claims
+recheck consent, schedule and unlogged-dose conditions, use the unique dose
+coordinate for atomic duplicate prevention, and permit retry only after the
+55-second lease expires. Completion compares the claim timestamp so a stale
+worker cannot overwrite a newer attempt. The service key and Auth recipient
+lookup remain server-only; no scheduler or live email delivery is enabled by
+these schema changes.
+
+UUID composite foreign keys bind records, medications, logs, tracks, visits and
+follow-ups to the same account and family profile. A medication retains a native
+PostgreSQL time array and date-only treatment dates; outcomes have a unique
+`(medication_id, scheduled_date, scheduled_time)` coordinate. The database
+preserves visit/document/source relationships and optional follow-up links.
+Transactional dose, profile-name and follow-up guards are enforced by the
+versioned migrations. Hosted acceptance remains separate from local build and
+real-provider API verification.
+
+The retired `health_metrics` relation remains owner-scoped for account export
+compatibility but starts empty. Family profiles organize data; they are not
+separate identities or grants. Care tracks and visits remain optional
+organizational context, and deleting them must not cascade through clinical data.
+
+Each actual visit owns at most one optional `visit_follow_ups` row. Follow-ups
+store a manually selected due date, original instruction, optional source
+document from that visit, pending/completed/cancelled status and optional actual
+return visit. All links share the owner and family profile. Return visits must
+be different and on/after the origin; due dates cannot precede the origin.
+Origin deletion cascades the follow-up. Source or return deletion clears only
+that link, preserving wording, date and asserted status. Record reassignment
+clears its source link in the same SQL statement; invalidating visit edits are
+rejected. Migration creates no follow-ups for old visits.
+
+Medical records is the compact actual-visit/document workspace. The separate
+protected `/medical-history` page reuses the care graph and the same selected
+profile's vault data; Health profile remains personal health details. Shared
+navigation/palette include history above Profile, while the mobile dock selects
+its four existing destinations explicitly. No graph runtime or duplicate
+history table is introduced. Full-vault fetching remains unpaginated.
+Deleting an otherwise empty non-owner profile removes its demographic and
+family health-profile details. The account owner's personal details remain in
+`health_profiles`; other family members' health details are stored one-to-one
+in `family_health_profiles`.
 Care tracks and visits are optional organizational context, not inferred
 clinical relationships. Track/visit and visit/document associations must stay
 within the same account and family profile. Deleting a visit unassigns its
 documents; deleting a track leaves its visits standalone.
-Favourites are constrained integer 0/1 values in SQLite and strict booleans in
+Favourites are PostgreSQL booleans and strict booleans in
 API responses. They live on the owned record, not in a separate achievement or
 bookmark table.
 
@@ -217,9 +282,9 @@ bookmark table.
 | [vault routes](../server/routes/vault.ts), [care routes](../server/routes/care.ts)                                                                                                                       | Owned vault/profile endpoints and profile-scoped care tracks/visits.                                                     |
 | [record routes](../server/routes/records.ts), [medication routes](../server/routes/medications.ts)                                                                                                       | Owner-scoped private document operations, opt-in OCR forwarding, medication CRUD and explicit dose logs.                 |
 | [notification routes](../server/routes/notifications.ts)                                                                                                                                                 | Reminder preferences and secret-authorized, idempotent scheduled Resend delivery.                                        |
-| [database](../server/database.ts), [migrations](../server/migrations)                                                                                                                                    | WAL/foreign keys/migration version, transactional operations and row decoding.                                           |
+| [Supabase clients](../server/supabase.ts), [generated database types](../server/supabase.types.ts), [managed migrations](../supabase/migrations)                                                         | Typed request/admin client boundaries, PostgreSQL RLS and transactional guards.                                          |
 | [config](../server/config.ts), [index](../server/index.ts), [frontend-build](../server/frontend-build.ts)                                                                                                | Validated startup, shutdown and production-artifact refusal before opening storage.                                      |
-| [document-store](../server/document-store.ts)                                                                                                                                                            | Private local/S3 put/get/delete interface; injectable failure seam.                                                      |
+| [document-store](../server/document-store.ts)                                                                                                                                                            | Private native Supabase put/get/delete interface; injectable failure seam.                                               |
 | [dev](../scripts/dev.ts), [dev-runtime](../scripts/dev-runtime.ts)                                                                                                                                       | Check ports, own children, prove direct/proxied readiness, bounded failure/cleanup.                                      |
 | [check-build](../scripts/check-build.ts), [ocr-assets](../scripts/ocr-assets.ts)                                                                                                                         | Complete emitted resources/entry budget and locally packaged worker assets.                                              |
 | [Release guide](development.md), [CI](../.github/workflows/verify.yml)                                                                                                                                   | Published source/build, image-compilation and audit gates; functional suites remain local-only.                          |

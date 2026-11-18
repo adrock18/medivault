@@ -1,6 +1,7 @@
 import { createContext, useContext } from 'react'
 import { z } from 'zod'
 import type { Session } from '@shared/contracts'
+import type { RegistrationResult } from '@shared/contracts'
 import { loginSchema, registerSchema } from '@shared/schemas'
 
 export type AuthState = {
@@ -9,7 +10,9 @@ export type AuthState = {
   error: string | null
   retry: () => void
   signIn: (values: z.infer<typeof loginSchema>) => Promise<void>
-  signUp: (values: z.infer<typeof registerSchema>) => Promise<void>
+  signUp: (
+    values: z.infer<typeof registerSchema>,
+  ) => Promise<RegistrationResult>
   signOut: () => Promise<void>
 }
 export const AuthContext = createContext<AuthState | null>(null)

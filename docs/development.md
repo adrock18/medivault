@@ -2,8 +2,8 @@
 
 ## Setup
 
-Use Node 24 LTS (minimum 22.18) and the committed npm lockfile. No database server
-or cloud account is required for local development.
+Use Node 24 LTS (minimum 22.18), the committed npm lockfile and an explicitly
+configured Supabase project or isolated local Supabase stack.
 
 Windows:
 
@@ -24,10 +24,61 @@ Open `http://127.0.0.1:5187` after **MediVault ready**. The launcher checks both
 and frontend ports and verifies direct/proxied health. Stop it with Ctrl+C in its
 own terminal before reinstalling dependencies, especially on Windows.
 
-Optional configuration is documented in the [README](../README.md#optional-configuration).
-Copy the example environment file only if needed. Never put secrets into `VITE_`
-variables, committed files or test fixtures. Defaults create private local runtime
-storage; do not delete that storage to fix a port conflict.
+Copy [.env.example](../.env.example) to `.env` and supply the Supabase settings,
+or provide them through the process environment. Never put secrets into `VITE_`
+variables, committed files or test fixtures. There is no local persistence
+fallback; do not delete old local storage to fix a port conflict.
+
+### Supabase server configuration
+
+The managed-backend migration uses `SUPABASE_URL`,
+`SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_SECRET_KEY`, and
+`SUPABASE_DOCUMENT_BUCKET`. These are server settings: do not prefix them with
+`VITE_`, expose them in browser code, or commit a populated environment file.
+Production also requires an HTTPS `APP_ORIGIN` and `COOKIE_SECURE=true`;
+development may use an explicitly configured HTTP loopback origin such as
+`http://127.0.0.1:5187`. Apply [managed migrations](../supabase/migrations) once
+before starting. Startup verifies the remote schema within a bounded request
+without running migrations or importing old data.
+
+For email confirmation, configure Supabase **Authentication → URL Configuration**
+with the deployed `APP_ORIGIN` as the Site URL and the exact callback URL
+`<APP_ORIGIN>/api/auth/callback` in Redirect URLs. For local Vite development,
+allowlist only the loopback callback URLs you actually use, such as
+`http://127.0.0.1:5187/api/auth/callback`. Avoid broad production wildcards.
+Confirmation links use PKCE, expire quickly, and can only be exchanged once;
+open the link in the same browser and device where registration began.
+
+This is a fresh account system: existing SQLite accounts and passwords are not
+imported. Returning users must register again in the Supabase-backed release;
+failed old logins do not create accounts automatically. When confirmation is
+required, MediVault explains the pending state without claiming that Supabase
+delivered an email. Check the configured sender and project Auth settings if a
+message does not arrive.
+
+For the ignored local-only Supabase integration harness, first select a new,
+empty test project and set its exact project reference in the current shell.
+Never point integration tests at a project containing data you need to retain.
+The harness uses fictional `@example.test` identities and refuses to run unless
+both explicit opt-in variables match the configured project:
+
+```powershell
+$env:MEDIVAULT_RUN_SUPABASE_TESTS = '1'
+$env:MEDIVAULT_SUPABASE_TEST_PROJECT_REF = '<isolated-project-ref>'
+node --env-file=.env .\node_modules\vitest\vitest.mjs run --config .local-verification\supabase.integration.config.ts
+```
+
+Missing settings, a project-reference mismatch, or an unreachable Data API fails
+the integration check; it is not reported as a skipped test. The initial check
+uses the server-only secret key for a read-only endpoint request and verifies
+connectivity only; it does not establish publishable-key access or RLS. The
+schema suite provisions two temporary, fictional, email-confirmed users through
+the Auth Admin API (no email is sent), then verifies bootstrap defaults, fresh
+empty state, owner isolation, owner-change rejection and denied ordinary-user
+operations through publishable-key clients. It deletes those users afterward
+and never resets the project. The public signup/confirmation journey is verified
+separately with the owner-controlled mail setup. Run the schema suite only
+against the isolated project selected by the explicit opt-in variables.
 
 Use a fictional account and Settings' explicit sample-data action for rehearsal.
 Do not use production accounts or the public demo as a test environment.
@@ -177,7 +228,7 @@ result count when the row disappears. An unmatched search offers **Clear
 filters**, which also removes linked scope and resets newest-first ordering,
 without changing any saved favourite flags. A failed favourite request displays
 an error and allows retry. JSON export retains the boolean flags; it does not
-include original document bytes. Do not edit SQLite by hand to mark favourites.
+include original document bytes. Use the normal authenticated API to mark favourites.
 
 ## Rehearsing private activity summaries
 

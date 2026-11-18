@@ -3,6 +3,7 @@ import { medicationForms } from './database.types.ts'
 import type {
   Profile,
   FamilyMember,
+  FamilyHealthProfile,
   NotificationPreferences,
   HealthProfile,
   MedicalRecord,
@@ -11,6 +12,7 @@ import type {
   ArchivedHealthMetric,
   CareTrack,
   CareVisit,
+  VisitFollowUp,
 } from './database.types.ts'
 const timestamps = { created_at: z.string(), updated_at: z.string() }
 export const profileRow: z.ZodType<Profile> = z.object({
@@ -79,6 +81,23 @@ export const healthProfileRow: z.ZodType<HealthProfile> = z.object({
   emergency_contact_phone: z.string(),
   ...timestamps,
 })
+export const familyHealthProfileRow: z.ZodType<FamilyHealthProfile> = z.object({
+  user_id: z.uuid(),
+  family_member_id: z.uuid(),
+  gender: z
+    .enum(['female', 'male', 'non_binary', 'prefer_not_to_say'])
+    .nullable(),
+  blood_group: z
+    .enum(['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'])
+    .nullable(),
+  height_cm: z.number().nullable(),
+  weight_kg: z.number().nullable(),
+  allergies: z.string(),
+  conditions: z.string(),
+  emergency_contact_name: z.string(),
+  emergency_contact_phone: z.string(),
+  ...timestamps,
+})
 export const recordRow: z.ZodType<MedicalRecord> = z.object({
   id: z.uuid(),
   user_id: z.uuid(),
@@ -130,7 +149,12 @@ export const medicationRow: z.ZodType<Medication> = z.object({
   prescription_text: z.string(),
   family_member_id: z.uuid(),
   frequency: z.enum(['once_daily', 'twice_daily', 'three_daily', 'custom']),
-  times: z.array(z.string()),
+  times: z.array(
+    z
+      .string()
+      .regex(/^([01]\d|2[0-3]):[0-5]\d(?::00)?$/)
+      .transform((value) => value.slice(0, 5)),
+  ),
   start_date: z.string(),
   end_date: z.string().nullable(),
   instructions: z.string(),
@@ -141,7 +165,10 @@ export const doseLogRow: z.ZodType<DoseLog> = z.object({
   user_id: z.uuid(),
   medication_id: z.uuid(),
   scheduled_date: z.string(),
-  scheduled_time: z.string(),
+  scheduled_time: z
+    .string()
+    .regex(/^([01]\d|2[0-3]):[0-5]\d(?::00)?$/)
+    .transform((value) => value.slice(0, 5)),
   status: z.enum(['taken', 'skipped']),
   logged_at: z.string(),
   ...timestamps,
@@ -188,22 +215,41 @@ export const archivedHealthMetricRow: z.ZodType<ArchivedHealthMetric> =
     family_member_id: z.uuid(),
     ...timestamps,
   })
+export const visitFollowUpRow: z.ZodType<VisitFollowUp> = z.object({
+  id: z.uuid(),
+  user_id: z.uuid(),
+  family_member_id: z.uuid(),
+  visit_id: z.uuid(),
+  due_date: z.string(),
+  instruction: z.string(),
+  source_record_id: z.uuid().nullable(),
+  status: z.enum(['pending', 'completed', 'cancelled']),
+  completed_visit_id: z.uuid().nullable(),
+  ...timestamps,
+})
 export const accountExportSchema = z.object({
   exported_at: z.string(),
   profile: profileRow,
   family_members: z.array(familyMemberRow),
   health_profile: healthProfileRow.nullable(),
+  family_health_profiles: z.array(familyHealthProfileRow),
   medical_records: z.array(recordRow),
   medications: z.array(medicationRow),
   medication_logs: z.array(doseLogRow),
   care_tracks: z.array(careTrackRow),
   care_visits: z.array(careVisitRow),
+  visit_follow_ups: z.array(visitFollowUpRow),
   archived_health_metrics: z.array(archivedHealthMetricRow),
 })
 export const sessionSchema = z.object({
   user: z.object({ id: z.uuid(), email: z.email(), full_name: z.string() }),
 })
 export type Session = z.infer<typeof sessionSchema>
+export const registrationResultSchema = z.union([
+  sessionSchema,
+  z.object({ confirmation_required: z.literal(true) }),
+])
+export type RegistrationResult = z.infer<typeof registrationResultSchema>
 export const vaultSchema = z.object({
   profile: profileRow,
   familyMembers: z.array(familyMemberRow),
@@ -213,10 +259,12 @@ export const vaultSchema = z.object({
     emailRemindersConfigured: z.boolean(),
   }),
   healthProfile: healthProfileRow.nullable(),
+  familyHealthProfiles: z.array(familyHealthProfileRow),
   records: z.array(recordRow),
   medications: z.array(medicationRow),
   logs: z.array(doseLogRow),
   careTracks: z.array(careTrackRow),
   visits: z.array(careVisitRow),
+  followUps: z.array(visitFollowUpRow),
 })
 export type VaultData = z.infer<typeof vaultSchema>

@@ -32,7 +32,7 @@ import { PrescriptionScanner } from '../components/PrescriptionScanner'
 import { MedicationCalendar } from '../components/MedicationCalendar'
 
 export default function MedicationsPage() {
-  const { medications, logs, now } = useVault()
+  const { medications, logs, now, records } = useVault()
   const todaySchedule = useRef<HTMLDivElement>(null)
   const [params, updateParams] = useQueryParams()
   const record = params.get('record')
@@ -196,6 +196,9 @@ export default function MedicationsPage() {
             <MedicationCard
               key={med.id}
               medication={med}
+              sourceRecord={records.find(
+                (record) => record.id === med.source_record_id,
+              )}
               day={today}
               onEdit={() => setEdit(med)}
               onDelete={() => setRemove(med)}

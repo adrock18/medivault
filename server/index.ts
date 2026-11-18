@@ -2,28 +2,31 @@ import { resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { createServer } from 'node:http'
 import { createApp } from './app.ts'
-import { apiConfig } from './config.ts'
-import { S3DocumentStore } from './document-store.ts'
+import { apiConfig, supabaseSettings } from './config.ts'
 import { checkFrontendBuild, FrontendBuildError } from './frontend-build.ts'
 
-export function startApi(env: NodeJS.ProcessEnv = process.env) {
+export async function startApi(env: NodeJS.ProcessEnv = process.env) {
   const config = apiConfig(env)
+  const supabase = supabaseSettings(env)
   if (config.production) checkFrontendBuild(resolve('dist'))
-  const { app, db } = createApp({
-    dataDir: config.dataDir,
+  const { app, readiness } = createApp({
     secureCookies: config.secureCookies,
     appOrigin: config.appOrigin,
     serveFrontend: config.production,
     devStartupId: config.production ? undefined : env.MEDIVAULT_DEV_STARTUP_ID,
     trustProxy: config.trustProxy,
+    supabaseSettings: supabase,
     ocrSpaceApiKey: config.ocrSpaceApiKey,
     reminderEmail: config.reminderEmail,
-    documentStore: config.s3 ? new S3DocumentStore(config.s3) : undefined,
   })
+  if (!(await readiness()))
+    throw new Error(
+      'Supabase schema readiness failed. Check the project connection and apply the versioned migrations before starting.',
+    )
   const server = createServer(app)
   server.once('listening', () => {
     console.log(
-      `MediVault Express API listening on port ${config.port}. SQLite data: ${config.dataDir}. Documents: ${config.s3 ? `S3 bucket ${config.s3.bucket}` : 'local data directory'}`,
+      `MediVault Express API listening on port ${config.port}. Supabase Auth, PostgreSQL and private Storage configured.`,
     )
   })
   let shutdownPromise: Promise<void> | undefined
@@ -32,12 +35,6 @@ export function startApi(env: NodeJS.ProcessEnv = process.env) {
       server.close((error) => {
         process.off('SIGINT', onSignal)
         process.off('SIGTERM', onSignal)
-        try {
-          db.close()
-        } catch (closeError) {
-          reject(closeError)
-          return
-        }
         if (
           error &&
           !('code' in error && error.code === 'ERR_SERVER_NOT_RUNNING')
@@ -67,7 +64,7 @@ export function startApi(env: NodeJS.ProcessEnv = process.env) {
   process.on('SIGINT', onSignal)
   process.on('SIGTERM', onSignal)
   server.listen(config.port, config.host)
-  return { server, db, shutdown }
+  return { server, shutdown }
 }
 
 if (
@@ -75,7 +72,7 @@ if (
   resolve(process.argv[1]) === fileURLToPath(import.meta.url)
 ) {
   try {
-    startApi()
+    await startApi()
   } catch (error) {
     console.error(
       'Unable to start MediVault API:',

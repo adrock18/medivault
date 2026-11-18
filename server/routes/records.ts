@@ -4,9 +4,9 @@ import { pipeline } from 'node:stream/promises'
 import { z } from 'zod'
 import { recordFavouriteSchema, recordSchema } from '../../shared/schemas.ts'
 import { validateDocument } from '../../shared/documents.ts'
-import { storedRecord } from '../database.ts'
 import {
   DocumentOperationError,
+  databaseResult,
   HttpError,
   requestFailure,
   requestId,
@@ -17,7 +17,7 @@ import {
 /** Register owner-scoped record metadata and private-file endpoints. */
 export function recordRoutes(context: RouteContext) {
   const router = Router()
-  const { db, documents } = context
+  const { documents, storedRecord } = context
 
   router.post('/records/:id/ocr', async (req, res) => {
     validate(
@@ -26,11 +26,11 @@ export function recordRoutes(context: RouteContext) {
     )
     if (!context.ocrSpaceApiKey)
       throw new HttpError(503, 'External OCR is not configured.')
-    const record = context.owned(
+    const record = await context.owned(
       'medical_records',
       context.storedRecord,
       requestId(req),
-      res.locals.user.id,
+      res,
     )
     const maxProviderBytes = 1024 * 1024
     if (record.file_size > maxProviderBytes)
@@ -169,18 +169,18 @@ export function recordRoutes(context: RouteContext) {
         400,
         'The file name must be no longer than 255 characters.',
       )
-    context.owned(
+    await context.owned(
       'family_members',
       context.familyMemberRow,
       input.family_member_id,
-      res.locals.user.id,
+      res,
     )
     if (input.visit_id) {
-      const visit = context.owned(
+      const visit = await context.owned(
         'care_visits',
         context.careVisitRow,
         input.visit_id,
-        res.locals.user.id,
+        res,
       )
       if (visit.family_member_id !== input.family_member_id)
         throw new HttpError(
@@ -199,7 +199,7 @@ export function recordRoutes(context: RouteContext) {
       )
     }
     try {
-      const row = context.save(
+      const row = await context.save(
         'medical_records',
         context.storedRecord,
         {
@@ -211,7 +211,7 @@ export function recordRoutes(context: RouteContext) {
           file_type: file.type,
           file_size: file.size,
         },
-        res.locals.user.id,
+        res,
       )
       res.status(201).json(row)
     } catch {
@@ -228,20 +228,20 @@ export function recordRoutes(context: RouteContext) {
     }
   })
 
-  router.patch('/records/:id', (req, res) => {
+  router.patch('/records/:id', async (req, res) => {
     const input = validate(recordSchema.strict(), req.body)
-    context.owned(
+    await context.owned(
       'family_members',
       context.familyMemberRow,
       input.family_member_id,
-      res.locals.user.id,
+      res,
     )
     if (input.visit_id) {
-      const visit = context.owned(
+      const visit = await context.owned(
         'care_visits',
         context.careVisitRow,
         input.visit_id,
-        res.locals.user.id,
+        res,
       )
       if (visit.family_member_id !== input.family_member_id)
         throw new HttpError(
@@ -250,7 +250,7 @@ export function recordRoutes(context: RouteContext) {
         )
     }
     res.json(
-      context.save(
+      await context.update(
         'medical_records',
         context.storedRecord,
         {
@@ -258,30 +258,34 @@ export function recordRoutes(context: RouteContext) {
           category: legacyCategory(input.document_kind),
           visit_id: input.visit_id || null,
         },
-        res.locals.user.id,
+        res,
         requestId(req),
       ),
     )
   })
 
-  router.put('/records/:id/favourite', (req, res) => {
+  router.put('/records/:id/favourite', async (req, res) => {
     const input = validate(recordFavouriteSchema, req.body)
     const id = requestId(req)
-    const userId = res.locals.user.id
-    context.owned('medical_records', context.storedRecord, id, userId)
-    const desired = input.is_favourite ? 1 : 0
-    db.prepare(
-      'UPDATE medical_records SET is_favourite=?,updated_at=? WHERE id=? AND user_id=? AND is_favourite<>?',
-    ).run(desired, new Date().toISOString(), id, userId, desired)
-    res.json(context.owned('medical_records', context.storedRecord, id, userId))
+    await databaseResult(
+      res.locals.supabase
+        .from('medical_records')
+        .update({ ...input, updated_at: new Date().toISOString() })
+        .eq('id', id)
+        .eq('user_id', res.locals.user.id)
+        .neq('is_favourite', input.is_favourite),
+    )
+    res.json(
+      await context.owned('medical_records', context.storedRecord, id, res),
+    )
   })
 
   router.get('/records/:id/file', async (req, res) => {
-    const record = context.owned(
+    const record = await context.owned(
       'medical_records',
       context.storedRecord,
       requestId(req),
-      res.locals.user.id,
+      res,
     )
     let stored: Awaited<ReturnType<RouteContext['documents']['get']>>
     try {
@@ -320,19 +324,14 @@ export function recordRoutes(context: RouteContext) {
 
   router.delete('/records/:id', async (req, res) => {
     const id = requestId(req)
-    const record = context.owned(
-      'medical_records',
-      storedRecord,
-      id,
-      res.locals.user.id,
-    )
+    const record = await context.owned('medical_records', storedRecord, id, res)
     try {
       await documents.delete(record.file_path)
     } catch {
       throw new DocumentOperationError('delete-object', 500, requestFailure, id)
     }
     try {
-      context.remove('medical_records', storedRecord, req, res)
+      await context.remove('medical_records', storedRecord, req, res)
     } catch {
       throw new DocumentOperationError(
         'delete-metadata',

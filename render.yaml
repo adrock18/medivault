@@ -16,17 +16,13 @@ services:
         value: 'true'
       - key: TRUST_PROXY
         value: '1'
-      - key: DOCUMENT_STORAGE
-        value: s3
-      - key: S3_ENDPOINT
-        value: https://s3.eu-central-003.backblazeb2.com
-      - key: S3_BUCKET
-        value: medivault-demo-adrock18
-      - key: S3_REGION
-        value: eu-central-003
-      - key: LITESTREAM_REPLICA_PATH
-        value: db
-      - key: S3_ACCESS_KEY_ID
+      - key: APP_ORIGIN
         sync: false
-      - key: S3_SECRET_ACCESS_KEY
+      - key: SUPABASE_URL
         sync: false
+      - key: SUPABASE_PUBLISHABLE_KEY
+        sync: false
+      - key: SUPABASE_SECRET_KEY
+        sync: false
+      - key: SUPABASE_DOCUMENT_BUCKET
+        value: medical-records

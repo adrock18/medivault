@@ -10,6 +10,8 @@ import {
   LoaderCircle,
   ScanLine,
   Star,
+  Pill,
+  ArrowUpRight,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import type { MedicalRecord } from '@shared/database.types'
@@ -228,10 +230,14 @@ export function MedicalRecordCard({
           )}
           {linkedCount > 0 && (
             <Link
-              className="small-link"
+              className="inline-flex min-h-9 items-center gap-2 rounded-full border border-primary/20 bg-primary/5 px-3 py-1.5 text-xs font-medium text-primary transition-colors hover:border-primary/40 hover:bg-primary/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
               to={`/medications?record=${record.id}`}
             >
-              {linkedCount} linked medication{linkedCount === 1 ? '' : 's'}
+              <Pill size={14} aria-hidden="true" />
+              <span>
+                {linkedCount} linked medication{linkedCount === 1 ? '' : 's'}
+              </span>
+              <ArrowUpRight size={14} aria-hidden="true" />
             </Link>
           )}
         </div>

@@ -5,9 +5,14 @@ import { rateLimit } from 'express-rate-limit'
 import multer from 'multer'
 import { randomUUID } from 'node:crypto'
 import { resolve } from 'node:path'
-import { DEV_STARTUP_HEADER } from './config.ts'
-import { openDatabase } from './database.ts'
-import { LocalDocumentStore, type DocumentStore } from './document-store.ts'
+import { DEV_STARTUP_HEADER, type SupabaseSettings } from './config.ts'
+import type { AuthGatewayFactory } from './auth-gateway.ts'
+import { createSupabaseAuthGateway } from './supabase-auth.ts'
+import { SupabaseDocumentStore, type DocumentStore } from './document-store.ts'
+import {
+  createAdminSupabaseClient,
+  type createRequestSupabaseClient,
+} from './supabase.ts'
 import {
   DocumentOperationError,
   HttpError,
@@ -29,13 +34,12 @@ declare global {
   namespace Express {
     interface Locals {
       user: import('../shared/contracts.ts').Session['user']
-      sessionHash: string
+      supabase: ReturnType<typeof createRequestSupabaseClient>
     }
   }
 }
 
 export type AppOptions = {
-  dataDir: string
   secureCookies?: boolean
   appOrigin?: string
   serveFrontend?: boolean
@@ -45,14 +49,18 @@ export type AppOptions = {
   documentStore?: DocumentStore
   ocrSpaceApiKey?: string
   reminderEmail?: ReminderEmailSettings
+  supabaseSettings?: SupabaseSettings
+  authGatewayFactory?: AuthGatewayFactory
 }
 
 /** Assemble middleware and API routes around one database/document-store instance. */
 export function createApp(options: AppOptions) {
-  const db = openDatabase(options.dataDir)
+  if (!options.supabaseSettings)
+    throw new Error('Supabase configuration is required.')
+  const admin = createAdminSupabaseClient(options.supabaseSettings)
   const documents =
     options.documentStore ??
-    new LocalDocumentStore(resolve(options.dataDir, 'documents'))
+    new SupabaseDocumentStore(admin, options.supabaseSettings.documentBucket)
   const app = express()
   app.disable('x-powered-by')
   if (options.trustProxy) app.set('trust proxy', options.trustProxy)
@@ -102,6 +110,13 @@ export function createApp(options: AppOptions) {
     secure: options.secureCookies ?? false,
     path: '/api',
   } as const
+  const auth =
+    options.authGatewayFactory?.(cookies) ??
+    (options.supabaseSettings
+      ? createSupabaseAuthGateway(options.supabaseSettings, cookies)
+      : undefined)
+  if (!auth)
+    throw new Error('Supabase authentication configuration is required.')
   const authLimit = rateLimit({
     windowMs: 15 * 60 * 1000,
     limit: options.authRateLimit ?? 30,
@@ -112,24 +127,25 @@ export function createApp(options: AppOptions) {
     },
   })
   const routes = createRouteContext({
-    db,
+    admin,
     documents,
-    cookies,
+    auth,
     authLimit,
     ocrSpaceApiKey: options.ocrSpaceApiKey,
     reminderEmail: options.reminderEmail,
   })
 
-  app.get('/api/health', (_req, res) => {
-    db.prepare('SELECT 1').get()
+  app.get('/api/health', async (_req, res) => {
+    if (!(await readiness()))
+      throw new HttpError(503, 'The managed database is not ready.')
     if (options.devStartupId && !options.serveFrontend)
       res.set(DEV_STARTUP_HEADER, options.devStartupId)
     res.json({ status: 'ok' })
   })
   app.use('/api', publicAuthRoutes(routes))
   app.use('/api', publicReminderRoutes(routes))
-  app.use('/api', (req, res, next) => {
-    const user = routes.getSession(req, res)
+  app.use('/api', async (req, res, next) => {
+    const user = await routes.auth.getSession(req, res)
     if (!user)
       return next(
         new HttpError(401, 'Your session has expired. Please sign in again.'),
@@ -196,26 +212,22 @@ export function createApp(options: AppOptions) {
       res.status(413).json({ error: 'Request body is too large.' })
       return
     }
-    if (
-      error instanceof Error &&
-      'code' in error &&
-      error.code === 'ERR_SQLITE_ERROR' &&
-      error.message.includes('UNIQUE constraint failed')
-    ) {
-      res.status(409).json({
-        error: error.message.includes('users.email')
-          ? 'An account with that email already exists.'
-          : error.message.includes('medication_logs.')
-            ? 'This dose has already been logged. Refresh your schedule.'
-            : 'This entry already exists.',
-      })
-      return
-    }
-    console.error(`MediVault API error: ${req.method} ${req.path}`, error)
+    console.error('MediVault API request failed.', {
+      method: req.method,
+      incidentId: randomUUID(),
+    })
     res.status(500).json({
-      error: error instanceof AggregateError ? error.message : requestFailure,
+      error: requestFailure,
     })
   }
   app.use(handleError)
-  return { app, db }
+  async function readiness() {
+    try {
+      const { data, error } = await admin.rpc('check_app_readiness')
+      return !error && data === true
+    } catch {
+      return false
+    }
+  }
+  return { app, readiness }
 }

@@ -44,7 +44,30 @@ import {
 import { MedicationReminder } from '@/features/medications/components/MedicationReminder'
 
 export default function DashboardPage() {
-  const { profile, healthProfile, records, medications, logs, now } = useVault()
+  const {
+    profile,
+    healthProfile,
+    familyHealthProfiles,
+    familyMembers,
+    selectedFamilyMemberId,
+    records,
+    medications,
+    logs,
+    now,
+  } = useVault()
+  const selectedMember = familyMembers.find(
+    (member) => member.id === selectedFamilyMemberId,
+  )
+  const selectedHealthProfile =
+    selectedMember?.relationship === 'self'
+      ? healthProfile
+      : familyHealthProfiles.find(
+          (item) => item.family_member_id === selectedMember?.id,
+        )
+  const selectedProfileName =
+    selectedMember?.relationship === 'self'
+      ? healthProfile?.full_name || profile?.full_name
+      : selectedMember?.full_name || profile?.full_name
   const [doseFilter, setDoseFilter] = useState<DoseFilter>('all')
   const [preview, setPreview] = useState<PreviewSelection | null>(null)
   const today = localDate(now)
@@ -52,11 +75,7 @@ export default function DashboardPage() {
   const hour = now.getHours()
   const greeting =
     hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening'
-  const firstName = (
-    healthProfile?.full_name ||
-    profile?.full_name ||
-    ''
-  ).split(' ')[0]
+  const firstName = (selectedProfileName || '').split(' ')[0]
   const nowTime = clockTime(now)
   const upcoming = Array.from({ length: 7 }, (_, offset) => {
     const day = localDate(addDays(now, offset))
@@ -76,7 +95,7 @@ export default function DashboardPage() {
   })
   const setup = [
     {
-      complete: !!healthProfile,
+      complete: !!selectedHealthProfile,
       to: '/profile',
       label: 'Complete your health profile',
     },

@@ -1,39 +1,16 @@
-import type { Request, Response } from 'express'
-import type { RequestHandler } from 'express'
+import type { Request, Response, RequestHandler } from 'express'
 import multer from 'multer'
-import { randomUUID } from 'node:crypto'
-import type { SQLInputValue } from 'node:sqlite'
 import { z } from 'zod'
-import {
-  doseLogRow,
-  careTrackRow,
-  careVisitRow,
-  archivedHealthMetricRow,
-  familyMemberRow,
-  healthProfileRow,
-  notificationPreferencesRow,
-  profileRow,
-  sessionSchema,
-} from '../../shared/contracts.ts'
+import * as contracts from '../../shared/contracts.ts'
 import { MAX_FILE_SIZE } from '../../shared/documents.ts'
-import {
-  one,
-  openDatabase,
-  storedMedication,
-  storedRecord,
-} from '../database.ts'
-import {
-  COOKIE_NAME,
-  SESSION_DURATION,
-  createToken,
-  sessionHash,
-} from '../auth.ts'
+import type { TablesInsert, TablesUpdate } from '../supabase.types.ts'
 import type { DocumentStore } from '../document-store.ts'
 import type { ReminderEmailSettings } from '../config.ts'
+import type { AuthGateway } from '../auth-gateway.ts'
+import type { createAdminSupabaseClient } from '../supabase.ts'
 
 export class HttpError extends Error {
   status: number
-
   constructor(status: number, message: string) {
     super(message)
     this.status = status
@@ -56,7 +33,6 @@ type DocumentOperation =
 export class DocumentOperationError extends HttpError {
   operation: DocumentOperation
   recordId?: string
-
   constructor(
     operation: DocumentOperation,
     status: number,
@@ -77,13 +53,10 @@ type OwnedTable =
   | 'medication_logs'
   | 'care_tracks'
   | 'care_visits'
-
-type CookieOptions = {
-  readonly httpOnly: true
-  readonly sameSite: 'lax'
-  readonly secure: boolean
-  readonly path: '/api'
-}
+  | 'visit_follow_ups'
+type OwnedInput = {
+  [K in OwnedTable]: Omit<TablesInsert<K>, 'user_id'>
+}[OwnedTable]
 
 export function validate<T>(schema: z.ZodType<T>, value: unknown): T {
   const parsed = schema.safeParse(value)
@@ -99,147 +72,154 @@ export function requestId(req: Request) {
   return validate(z.uuid('Invalid record ID.'), req.params.id)
 }
 
-/** Share one session, validation, and owner-scoped persistence boundary across routes. */
+export async function databaseResult<T>(
+  operation: PromiseLike<{ data: T; error: { code?: string } | null }>,
+): Promise<T> {
+  let result: Awaited<typeof operation>
+  try {
+    result = await operation
+  } catch {
+    throw new HttpError(
+      503,
+      'The data service is unavailable. Please try again.',
+    )
+  }
+  if (result.error) {
+    const code = result.error.code
+    if (code === '23505')
+      throw new HttpError(
+        409,
+        'This entry already exists. Refresh to see the latest data.',
+      )
+    if (code === '23503')
+      throw new HttpError(
+        409,
+        'This change conflicts with linked health data. Check the selected profile, documents and visits first.',
+      )
+    if (code === '23514' || code === '22023' || code === 'P0001')
+      throw new HttpError(
+        409,
+        'This change would invalidate related health data. Check the schedule, follow-up dates and profile links.',
+      )
+    if (code === '42501')
+      throw new HttpError(
+        403,
+        'You do not have permission to change this entry.',
+      )
+    if (code === 'PGRST116' || code === 'P0002')
+      throw new HttpError(404, 'This entry was not found or is not accessible.')
+    throw new HttpError(
+      503,
+      'The data service could not complete this request. Please try again.',
+    )
+  }
+  return result.data
+}
+
 export function createRouteContext(options: {
-  db: ReturnType<typeof openDatabase>
   documents: DocumentStore
-  cookies: CookieOptions
+  admin: ReturnType<typeof createAdminSupabaseClient>
+  auth: AuthGateway
   authLimit: RequestHandler
   ocrSpaceApiKey?: string
   reminderEmail?: ReminderEmailSettings
 }) {
-  const { db, documents, cookies, authLimit, ocrSpaceApiKey, reminderEmail } =
-    options
-
-  function getSession(req: Request, res: Response) {
-    const token: unknown = req.cookies?.[COOKIE_NAME]
-    if (typeof token !== 'string' || !/^[a-f0-9]{64}$/.test(token)) return null
-    const tokenHash = sessionHash(token)
-    const user = one(
-      db,
-      sessionSchema.shape.user,
-      `
-      SELECT u.id,u.email,p.full_name FROM sessions s JOIN users u ON u.id=s.user_id
-      JOIN profiles p ON p.id=u.id WHERE s.token_hash=? AND s.expires_at>?`,
-      [tokenHash, Date.now()],
-    )
-    if (!user) {
-      db.prepare('DELETE FROM sessions WHERE token_hash=?').run(tokenHash)
-      res.clearCookie(COOKIE_NAME, cookies)
-      return null
-    }
-    res.locals.sessionHash = tokenHash
-    return user
-  }
-
-  function establishSession(userId: string, res: Response) {
-    const token = createToken()
-    db.prepare('DELETE FROM sessions WHERE expires_at<=?').run(Date.now())
-    db.prepare(
-      'INSERT INTO sessions(token_hash,user_id,expires_at) VALUES (?,?,?)',
-    ).run(sessionHash(token), userId, Date.now() + SESSION_DURATION)
-    res.cookie(COOKIE_NAME, token, { ...cookies, maxAge: SESSION_DURATION })
-    const user = one(
-      db,
-      sessionSchema.shape.user,
-      'SELECT u.id,u.email,p.full_name FROM users u JOIN profiles p ON p.id=u.id WHERE u.id=?',
-      [userId],
-    )
-    if (!user) throw new Error('The authenticated account profile is missing.')
-    return { user }
-  }
-
-  function owned<T>(
+  async function owned<T>(
     table: OwnedTable,
     schema: z.ZodType<T>,
     id: string,
-    userId: string,
+    res: Response,
   ) {
-    const row = one(
-      db,
-      schema,
-      `SELECT * FROM ${table} WHERE id=? AND user_id=?`,
-      [id, userId],
+    const row = await databaseResult(
+      res.locals.supabase
+        .from(table)
+        .select('*')
+        .eq('id', id)
+        .eq('user_id', res.locals.user.id)
+        .maybeSingle(),
     )
     if (!row)
       throw new HttpError(404, 'This entry was not found or is not accessible.')
-    return row
+    return schema.parse(row)
   }
 
-  function save<T>(
+  async function save<T>(
     table: OwnedTable,
     schema: z.ZodType<T>,
-    data: Record<string, SQLInputValue>,
-    userId: string,
+    data: OwnedInput,
+    res: Response,
     id?: string,
   ) {
-    const time = new Date().toISOString()
-    const keys = Object.keys(data)
-    if (id) {
-      owned(table, schema, id, userId)
-      db.prepare(
-        `UPDATE ${table} SET ${keys.map((key) => `${key}=?`).join(',')},updated_at=? WHERE id=? AND user_id=?`,
-      ).run(...Object.values(data), time, id, userId)
-    } else {
-      id = randomUUID()
-      const columns = ['id', 'user_id', ...keys, 'created_at', 'updated_at']
-      db.prepare(
-        `INSERT INTO ${table} (${columns.join(',')}) VALUES (${columns.map(() => '?').join(',')})`,
-      ).run(id, userId, ...Object.values(data), time, time)
-    }
-    return owned(table, schema, id, userId)
+    const query = res.locals.supabase.from(table)
+    const result = id
+      ? query
+          .update({ ...data, updated_at: new Date().toISOString() })
+          .eq('id', id)
+          .eq('user_id', res.locals.user.id)
+      : query.insert({ ...data, user_id: res.locals.user.id })
+    return schema.parse(await databaseResult(result.select('*').single()))
   }
 
-  function remove<T>(
+  async function update<T>(
+    table: OwnedTable,
+    schema: z.ZodType<T>,
+    data: TablesUpdate<OwnedTable>,
+    res: Response,
+    id: string,
+  ) {
+    return schema.parse(
+      await databaseResult(
+        res.locals.supabase
+          .from(table)
+          .update({ ...data, updated_at: new Date().toISOString() })
+          .eq('id', id)
+          .eq('user_id', res.locals.user.id)
+          .select('*')
+          .single(),
+      ),
+    )
+  }
+
+  async function remove<T>(
     table: OwnedTable,
     schema: z.ZodType<T>,
     req: Request,
     res: Response,
   ) {
     const id = requestId(req)
-    owned(table, schema, id, res.locals.user.id)
-    db.prepare(`DELETE FROM ${table} WHERE id=? AND user_id=?`).run(
-      id,
-      res.locals.user.id,
+    await owned(table, schema, id, res)
+    await databaseResult(
+      res.locals.supabase
+        .from(table)
+        .delete()
+        .eq('id', id)
+        .eq('user_id', res.locals.user.id)
+        .select('id')
+        .single(),
     )
     res.status(204).end()
   }
 
-  const upload = multer({
-    storage: multer.memoryStorage(),
-    limits: {
-      fileSize: MAX_FILE_SIZE,
-      files: 1,
-      fields: 6,
-      parts: 7,
-      fieldSize: 4096,
-    },
-  })
-
   return {
-    db,
-    documents,
-    cookies,
-    authLimit,
-    ocrSpaceApiKey,
-    reminderEmail,
-    getSession,
-    establishSession,
+    ...options,
+    ...contracts,
+    storedMedication: contracts.medicationRow,
+    storedRecord: contracts.recordRow,
     owned,
     save,
+    update,
     remove,
-    upload,
     requestId,
-    profileRow,
-    familyMemberRow,
-    notificationPreferencesRow,
-    healthProfileRow,
-    doseLogRow,
-    careTrackRow,
-    careVisitRow,
-    archivedHealthMetricRow,
-    storedMedication,
-    storedRecord,
+    upload: multer({
+      storage: multer.memoryStorage(),
+      limits: {
+        fileSize: MAX_FILE_SIZE,
+        files: 1,
+        fields: 6,
+        parts: 7,
+        fieldSize: 4096,
+      },
+    }),
   }
 }
 

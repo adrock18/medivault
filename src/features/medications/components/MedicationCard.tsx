@@ -1,18 +1,33 @@
-import { Pill, Clock3, Pencil, Trash2 } from 'lucide-react'
+import {
+  Pill,
+  Clock3,
+  Pencil,
+  Trash2,
+  FileText,
+  ArrowUpRight,
+} from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { medicationForms } from '@shared/database.types'
-import type { Medication } from '@shared/database.types'
-import { medicationStatus, displayDate, frequencies, cn } from '@/lib/utils'
+import type { MedicalRecord, Medication } from '@shared/database.types'
+import {
+  medicationStatus,
+  displayDate,
+  documentKinds,
+  frequencies,
+  cn,
+} from '@/lib/utils'
 import { Panel } from '@/components/common'
 import { Button } from '@/components/ui/button'
 
 export function MedicationCard({
   medication,
+  sourceRecord,
   onEdit,
   onDelete,
   day,
 }: {
   medication: Medication
+  sourceRecord?: MedicalRecord
   onEdit: () => void
   onDelete: () => void
   day?: string
@@ -81,10 +96,32 @@ export function MedicationCard({
         )}
         {medication.source_record_id && (
           <Link
-            className="small-link"
+            className="group flex min-w-0 items-center gap-3 rounded-xl border border-primary/15 bg-background/70 p-3 transition-colors hover:border-primary/35 hover:bg-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
             to={`/medical-records?record=${medication.source_record_id}`}
           >
-            Open linked medical record
+            <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary">
+              <FileText size={17} aria-hidden="true" />
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="block text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                Prescription source
+              </span>
+              <span className="mt-0.5 block truncate text-sm font-medium text-foreground">
+                {sourceRecord?.title ?? 'Open linked medical record'}
+              </span>
+              {sourceRecord && (
+                <span className="mt-0.5 block truncate text-xs text-muted-foreground">
+                  {documentKinds[sourceRecord.document_kind]} ·{' '}
+                  {displayDate(sourceRecord.record_date)}
+                  {sourceRecord.provider ? ` · ${sourceRecord.provider}` : ''}
+                </span>
+              )}
+            </span>
+            <ArrowUpRight
+              size={16}
+              aria-hidden="true"
+              className="shrink-0 text-muted-foreground transition-colors group-hover:text-primary"
+            />
           </Link>
         )}
         {!medication.source_record_id && medication.prescription_text && (

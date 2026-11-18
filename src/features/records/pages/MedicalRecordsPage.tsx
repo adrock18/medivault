@@ -1,8 +1,11 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   CalendarDays,
   FolderHeart,
+  ChevronDown,
+  ChevronRight,
+  Star,
   Pencil,
   Plus,
   Search,
@@ -12,7 +15,7 @@ import {
 import { useVault } from '@/contexts/DataContext'
 import { useMutation } from '@/hooks/useMutation'
 import { useQueryParams } from '@/hooks/useQueryParams'
-import { documentKinds } from '@/lib/utils'
+import { documentKinds, localDate } from '@/lib/utils'
 import { api } from '@/lib/api'
 import { deleteRecord } from '../lib/records'
 import type {
@@ -27,7 +30,6 @@ import {
   SelectField,
   ConfirmationDialog,
   SafetyNote,
-  Panel,
   SectionTitle,
 } from '@/components/common'
 import { Button } from '@/components/ui/button'
@@ -38,6 +40,7 @@ import {
   RecordPreview,
   type PreviewSelection,
 } from '../components/RecordPreview'
+import { FollowUpDialog } from '../components/FollowUpDialog'
 
 type Removal =
   | { type: 'record'; item: MedicalRecord }
@@ -48,6 +51,11 @@ type CareDialogState =
   { kind: 'track'; track?: CareTrack } | { kind: 'visit'; visit?: CareVisit }
 
 export default function MedicalRecordsPage() {
+  const { selectedFamilyMemberId } = useVault()
+  return <RecordsWorkspace key={selectedFamilyMemberId} />
+}
+
+function RecordsWorkspace() {
   const navigate = useNavigate()
   const {
     records,
@@ -57,9 +65,12 @@ export default function MedicalRecordsPage() {
     reload,
     selectedFamilyMemberId,
     familyMembers,
+    followUps,
+    now,
   } = useVault()
   const [params, updateParams] = useQueryParams()
   const selected = params.get('record')
+  const selectedVisit = params.get('visit')
   const [edit, setEdit] = useState<MedicalRecord | null>(null)
   const [remove, setRemove] = useState<Removal | null>(null)
   const [preview, setPreview] = useState<PreviewSelection | null>(null)
@@ -67,6 +78,8 @@ export default function MedicalRecordsPage() {
   const [kind, setKind] = useState('')
   const [order, setOrder] = useState<'newest' | 'oldest'>('newest')
   const [favouritesOnly, setFavouritesOnly] = useState(false)
+  const [expanded, setExpanded] = useState<Set<string>>(() => new Set())
+  const [followUpVisit, setFollowUpVisit] = useState<CareVisit | null>(null)
   const [careDialog, setCareDialog] = useState<CareDialogState | null>(null)
   const [defaultVisitId, setDefaultVisitId] = useState('')
   const results = useRef<HTMLSpanElement>(null)
@@ -76,6 +89,7 @@ export default function MedicalRecordsPage() {
     .filter(
       (record) =>
         (!selected || record.id === selected) &&
+        (!selectedVisit || record.visit_id === selectedVisit) &&
         (!favouritesOnly || record.is_favourite) &&
         (!kind || record.document_kind === kind) &&
         `${record.title} ${record.provider} ${record.file_name}`
@@ -90,15 +104,59 @@ export default function MedicalRecordsPage() {
         b.created_at.localeCompare(a.created_at) ||
         a.id.localeCompare(b.id),
     )
-  const filteredIds = new Set(filtered.map((record) => record.id))
+  const hasDocumentConstraints = Boolean(
+    selected || search.trim() || kind || favouritesOnly,
+  )
+  const visibleVisits = visits
+    .filter(
+      (visit) =>
+        (!selectedVisit || visit.id === selectedVisit) &&
+        (!hasDocumentConstraints ||
+          filtered.some((record) => record.visit_id === visit.id)),
+    )
+    .sort(
+      (a, b) =>
+        (order === 'newest'
+          ? b.visit_date.localeCompare(a.visit_date)
+          : a.visit_date.localeCompare(b.visit_date)) ||
+        a.id.localeCompare(b.id),
+    )
+  const unassigned = filtered.filter((record) => !record.visit_id)
+  const pendingFollowUps = followUps
+    .filter((item) => item.status === 'pending')
+    .sort(
+      (a, b) =>
+        a.due_date.localeCompare(b.due_date) || a.id.localeCompare(b.id),
+    )
+  const linkedVisitId = selected
+    ? records.find((record) => record.id === selected)?.visit_id
+    : selectedVisit
+  useEffect(() => {
+    // Reveal externally selected visit/record links without resetting discovery controls.
+    if (linkedVisitId) {
+      // oxlint-disable-next-line react/set-state-in-effect
+      setExpanded((current) => new Set(current).add(linkedVisitId))
+    }
+  }, [linkedVisitId, selected, selectedVisit])
   const selectedMember =
     familyMembers.find((member) => member.id === selectedFamilyMemberId)
       ?.full_name ?? 'selected profile'
+  const currentFollowUpVisit = visits.find(
+    (visit) => visit.id === followUpVisit?.id,
+  )
 
   function closeUpload() {
     setEdit(null)
     setDefaultVisitId('')
     updateParams({ action: null }, { replace: true })
+  }
+
+  function clearFilters() {
+    setSearch('')
+    setKind('')
+    setOrder('newest')
+    setFavouritesOnly(false)
+    updateParams({ record: null, visit: null })
   }
 
   function openUpload(visitId = '') {
@@ -152,69 +210,160 @@ export default function MedicalRecordsPage() {
     const linkedRecords = filtered.filter(
       (record) => record.visit_id === visit.id,
     )
+    const totalRecords = records.filter(
+      (record) => record.visit_id === visit.id,
+    )
+    const medicationCount = medications.filter((item) =>
+      totalRecords.some((record) => record.id === item.source_record_id),
+    ).length
+    const followUp = followUps.find((item) => item.visit_id === visit.id)
+    const track = careTracks.find((item) => item.id === visit.care_track_id)
+    const isExpanded = expanded.has(visit.id)
     return (
-      <Panel key={visit.id} className="border border-border/70 bg-card">
-        <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
-          <div className="min-w-0">
-            <p className="flex items-center gap-2 text-xs font-medium text-primary">
-              <CalendarDays size={15} />
-              {visit.visit_date} · {visit.setting.replaceAll('_', ' ')}
-            </p>
-            <h3 className="mt-2 break-words text-lg font-semibold">
+      <article
+        key={visit.id}
+        className="min-w-0 overflow-hidden rounded-2xl border bg-card"
+      >
+        <button
+          type="button"
+          className="flex w-full min-w-0 items-start gap-3 p-4 text-left hover:bg-muted/40 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring sm:p-5"
+          aria-expanded={isExpanded}
+          aria-controls={`visit-${visit.id}`}
+          aria-label={`${isExpanded ? 'Collapse' : 'Expand'} visit ${visit.title}`}
+          onClick={() =>
+            setExpanded((current) => {
+              const next = new Set(current)
+              if (next.has(visit.id)) next.delete(visit.id)
+              else next.add(visit.id)
+              return next
+            })
+          }
+        >
+          <span
+            className="mt-1 shrink-0 text-muted-foreground"
+            aria-hidden="true"
+          >
+            {isExpanded ? (
+              <ChevronDown size={18} />
+            ) : (
+              <ChevronRight size={18} />
+            )}
+          </span>
+          <span className="min-w-0 flex-1">
+            <time
+              dateTime={visit.visit_date}
+              className="text-xs font-medium text-primary"
+            >
+              {visit.visit_date}
+            </time>
+            <span className="mt-1 block break-words font-semibold">
               {visit.title}
-            </h3>
+            </span>
+            <span className="mt-1 block break-words text-xs text-muted-foreground">
+              {visit.provider || 'Provider not recorded'}
+              {track ? ` · ${track.title}` : ' · Standalone visit'}
+            </span>
+            <span className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
+              <span>
+                {hasDocumentConstraints
+                  ? `${linkedRecords.length} of ${totalRecords.length}`
+                  : totalRecords.length}{' '}
+                document{totalRecords.length !== 1 ? 's' : ''}
+              </span>
+              <span>
+                {medicationCount} linked medication
+                {medicationCount !== 1 ? 's' : ''}
+              </span>
+              {followUp && (
+                <span className="font-medium text-primary">
+                  Follow-up {followUp.status} · {followUp.due_date}
+                </span>
+              )}
+            </span>
+          </span>
+        </button>
+        {isExpanded && (
+          <div
+            id={`visit-${visit.id}`}
+            role="region"
+            aria-label={`${visit.title} details`}
+            className="min-w-0 border-t p-4 sm:p-5"
+          >
+            <div className="mb-4 flex flex-wrap gap-2">
+              <Button
+                variant="outline"
+                aria-label={`Edit visit ${visit.title}`}
+                onClick={() => setCareDialog({ kind: 'visit', visit })}
+              >
+                <Pencil />
+                Edit
+              </Button>
+              <Button variant="outline" onClick={() => openUpload(visit.id)}>
+                <Upload />
+                Add document
+              </Button>
+              <Button variant="outline" onClick={() => setFollowUpVisit(visit)}>
+                <CalendarDays />
+                {followUp ? 'Edit follow-up' : 'Add follow-up'}
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                aria-label={`Delete visit ${visit.title}`}
+                onClick={() => setRemove({ type: 'visit', item: visit })}
+              >
+                <Trash2 />
+              </Button>
+            </div>
             {visit.reason && (
-              <p className="mt-1 break-words text-sm text-muted-foreground">
+              <p className="mb-3 break-words text-sm text-muted-foreground">
                 {visit.reason}
               </p>
             )}
-            {visit.provider && (
-              <p className="mt-1 text-xs text-muted-foreground">
-                {visit.provider}
+            {followUp && (
+              <div className="mb-4 space-y-1 rounded-xl bg-muted/50 p-3 text-sm">
+                <p className="font-medium">
+                  Follow-up due {followUp.due_date} · {followUp.status}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  Not a booked appointment.
+                </p>
+                {followUp.instruction && (
+                  <p className="whitespace-pre-wrap break-words">
+                    {followUp.instruction}
+                  </p>
+                )}
+                {followUp.completed_visit_id && (
+                  <Button
+                    variant="link"
+                    className="max-w-full whitespace-normal px-0 text-left"
+                    onClick={() =>
+                      updateParams({
+                        record: null,
+                        visit: followUp.completed_visit_id,
+                      })
+                    }
+                  >
+                    View actual return visit
+                  </Button>
+                )}
+              </div>
+            )}
+            {visit.notes && (
+              <p className="mb-4 whitespace-pre-wrap rounded-xl bg-muted/50 p-3 text-sm text-muted-foreground">
+                {visit.notes}
+              </p>
+            )}
+            {linkedRecords.length ? (
+              renderRecords(linkedRecords)
+            ) : (
+              <p className="rounded-xl border border-dashed p-4 text-sm text-muted-foreground">
+                No documents are attached to this visit yet.
               </p>
             )}
           </div>
-          <div className="flex gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              aria-label={`Edit visit ${visit.title}`}
-              onClick={() => setCareDialog({ kind: 'visit', visit })}
-            >
-              <Pencil />
-              Edit
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => openUpload(visit.id)}
-            >
-              <Upload />
-              Add document
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              aria-label={`Delete visit ${visit.title}`}
-              onClick={() => setRemove({ type: 'visit', item: visit })}
-            >
-              <Trash2 />
-            </Button>
-          </div>
-        </div>
-        {visit.notes && (
-          <p className="mb-4 whitespace-pre-wrap rounded-xl bg-muted/50 p-3 text-sm text-muted-foreground">
-            {visit.notes}
-          </p>
         )}
-        {linkedRecords.length ? (
-          renderRecords(linkedRecords)
-        ) : (
-          <p className="rounded-xl border border-dashed p-4 text-sm text-muted-foreground">
-            No documents are attached to this visit yet.
-          </p>
-        )}
-      </Panel>
+      </article>
     )
   }
 
@@ -246,183 +395,257 @@ export default function MedicalRecordsPage() {
           </div>
         }
       />
-      {selected && (
+      {(selected || selectedVisit) && (
         <div className="mb-5 flex flex-wrap items-center justify-between gap-2 rounded-xl border bg-card p-4">
-          <p className="text-sm">Showing the linked medical record.</p>
+          <p className="text-sm">
+            {selected
+              ? 'Showing the linked medical record.'
+              : 'Showing the selected visit.'}
+          </p>
           <Button
             variant="outline"
-            onClick={() => updateParams({ record: null })}
+            onClick={() => updateParams({ record: null, visit: null })}
           >
             Show all records
           </Button>
         </div>
       )}
-      <div className="mb-6 flex flex-wrap items-end gap-4 rounded-2xl border border-slate-200/80 bg-card p-5">
-        <div className="min-w-0 basis-full sm:min-w-64 sm:flex-1">
-          <Field
-            label="Search records"
-            placeholder="Search by title, provider, or file name..."
-            value={search}
-            onChange={(event) => setSearch(event.target.value)}
-          />
+      <div className="mb-6 rounded-2xl border bg-card p-4 sm:p-5">
+        <div className="grid min-w-0 gap-4 sm:grid-cols-2 xl:grid-cols-[minmax(0,1fr)_minmax(0,190px)_minmax(0,175px)_auto]">
+          <div className="min-w-0">
+            <Field
+              label="Search records"
+              className="h-12 min-h-12"
+              placeholder="Search by title, provider, or file name..."
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+            />
+          </div>
+          <div className="min-w-0">
+            <SelectField
+              className="h-12 min-h-12"
+              label="Document type"
+              value={kind}
+              onValueChange={setKind}
+              options={[
+                { value: '', label: 'All document types' },
+                ...Object.entries(documentKinds).map(([value, label]) => ({
+                  value,
+                  label,
+                })),
+              ]}
+            />
+          </div>
+          <div className="min-w-0">
+            <SelectField
+              label="Date order"
+              className="h-12 min-h-12"
+              value={order}
+              options={[
+                { value: 'newest', label: 'Newest first' },
+                { value: 'oldest', label: 'Oldest first' },
+              ]}
+              onValueChange={(value) => {
+                if (value === 'newest' || value === 'oldest') setOrder(value)
+              }}
+            />
+          </div>
+          <div className="min-w-0 space-y-2">
+            <p
+              id="records-favourites-label"
+              className="text-sm leading-none font-medium"
+            >
+              Favourites
+            </p>
+            <Button
+              variant="outline"
+              className="h-12 min-h-12 w-full"
+              aria-describedby="records-favourites-label"
+              aria-pressed={favouritesOnly}
+              onClick={() => setFavouritesOnly((value) => !value)}
+            >
+              <Star aria-hidden="true" />
+              Favourites only
+            </Button>
+          </div>
         </div>
-        <div className="w-full sm:w-52">
-          <SelectField
-            label="Record date order"
-            value={order}
-            options={[
-              { value: 'newest', label: 'Newest record date' },
-              { value: 'oldest', label: 'Oldest record date' },
-            ]}
-            onValueChange={(value) => {
-              if (value === 'newest' || value === 'oldest') setOrder(value)
-            }}
-          />
-        </div>
-        <div className="w-full sm:w-52">
-          <SelectField
-            label="Document type"
-            value={kind}
-            onValueChange={setKind}
-            options={[
-              { value: '', label: 'All document types' },
-              ...Object.entries(documentKinds).map(([value, label]) => ({
-                value,
-                label,
-              })),
-            ]}
-          />
-        </div>
-        <Button
-          variant="outline"
-          aria-pressed={favouritesOnly}
-          onClick={() => setFavouritesOnly((value) => !value)}
-        >
-          Favourites only
-        </Button>
         <span
           ref={results}
           tabIndex={-1}
           role="status"
           aria-label="Record results"
-          className="pb-3 text-xs text-muted-foreground focus:outline-2 focus:outline-offset-4 focus:outline-ring"
+          className="mt-4 block text-xs text-muted-foreground focus:outline-2 focus:outline-offset-4 focus:outline-ring"
         >
           {filtered.length} record{filtered.length !== 1 && 's'}
         </span>
       </div>
 
-      <div className="space-y-7">
-        {careTracks.map((track) => {
-          const trackVisits = visits
-            .filter((visit) => visit.care_track_id === track.id)
-            .sort(
-              (a, b) =>
-                b.visit_date.localeCompare(a.visit_date) ||
-                a.id.localeCompare(b.id),
-            )
-          return (
-            <section key={track.id} className="space-y-4">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <div>
-                  <p className="text-xs font-medium uppercase tracking-wide text-primary">
-                    {track.kind.replaceAll('_', ' ')} care track
-                  </p>
-                  <h2 className="mt-1 text-xl font-semibold">{track.title}</h2>
-                </div>
-                <div className="flex gap-2">
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    aria-label={`Edit care track ${track.title}`}
-                    onClick={() => setCareDialog({ kind: 'track', track })}
-                  >
-                    <Pencil />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    aria-label={`Delete care track ${track.title}`}
-                    onClick={() => setRemove({ type: 'track', item: track })}
-                  >
-                    <Trash2 />
-                  </Button>
-                </div>
-              </div>
-              {trackVisits.length ? (
-                <div className="space-y-4">{trackVisits.map(renderVisit)}</div>
-              ) : (
-                <p className="rounded-xl border border-dashed bg-card p-4 text-sm text-muted-foreground">
-                  No visits are linked to this track yet.
-                </p>
-              )}
-            </section>
-          )
-        })}
-        {visits.some((visit) => !visit.care_track_id) && (
-          <section className="space-y-4">
-            <SectionTitle
-              title="Standalone visits"
-              description="Visits that are not grouped into a care track."
-            />
-            <div className="space-y-4">
-              {visits
-                .filter((visit) => !visit.care_track_id)
-                .sort((a, b) => b.visit_date.localeCompare(a.visit_date))
-                .map(renderVisit)}
-            </div>
-          </section>
-        )}
-        <section className="space-y-4">
+      {pendingFollowUps.length > 0 && (
+        <section
+          aria-label="Pending follow-ups"
+          className="mb-6 rounded-2xl border bg-card p-4 sm:p-5"
+        >
           <SectionTitle
-            title="Unassigned records"
-            description={`Documents for ${selectedMember} that are not attached to a visit.`}
+            title="Follow-ups due"
+            description="Manually recorded return dates, not booked appointments. Shown independently of document filters."
           />
-          {filtered.filter((record) => !record.visit_id).length ? (
-            renderRecords(filtered.filter((record) => !record.visit_id))
-          ) : records.some(
-              (record) => !record.visit_id && !filteredIds.has(record.id),
-            ) ? (
-            <EmptyState
-              icon={Search}
-              title="No matching unassigned records"
-              description="Try a different search, document type, or favourites filter."
-              action={
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    setSearch('')
-                    setKind('')
-                    setOrder('newest')
-                    setFavouritesOnly(false)
-                    updateParams({ record: null })
-                  }}
+          <ul className="divide-y">
+            {pendingFollowUps.map((item) => {
+              const visit = visits.find((visit) => visit.id === item.visit_id)
+              return (
+                <li
+                  key={item.id}
+                  className="flex flex-wrap items-center justify-between gap-3 py-3 first:pt-0 last:pb-0"
                 >
-                  Clear filters
-                </Button>
-              }
-            />
-          ) : (
-            <EmptyState
-              icon={FolderHeart}
-              title={
-                records.length ? 'No unassigned records' : 'Your vault is ready'
-              }
-              description={
-                records.length
-                  ? 'Attach documents to a visit or upload a new record.'
-                  : 'Add a visit or upload your first prescription, lab report, or medical document.'
-              }
-              action={
-                <Button onClick={() => openUpload()}>
-                  <Upload />
-                  Upload record
-                </Button>
-              }
-            />
-          )}
+                  <div className="min-w-0 flex-1">
+                    <p className="break-words text-sm font-medium">
+                      {visit?.title}
+                    </p>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      {item.due_date} ·{' '}
+                      {item.due_date < localDate(now)
+                        ? 'Past due date'
+                        : item.due_date === localDate(now)
+                          ? 'Due today'
+                          : 'Upcoming'}
+                    </p>
+                  </div>
+                  <Button
+                    variant="outline"
+                    aria-label={`Open follow-up for ${visit?.title}`}
+                    onClick={() => {
+                      setSearch('')
+                      setKind('')
+                      setFavouritesOnly(false)
+                      updateParams({ record: null, visit: item.visit_id })
+                    }}
+                  >
+                    Open visit
+                  </Button>
+                </li>
+              )
+            })}
+          </ul>
         </section>
+      )}
+      <div className="space-y-7">
+        {!visibleVisits.length &&
+        !filtered.length &&
+        (hasDocumentConstraints || selectedVisit) ? (
+          <EmptyState
+            icon={Search}
+            title="No matching records or visits"
+            description="The linked item may no longer be available for this profile, or the current filters hide it."
+            action={
+              <Button variant="outline" onClick={clearFilters}>
+                Clear filters
+              </Button>
+            }
+          />
+        ) : (
+          <>
+            {visibleVisits.length > 0 && (
+              <section aria-label="Visit timeline" className="space-y-3">
+                <SectionTitle
+                  title="Visit timeline"
+                  description="Visits are ordered by visit date; documents within each visit use their own record dates. Expand a visit for details."
+                />
+                {visibleVisits.map(renderVisit)}
+              </section>
+            )}
+            {unassigned.length > 0 ? (
+              <section className="space-y-4">
+                <SectionTitle
+                  title="Unassigned records"
+                  description={`Documents for ${selectedMember} that are not attached to a visit.`}
+                />
+                {renderRecords(unassigned)}
+              </section>
+            ) : (
+              !visits.length &&
+              !records.length && (
+                <EmptyState
+                  icon={FolderHeart}
+                  title={
+                    records.length
+                      ? 'No unassigned records'
+                      : 'Your vault is ready'
+                  }
+                  description={
+                    records.length
+                      ? 'Attach documents to a visit or upload a new record.'
+                      : 'Add a visit or upload your first prescription, lab report, or medical document.'
+                  }
+                  action={
+                    <Button onClick={() => openUpload()}>
+                      <Upload />
+                      Upload record
+                    </Button>
+                  }
+                />
+              )
+            )}
+          </>
+        )}
+        {careTracks.length > 0 && (
+          <details className="rounded-2xl border bg-card p-4 sm:p-5">
+            <summary className="min-h-11 cursor-pointer content-center text-sm font-medium focus-visible:outline-2 focus-visible:outline-ring">
+              Manage care tracks ({careTracks.length})
+            </summary>
+            <ul className="mt-3 divide-y">
+              {careTracks.map((track) => (
+                <li
+                  key={track.id}
+                  className="flex items-center justify-between gap-2 py-2"
+                >
+                  <div className="min-w-0">
+                    <p className="break-words text-sm font-medium">
+                      {track.title}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {
+                        visits.filter(
+                          (visit) => visit.care_track_id === track.id,
+                        ).length
+                      }{' '}
+                      visits · {track.kind.replaceAll('_', ' ')}
+                    </p>
+                  </div>
+                  <div className="flex shrink-0 gap-1">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      aria-label={`Edit care track ${track.title}`}
+                      onClick={() => setCareDialog({ kind: 'track', track })}
+                    >
+                      <Pencil />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      aria-label={`Delete care track ${track.title}`}
+                      onClick={() => setRemove({ type: 'track', item: track })}
+                    >
+                      <Trash2 />
+                    </Button>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </details>
+        )}
       </div>
 
+      {currentFollowUpVisit && (
+        <FollowUpDialog
+          key={`${currentFollowUpVisit.id}:${currentFollowUpVisit.visit_date}`}
+          visit={currentFollowUpVisit}
+          followUp={followUps.find(
+            (item) => item.visit_id === currentFollowUpVisit.id,
+          )}
+          onClose={() => setFollowUpVisit(null)}
+        />
+      )}
       {(upload || edit) && (
         <UploadDialog
           key={edit?.id ?? `${defaultVisitId || 'new'}`}
@@ -467,7 +690,7 @@ export default function MedicalRecordsPage() {
         description={
           remove?.type === 'track'
             ? `Visits in "${remove.item.title}" will remain as standalone visits.`
-            : `Documents attached to "${remove?.type === 'visit' ? remove.item.title : ''}" will remain in Unassigned records.`
+            : `Documents attached to "${remove?.type === 'visit' ? remove.item.title : ''}" will remain in Unassigned records. Its follow-up will be removed; other follow-ups linked to this return visit keep their status without that link.`
         }
         busy={mutation.pending}
         onConfirm={() => void confirmDelete()}

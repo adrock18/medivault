@@ -5,7 +5,7 @@ import { Check } from 'lucide-react'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useMutation } from '@/hooks/useMutation'
 import { medicationSchema, type MedicationValues } from '@shared/schemas'
-import { frequencies, localDate } from '@/lib/utils'
+import { displayDate, documentKinds, frequencies, localDate } from '@/lib/utils'
 import { api } from '@/lib/api'
 import type { Medication } from '@shared/database.types'
 import {
@@ -215,6 +215,7 @@ export function MedicationForm({
                   ...records.map((record) => ({
                     value: record.id,
                     label: record.title,
+                    description: `${documentKinds[record.document_kind]} · ${displayDate(record.record_date)}${record.provider ? ` · ${record.provider}` : ''}`,
                   })),
                 ]}
                 error={errors.source_record_id?.message}

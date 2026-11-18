@@ -12,6 +12,7 @@ import {
   ShieldCheck,
   ChevronRight,
   LoaderCircle,
+  UsersRound,
 } from 'lucide-react'
 import { format } from 'date-fns'
 import { toast } from 'sonner'
@@ -22,15 +23,15 @@ import {
   DemoNotice,
   PageSkeleton,
   type PageSkeletonVariant,
-  SelectField,
 } from './common'
 import { Button } from './ui/button'
+import { Select } from './ui/select'
 import { useAuth } from '../contexts/AuthContext'
 import { useVault } from '../contexts/DataContext'
 import { cn } from '../lib/utils'
 import { errorMessage } from '../lib/api'
 import { ThemeSelect } from './ThemeSelect'
-import { navigation } from '../lib/navigation'
+import { navigation, mobileNavigation } from '../lib/navigation'
 import { CommandPalette } from './CommandPalette'
 import { cancelThemeTransition } from '../lib/theme'
 export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
@@ -89,6 +90,18 @@ export function Header({ onMenu }: { onMenu: () => void }) {
     profile?.full_name ??
     session?.user.email?.split('@')[0] ??
     'Your account'
+  const avatarName = name
+    .replace(/^\[DEMO\]\s*/i, '')
+    .split(' - ')[0]
+    .trim()
+  const initials =
+    avatarName
+      .split(/\s+/)
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((part) => part[0])
+      .join('')
+      .toUpperCase() || 'MV'
   async function logout() {
     setSigningOut(true)
     try {
@@ -101,7 +114,7 @@ export function Header({ onMenu }: { onMenu: () => void }) {
     }
   }
   return (
-    <header className="workspace-header flex min-h-20 flex-wrap items-center justify-between gap-2 px-4 py-2 sm:px-8">
+    <header className="workspace-header flex min-h-20 flex-col justify-center gap-2 px-4 py-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between sm:gap-2 sm:px-8 sm:py-2">
       <div className="flex min-w-0 items-center gap-2 sm:gap-3">
         <Button
           variant="ghost"
@@ -129,11 +142,19 @@ export function Header({ onMenu }: { onMenu: () => void }) {
           />
         )}
       </div>
-      <div className="flex shrink-0 items-center gap-1 sm:gap-3">
+      <div className="flex w-full min-w-0 flex-wrap items-center justify-between gap-2 sm:w-auto sm:shrink-0 sm:justify-end sm:gap-3">
         {familyMembers.length > 1 && (
-          <div className="w-36 sm:w-48">
-            <SelectField
-              label="Viewing profile"
+          <div className="flex min-w-0 flex-1 items-center gap-2 rounded-full border border-input bg-card px-3 max-[359px]:basis-full sm:w-60 sm:flex-none">
+            <UsersRound
+              aria-hidden="true"
+              className="size-4 shrink-0 text-primary"
+            />
+            <span className="hidden shrink-0 text-[11px] font-medium text-muted-foreground sm:inline">
+              Viewing
+            </span>
+            <Select
+              aria-label="Viewing profile"
+              className="!min-h-10 !w-auto !max-w-none !flex-1 !rounded-full !border-0 !bg-transparent !px-0 !py-2 text-xs font-semibold"
               value={selectedFamilyMemberId}
               onValueChange={selectFamilyMember}
               options={familyMembers.map((member) => ({
@@ -143,12 +164,14 @@ export function Header({ onMenu }: { onMenu: () => void }) {
             />
           </div>
         )}
-        <CommandPalette />
-        <ThemeSelect />
+        <div className="flex shrink-0 items-center gap-1 sm:gap-3">
+          <CommandPalette />
+          <ThemeSelect />
+        </div>
         <Link
           to="/profile"
           aria-label={`Health profile for ${name}`}
-          className="flex items-center gap-3 rounded-lg focus-visible:outline-2 focus-visible:outline-primary"
+          className="hidden items-center gap-3 rounded-lg focus-visible:outline-2 focus-visible:outline-primary sm:flex"
         >
           <div className="hidden text-right sm:block">
             <p className="max-w-40 truncate text-sm font-medium text-slate-800">
@@ -160,8 +183,8 @@ export function Header({ onMenu }: { onMenu: () => void }) {
                 : 'Family profile'}
             </p>
           </div>
-          <span className="flex size-11 items-center justify-center rounded-full border-4 border-teal-50 bg-teal-100 text-sm font-semibold text-primary">
-            {name.slice(0, 2).toUpperCase()}
+          <span className="flex size-10 items-center justify-center rounded-full border border-primary/20 bg-primary/10 text-xs font-semibold tracking-wide text-primary">
+            {initials}
           </span>
         </Link>
         <Button
@@ -194,6 +217,7 @@ export default function Layout() {
   const skeleton = pageSkeletonFor(location.pathname)
   useLayoutEffect(() => {
     cancelThemeTransition()
+    window.scrollTo(0, 0)
   }, [location.pathname])
   return (
     <div className="workspace-shell min-h-screen bg-workspace">
@@ -255,7 +279,7 @@ export default function Layout() {
         aria-label="Mobile navigation"
         className="mobile-dock fixed inset-x-4 bottom-[calc(1rem+env(safe-area-inset-bottom))] z-30 mx-auto grid max-w-md grid-cols-4 gap-1 rounded-full border border-slate-300/50 p-1.5 lg:hidden"
       >
-        {navigation.slice(0, 4).map(({ to, label, icon: Icon }) => (
+        {mobileNavigation.map(({ to, label, icon: Icon }) => (
           <NavLink
             key={to}
             to={to}

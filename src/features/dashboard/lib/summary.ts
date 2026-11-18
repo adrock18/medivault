@@ -95,6 +95,9 @@ export function activitySnapshot(
     }))
     .sort((a, b) => a.date.localeCompare(b.date) || a.id.localeCompare(b.id))
   const health = data.healthProfile
+  const familyHealth = data.familyHealthProfiles.find(
+    (item) => item.family_member_id === familyMemberId,
+  )
   const profile: [string, string][] | null = includeProfile
     ? member.relationship === 'self'
       ? [
@@ -128,6 +131,33 @@ export function activitySnapshot(
       : [
           ['Name', member.full_name],
           ['Date of birth', member.date_of_birth ?? 'Not recorded'],
+          [
+            'Gender',
+            familyHealth?.gender?.replaceAll('_', ' ') ?? 'Not recorded',
+          ],
+          ['Blood group', familyHealth?.blood_group ?? 'Not recorded'],
+          [
+            'Height',
+            familyHealth?.height_cm == null
+              ? 'Not recorded'
+              : `${familyHealth.height_cm} cm`,
+          ],
+          [
+            'Weight',
+            familyHealth?.weight_kg == null
+              ? 'Not recorded'
+              : `${familyHealth.weight_kg} kg`,
+          ],
+          ['Allergies', familyHealth?.allergies || 'Not recorded'],
+          ['Conditions', familyHealth?.conditions || 'Not recorded'],
+          [
+            'Emergency contact',
+            familyHealth?.emergency_contact_name || 'Not recorded',
+          ],
+          [
+            'Emergency phone',
+            familyHealth?.emergency_contact_phone || 'Not recorded',
+          ],
         ]
     : null
   return {

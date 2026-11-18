@@ -1,6 +1,7 @@
 import { z } from 'zod'
 import {
   sessionSchema,
+  registrationResultSchema,
   vaultSchema,
   healthProfileRow,
   medicationRow,
@@ -11,14 +12,18 @@ import {
   accountExportSchema,
   careTrackRow,
   careVisitRow,
+  visitFollowUpRow,
+  familyHealthProfileRow,
 } from '@shared/contracts'
 import type {
   ProfileValues,
+  FamilyHealthProfileValues,
   NotificationPreferencesValues,
   MedicationValues,
   RecordValues,
   CareTrackValues,
   CareVisitValues,
+  VisitFollowUpValues,
 } from '@shared/schemas'
 import type { FamilyMemberValues } from '@shared/schemas'
 import { loginSchema, registerSchema, passwordSchema } from '@shared/schemas'
@@ -92,7 +97,7 @@ export const api = {
     login: (values: z.infer<typeof loginSchema>) =>
       request('/auth/login', sessionSchema, json('POST', values)),
     register: (values: z.infer<typeof registerSchema>) =>
-      request('/auth/register', sessionSchema, json('POST', values)),
+      request('/auth/register', registrationResultSchema, json('POST', values)),
     logout: () => request('/auth/logout', z.void(), { method: 'POST' }),
     password: (values: z.infer<typeof passwordSchema>) =>
       request('/auth/password', z.void(), json('POST', values)),
@@ -120,6 +125,21 @@ export const api = {
       request(`/family-members/${encodeURIComponent(id)}`, z.void(), {
         method: 'DELETE',
       }),
+    saveHealthProfile: (id: string, values: FamilyHealthProfileValues) =>
+      request(
+        `/family-members/${encodeURIComponent(id)}/health-profile`,
+        familyHealthProfileRow,
+        json('PUT', {
+          gender: values.gender,
+          blood_group: values.blood_group,
+          height_cm: values.height_cm,
+          weight_kg: values.weight_kg,
+          allergies: values.allergies,
+          conditions: values.conditions,
+          emergency_contact_name: values.emergency_contact_name,
+          emergency_contact_phone: values.emergency_contact_phone,
+        }),
+      ),
   },
   notifications: {
     save: (values: NotificationPreferencesValues) =>
@@ -134,6 +154,12 @@ export const api = {
       request('/health-profile', healthProfileRow, json('PUT', values)),
   },
   care: {
+    saveFollowUp: (id: string, values: VisitFollowUpValues) =>
+      request(
+        `/care-visits/${encodeURIComponent(id)}/follow-up`,
+        visitFollowUpRow,
+        json('PUT', values),
+      ),
     createTrack: (values: CareTrackValues) =>
       request('/care-tracks', careTrackRow, json('POST', values)),
     updateTrack: (id: string, values: CareTrackValues) =>

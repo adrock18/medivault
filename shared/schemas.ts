@@ -39,37 +39,57 @@ export const registerSchema = loginSchema
     path: ['confirm_password'],
     message: 'Passwords do not match.',
   })
-export const profileSchema = z
-  .object({
-    full_name: z.string().trim().min(1, 'Enter your full name.').max(120),
-    date_of_birth: optionalPastDate,
-    gender: z.enum(['', 'female', 'male', 'non_binary', 'prefer_not_to_say']),
-    blood_group: z.enum(['', 'A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-']),
-    height_cm: numberOrBlank(1, 300),
-    weight_kg: numberOrBlank(0.1, 700),
-    allergies: z.string().trim().max(2000),
-    conditions: z.string().trim().max(2000),
-    emergency_contact_name: z.string().trim().max(120),
-    emergency_contact_phone: z
-      .string()
-      .trim()
-      .max(30)
-      .refine(
-        (v) =>
-          !v ||
-          (/^\+?[\d\s()-]{7,30}$/.test(v) && v.replace(/\D/g, '').length >= 7),
-        'Enter a valid phone number.',
-      ),
+const profileFieldsSchema = z.object({
+  full_name: z.string().trim().min(1, 'Enter your full name.').max(120),
+  date_of_birth: optionalPastDate,
+  gender: z.enum(['', 'female', 'male', 'non_binary', 'prefer_not_to_say']),
+  blood_group: z.enum(['', 'A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-']),
+  height_cm: numberOrBlank(1, 300),
+  weight_kg: numberOrBlank(0.1, 700),
+  allergies: z.string().trim().max(2000),
+  conditions: z.string().trim().max(2000),
+  emergency_contact_name: z.string().trim().max(120),
+  emergency_contact_phone: z
+    .string()
+    .trim()
+    .max(30)
+    .refine(
+      (v) =>
+        !v ||
+        (/^\+?[\d\s()-]{7,30}$/.test(v) && v.replace(/\D/g, '').length >= 7),
+      'Enter a valid phone number.',
+    ),
+})
+const hasCompleteEmergencyContact = (value: {
+  emergency_contact_name: string
+  emergency_contact_phone: string
+}) =>
+  Boolean(value.emergency_contact_name) ===
+  Boolean(value.emergency_contact_phone)
+const emergencyContactIssue = {
+  path: ['emergency_contact_phone'],
+  message:
+    'Provide both an emergency contact name and phone, or leave both blank.',
+}
+export const profileSchema = profileFieldsSchema.refine(
+  hasCompleteEmergencyContact,
+  emergencyContactIssue,
+)
+export const familyHealthProfileSchema = profileFieldsSchema
+  .pick({
+    gender: true,
+    blood_group: true,
+    height_cm: true,
+    weight_kg: true,
+    allergies: true,
+    conditions: true,
+    emergency_contact_name: true,
+    emergency_contact_phone: true,
   })
-  .refine(
-    (v) =>
-      Boolean(v.emergency_contact_name) === Boolean(v.emergency_contact_phone),
-    {
-      path: ['emergency_contact_phone'],
-      message:
-        'Provide both an emergency contact name and phone, or leave both blank.',
-    },
-  )
+  .refine(hasCompleteEmergencyContact, emergencyContactIssue)
+export type FamilyHealthProfileValues = z.infer<
+  typeof familyHealthProfileSchema
+>
 export const familyMemberSchema = z.object({
   full_name: z.string().trim().min(1, 'Enter a name.').max(120),
   relationship: z.enum([
@@ -163,6 +183,22 @@ export const careVisitSchema = z
 export const recordFavouriteSchema = z
   .object({ is_favourite: z.boolean() })
   .strict()
+export const visitFollowUpSchema = z
+  .object({
+    due_date: date,
+    instruction: z.string().trim().max(2000),
+    source_record_id: z.union([
+      z.literal(''),
+      z.uuid('Select a source document.'),
+    ]),
+    status: z.enum(['pending', 'completed', 'cancelled']),
+    completed_visit_id: z.union([
+      z.literal(''),
+      z.uuid('Select a return visit.'),
+    ]),
+  })
+  .strict()
+export type VisitFollowUpValues = z.infer<typeof visitFollowUpSchema>
 export const medicationSchema = z
   .object({
     family_member_id: z.uuid('Select a family profile.'),

@@ -34,55 +34,117 @@ import {
 } from '@/components/common'
 
 function ProfileForm() {
-  const { healthProfile: profile, profile: account } = useVault()
+  const {
+    healthProfile,
+    familyHealthProfiles,
+    familyMembers,
+    profile: account,
+    selectedFamilyMemberId,
+    reload,
+  } = useVault()
+  const member = familyMembers.find(
+    (familyMember) => familyMember.id === selectedFamilyMemberId,
+  )
+  const isSelf = member?.relationship === 'self'
+  const memberProfile = familyHealthProfiles.find(
+    (familyProfile) => familyProfile.family_member_id === member?.id,
+  )
+  const savedProfile = isSelf ? healthProfile : memberProfile
+  const fullName = isSelf
+    ? (healthProfile?.full_name ?? account?.full_name ?? '')
+    : (member?.full_name ?? '')
+  const dateOfBirth = isSelf
+    ? (healthProfile?.date_of_birth ?? member?.date_of_birth ?? '')
+    : (member?.date_of_birth ?? '')
+  const gender = savedProfile?.gender ?? ''
+  const bloodGroup = savedProfile?.blood_group ?? ''
+  const height = savedProfile?.height_cm?.toString() ?? ''
+  const weight = savedProfile?.weight_kg?.toString() ?? ''
+  const allergies = savedProfile?.allergies ?? ''
+  const conditions = savedProfile?.conditions ?? ''
+  const emergencyContactName = savedProfile?.emergency_contact_name ?? ''
+  const emergencyContactPhone = savedProfile?.emergency_contact_phone ?? ''
   const mutation = useMutation()
   const {
     register,
     control,
     handleSubmit,
+    reset,
     formState: { errors },
   } = useForm<ProfileValues>({
     resolver: zodResolver(profileSchema),
-    defaultValues: {
-      full_name: profile?.full_name ?? account?.full_name ?? '',
-      date_of_birth: profile?.date_of_birth ?? '',
-      gender: profile?.gender ?? '',
-      blood_group: profile?.blood_group ?? '',
-      height_cm: profile?.height_cm?.toString() ?? '',
-      weight_kg: profile?.weight_kg?.toString() ?? '',
-      allergies: profile?.allergies ?? '',
-      conditions: profile?.conditions ?? '',
-      emergency_contact_name: profile?.emergency_contact_name ?? '',
-      emergency_contact_phone: profile?.emergency_contact_phone ?? '',
-    },
+    defaultValues: { full_name: '', date_of_birth: '' },
   })
+  useEffect(() => {
+    reset({
+      full_name: fullName,
+      date_of_birth: dateOfBirth,
+      gender,
+      blood_group: bloodGroup,
+      height_cm: height,
+      weight_kg: weight,
+      allergies,
+      conditions,
+      emergency_contact_name: emergencyContactName,
+      emergency_contact_phone: emergencyContactPhone,
+    })
+  }, [
+    reset,
+    selectedFamilyMemberId,
+    fullName,
+    dateOfBirth,
+    gender,
+    bloodGroup,
+    height,
+    weight,
+    allergies,
+    conditions,
+    emergencyContactName,
+    emergencyContactPhone,
+  ])
   async function submit(values: ProfileValues) {
-    await mutation.run(async () => {
-      await api.profile.save(values)
-    }, 'Your health profile has been saved.')
+    await mutation.run(
+      async () => {
+        if (!member) throw new Error('Select a family profile first.')
+        if (isSelf) await api.profile.save(values)
+        else await api.family.saveHealthProfile(member.id, values)
+        await reload()
+      },
+      isSelf
+        ? 'Your health profile has been saved.'
+        : `${member?.full_name ?? 'Family member'}'s health profile has been saved.`,
+    )
   }
   return (
     <form onSubmit={handleSubmit(submit)} noValidate>
       <fieldset disabled={mutation.pending} className="space-y-6">
         <Panel className="tint-sky">
           <SectionTitle
-            title="Personal information"
-            description="The essentials that make your care more personal."
+            title={isSelf ? 'Personal information' : 'Health details'}
+            description={
+              isSelf
+                ? 'The essentials that make your care more personal.'
+                : `Keep ${member?.full_name ?? 'this family member'}'s health details organized with their care history.`
+            }
           />
           <div className="grid gap-5 sm:grid-cols-2">
-            <Field
-              label="Full name *"
-              autoComplete="name"
-              registration={register('full_name')}
-              error={errors.full_name?.message}
-            />
-            <Field
-              label="Date of birth"
-              type="date"
-              max={localDate()}
-              registration={register('date_of_birth')}
-              error={errors.date_of_birth?.message}
-            />
+            {isSelf && (
+              <>
+                <Field
+                  label="Full name *"
+                  autoComplete="name"
+                  registration={register('full_name')}
+                  error={errors.full_name?.message}
+                />
+                <Field
+                  label="Date of birth"
+                  type="date"
+                  max={localDate()}
+                  registration={register('date_of_birth')}
+                  error={errors.date_of_birth?.message}
+                />
+              </>
+            )}
             <Controller
               name="gender"
               control={control}
@@ -202,7 +264,8 @@ function ProfileForm() {
 }
 
 function FamilyProfiles() {
-  const { familyMembers, reload } = useVault()
+  const { familyMembers, reload, selectedFamilyMemberId, selectFamilyMember } =
+    useVault()
   const mutation = useMutation()
   const [editingId, setEditingId] = useState<string | null>(null)
   const [removingMember, setRemovingMember] = useState<
@@ -258,7 +321,7 @@ function FamilyProfiles() {
     <Panel className="mt-6">
       <SectionTitle
         title="Family profiles"
-        description="Organize records and medication schedules for people you manage under this account."
+        description="Manage health details, records, and medication schedules for people you organize under this account."
       />
       <p className="mb-5 text-sm leading-6 text-muted-foreground">
         Each person uses this account's private workspace; they do not get a
@@ -280,28 +343,41 @@ function FamilyProfiles() {
                 {member.date_of_birth ? ` · Born ${member.date_of_birth}` : ''}
               </p>
             </div>
-            {member.relationship !== 'self' && (
-              <div className="flex shrink-0 gap-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setEditingId(member.id)}
-                >
-                  <Pencil />
-                  Edit
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="icon"
-                  aria-label={`Delete family profile ${member.full_name}`}
-                  onClick={() => setRemovingMember(member)}
-                >
-                  <Trash2 />
-                </Button>
-              </div>
-            )}
+            <div className="flex shrink-0 flex-wrap justify-end gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                aria-pressed={selectedFamilyMemberId === member.id}
+                onClick={() => selectFamilyMember(member.id)}
+              >
+                {selectedFamilyMemberId === member.id
+                  ? 'Selected'
+                  : 'View profile'}
+              </Button>
+              {member.relationship !== 'self' && (
+                <>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setEditingId(member.id)}
+                  >
+                    <Pencil />
+                    Edit
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    aria-label={`Delete family profile ${member.full_name}`}
+                    onClick={() => setRemovingMember(member)}
+                  >
+                    <Trash2 />
+                  </Button>
+                </>
+              )}
+            </div>
           </article>
         ))}
       </div>
@@ -378,7 +454,7 @@ function FamilyProfiles() {
         open={removingMember !== null}
         onClose={() => setRemovingMember(null)}
         title={`Delete ${removingMember?.full_name ?? 'this family profile'}?`}
-        description="A profile can be deleted only when it has no records, medications, measurements, care tracks, or visits. Existing health data is never cascade-deleted."
+        description="A profile can be deleted only when it has no records, medications, measurements, care tracks, or visits. Deleting it also removes the person's health-profile details."
         busy={mutation.pending}
         error={mutation.error}
         onConfirm={() => void removeMember()}
@@ -388,12 +464,31 @@ function FamilyProfiles() {
 }
 
 export default function ProfilePage() {
-  const { healthProfile, profile } = useVault()
+  const {
+    healthProfile,
+    familyHealthProfiles,
+    familyMembers,
+    profile,
+    selectedFamilyMemberId,
+  } = useVault()
+  const member = familyMembers.find(
+    (familyMember) => familyMember.id === selectedFamilyMemberId,
+  )
+  const isSelf = member?.relationship === 'self'
+  const hasSavedHealthProfile = isSelf
+    ? Boolean(healthProfile)
+    : familyHealthProfiles.some(
+        (familyProfile) => familyProfile.family_member_id === member?.id,
+      )
   return (
     <>
       <PageTitle
-        title="Your health profile"
-        description="A clearer picture of you, ready whenever you need it."
+        title={isSelf ? 'Your health profile' : 'Family health profile'}
+        description={
+          isSelf
+            ? 'A clearer picture of you, ready whenever you need it.'
+            : `Health details for ${member?.full_name ?? 'the selected family member'}.`
+        }
       />
       <div className="grid items-start gap-6 xl:grid-cols-[1fr_280px]">
         <ProfileForm />
@@ -403,21 +498,31 @@ export default function ProfilePage() {
               <UserRound size={30} />
             </div>
             <h2 className="text-center text-lg font-semibold">
-              {healthProfile?.full_name || profile?.full_name || 'Your profile'}
+              {isSelf
+                ? healthProfile?.full_name ||
+                  profile?.full_name ||
+                  'Your profile'
+                : member?.full_name || 'Family profile'}
             </h2>
             <p className="mt-2 text-center text-sm text-muted-foreground">
-              {healthProfile
-                ? 'Personal health information'
-                : 'Complete your profile to get started'}
+              {hasSavedHealthProfile
+                ? isSelf
+                  ? 'Personal health information'
+                  : 'Family health details'
+                : 'Health details have not been added yet'}
             </p>
             <div className="mt-6 space-y-4 border-t pt-5">
               <p className="flex gap-2 text-xs leading-5 text-muted-foreground">
                 <ShieldCheck className="size-4 shrink-0 text-primary" />
-                Only your account can access this profile.
+                Only your account can access these private details.
               </p>
               <p className="flex gap-2 text-xs leading-5 text-muted-foreground">
                 <Phone className="size-4 shrink-0 text-primary" />
-                Keep your emergency contact up to date.
+                Keep{' '}
+                {isSelf
+                  ? 'your'
+                  : `${member?.full_name ?? 'this family member'}'s`}{' '}
+                emergency contact up to date.
               </p>
             </div>
           </Panel>

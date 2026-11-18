@@ -33,6 +33,9 @@ const ProfilePage = lazy(() => import('@/features/profile/pages/ProfilePage'))
 const MedicalRecordsPage = lazy(
   () => import('@/features/records/pages/MedicalRecordsPage'),
 )
+const MedicalHistoryPage = lazy(
+  () => import('@/features/records/pages/MedicalHistoryPage'),
+)
 const MedicationsPage = lazy(
   () => import('@/features/medications/pages/MedicationsPage'),
 )
@@ -92,6 +95,7 @@ function AppRoutes() {
           <Route path="/dashboard" element={<DashboardPage />} />
           <Route path="/profile" element={<ProfilePage />} />
           <Route path="/medical-records" element={<MedicalRecordsPage />} />
+          <Route path="/medical-history" element={<MedicalHistoryPage />} />
           <Route path="/medications" element={<MedicationsPage />} />
           <Route
             path="/health-tracker"

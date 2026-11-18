@@ -1,4 +1,4 @@
-import { Link, Navigate } from 'react-router-dom'
+import { Link, Navigate, useSearchParams } from 'react-router-dom'
 import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -63,6 +63,7 @@ function LoginForm() {
 function RegisterForm() {
   const { signUp } = useAuth()
   const [error, setError] = useState<string | null>(null)
+  const [notice, setNotice] = useState<string | null>(null)
   const {
     register,
     handleSubmit,
@@ -72,8 +73,13 @@ function RegisterForm() {
   })
   async function submit(values: z.infer<typeof registerSchema>) {
     setError(null)
+    setNotice(null)
     try {
-      await signUp(values)
+      const result = await signUp(values)
+      if ('confirmation_required' in result)
+        setNotice(
+          'This project requires email confirmation before you can sign in. If Supabase sends a confirmation message, open it in this browser to continue. If you do not receive one, contact the project administrator.',
+        )
     } catch (err) {
       setError(errorMessage(err))
     }
@@ -111,6 +117,14 @@ function RegisterForm() {
         error={errors.confirm_password?.message}
       />
       {error && <ErrorState message={error} />}
+      {notice && (
+        <div
+          role="status"
+          className="rounded-2xl border border-primary/20 bg-primary/5 p-3 text-sm text-foreground"
+        >
+          {notice}
+        </div>
+      )}
       <div className="[&_button]:w-full">
         <SubmitButton busy={isSubmitting}>Create account</SubmitButton>
       </div>
@@ -123,7 +137,18 @@ export default function AuthPage({
   registration?: boolean
 }) {
   const { session } = useAuth()
+  const [searchParams] = useSearchParams()
   const [motionPaused, setMotionPaused] = useState(false)
+  const callbackMessage = {
+    'confirmation-missing-code':
+      'The confirmation link did not include a sign-in code. Open the complete link or sign in.',
+    'confirmation-missing-verifier':
+      'Open the confirmation link in the same browser and device where you registered. If that is not possible, sign in or register again.',
+    'confirmation-expired':
+      'That confirmation link is expired or has already been used. Sign in or register again to receive a new link.',
+    'confirmation-unavailable':
+      'The authentication service is temporarily unavailable. Retry the confirmation link shortly.',
+  }[searchParams.get('auth') ?? '']
   if (session) return <Navigate to="/dashboard" replace />
   return (
     <div className="auth-shell flex min-h-screen flex-col bg-workspace">
@@ -182,6 +207,14 @@ export default function AuthPage({
                 ? 'Create your personal healthcare workspace.'
                 : 'Sign in to your personal health workspace.'}
             </p>
+            {callbackMessage && (
+              <div
+                role="status"
+                className="mb-5 rounded-2xl border border-primary/20 bg-primary/5 p-3 text-sm text-foreground"
+              >
+                {callbackMessage}
+              </div>
+            )}
             {registration ? <RegisterForm /> : <LoginForm />}
             <p className="mt-6 text-center text-sm text-muted-foreground">
               {registration ? 'Already have an account?' : 'New to MediVault?'}{' '}

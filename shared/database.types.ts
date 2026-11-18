@@ -70,6 +70,18 @@ export type HealthProfile = Timestamps & {
   emergency_contact_name: string
   emergency_contact_phone: string
 }
+export type FamilyHealthProfile = Timestamps & {
+  user_id: string
+  family_member_id: string
+  gender: HealthProfile['gender']
+  blood_group: HealthProfile['blood_group']
+  height_cm: number | null
+  weight_kg: number | null
+  allergies: string
+  conditions: string
+  emergency_contact_name: string
+  emergency_contact_phone: string
+}
 export type MedicalRecord = Timestamps & {
   id: string
   user_id: string
@@ -139,4 +151,15 @@ export type ArchivedHealthMetric = Timestamps & {
   secondary_value: number | null
   measured_at: string
   notes: string
+}
+export type VisitFollowUp = Timestamps & {
+  id: string
+  user_id: string
+  family_member_id: string
+  visit_id: string
+  due_date: string
+  instruction: string
+  source_record_id: string | null
+  status: 'pending' | 'completed' | 'cancelled'
+  completed_visit_id: string | null
 }
