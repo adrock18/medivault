@@ -1,14 +1,7 @@
-import { Controller, useForm } from 'react-hook-form'
-import { useEffect, useState } from 'react'
+import { Controller, useFieldArray, useForm } from 'react-hook-form'
+import { useEffect, useMemo, useState } from 'react'
 import { zodResolver } from '@hookform/resolvers/zod'
-import {
-  UserRound,
-  ShieldCheck,
-  Phone,
-  Pencil,
-  Plus,
-  Trash2,
-} from 'lucide-react'
+import { Pencil, Plus, Trash2 } from 'lucide-react'
 import { useVault } from '@/contexts/DataContext'
 import { useMutation } from '@/hooks/useMutation'
 import {
@@ -18,7 +11,11 @@ import {
   type ProfileValues,
 } from '@shared/schemas'
 import { api } from '@/lib/api'
-import { localDate } from '@/lib/utils'
+import {
+  medicalBackgroundEntries,
+  medicalBackgroundSchema,
+} from '@shared/medical-background'
+import { DateOfBirthField } from '../components/DateOfBirthField'
 import { Button } from '@/components/ui/button'
 import { ReviewedResults } from '@/features/records/components/ReviewedResults'
 import {
@@ -63,6 +60,12 @@ function ProfileForm() {
   const weight = savedProfile?.weight_kg?.toString() ?? ''
   const allergies = savedProfile?.allergies ?? ''
   const conditions = savedProfile?.conditions ?? ''
+  const backgroundJson = JSON.stringify(medicalBackgroundEntries(savedProfile))
+  // Identical refresh responses must not reset unsaved rows just because the array reference changed.
+  const background = useMemo(
+    () => medicalBackgroundSchema.parse(JSON.parse(backgroundJson)),
+    [backgroundJson],
+  )
   const emergencyContactName = savedProfile?.emergency_contact_name ?? ''
   const emergencyContactPhone = savedProfile?.emergency_contact_phone ?? ''
   const mutation = useMutation()
@@ -83,9 +86,14 @@ function ProfileForm() {
       weight_kg: weight,
       allergies,
       conditions,
+      medical_background: background,
       emergency_contact_name: emergencyContactName,
       emergency_contact_phone: emergencyContactPhone,
     },
+  })
+  const { fields, append, remove } = useFieldArray({
+    control,
+    name: 'medical_background',
   })
   useEffect(() => {
     reset({
@@ -97,6 +105,7 @@ function ProfileForm() {
       weight_kg: weight,
       allergies,
       conditions,
+      medical_background: background,
       emergency_contact_name: emergencyContactName,
       emergency_contact_phone: emergencyContactPhone,
     })
@@ -111,6 +120,7 @@ function ProfileForm() {
     weight,
     allergies,
     conditions,
+    background,
     emergencyContactName,
     emergencyContactPhone,
   ])
@@ -129,11 +139,8 @@ function ProfileForm() {
   }
   return (
     <form onSubmit={handleSubmit(submit)} noValidate>
-      <fieldset
-        disabled={mutation.pending}
-        className="grid min-w-0 gap-5 min-[90rem]:grid-cols-2"
-      >
-        <Panel className="tint-sky min-[90rem]:col-span-2">
+      <fieldset disabled={mutation.pending} className="grid min-w-0 gap-5">
+        <Panel className="tint-sky">
           <SectionTitle
             title={isSelf ? 'Personal information' : 'Health details'}
             description={
@@ -151,12 +158,18 @@ function ProfileForm() {
                   registration={register('full_name')}
                   error={errors.full_name?.message}
                 />
-                <Field
-                  label="Date of birth"
-                  type="date"
-                  max={localDate()}
-                  registration={register('date_of_birth')}
-                  error={errors.date_of_birth?.message}
+                <Controller
+                  name="date_of_birth"
+                  control={control}
+                  render={({ field }) => (
+                    <DateOfBirthField
+                      value={field.value ?? ''}
+                      onChange={field.onChange}
+                      onBlur={field.onBlur}
+                      inputRef={field.ref}
+                      error={errors.date_of_birth?.message}
+                    />
+                  )}
                 />
               </>
             )}
@@ -165,7 +178,7 @@ function ProfileForm() {
               control={control}
               render={({ field }) => (
                 <SelectField
-                  label="Gender (optional)"
+                  label="Gender"
                   name={field.name}
                   ref={field.ref}
                   onBlur={field.onBlur}
@@ -173,11 +186,17 @@ function ProfileForm() {
                   onValueChange={field.onChange}
                   disabled={mutation.pending}
                   options={[
-                    { value: '', label: 'Not specified' },
-                    { value: 'female', label: 'Female' },
+                    {
+                      value: ['', 'male', 'female'].includes(field.value)
+                        ? ''
+                        : field.value,
+                      label: ['', 'male', 'female'].includes(field.value)
+                        ? 'Select gender'
+                        : 'Saved value (unchanged)',
+                      disabled: true,
+                    },
                     { value: 'male', label: 'Male' },
-                    { value: 'non_binary', label: 'Non-binary' },
-                    { value: 'prefer_not_to_say', label: 'Prefer not to say' },
+                    { value: 'female', label: 'Female' },
                   ]}
                   error={errors.gender?.message}
                 />
@@ -228,51 +247,143 @@ function ProfileForm() {
         <Panel className="tint-mint">
           <SectionTitle
             title="Medical background"
-            description="Record known information from your healthcare providers."
+            description="Add allergies and conditions separately. Copy instructions from your doctor only; leave them blank if none were provided."
+            action={
+              <Button
+                type="button"
+                variant="outline"
+                disabled={mutation.pending || fields.length >= 20}
+                onClick={() =>
+                  append({ type: 'allergy', name: '', instructions: '' })
+                }
+              >
+                <Plus /> Add row
+              </Button>
+            }
           />
-          <div className="grid gap-5 sm:grid-cols-2 min-[90rem]:grid-cols-1">
-            <TextField
-              label="Known allergies"
-              placeholder="e.g. Penicillin, peanuts"
-              registration={register('allergies')}
-              error={errors.allergies?.message}
-              hint="Leave blank if unknown. Write 'None known' if confirmed."
-            />
-            <TextField
-              label="Existing medical conditions"
-              placeholder="e.g. Conditions confirmed by your clinician"
-              registration={register('conditions')}
-              error={errors.conditions?.message}
-            />
-          </div>
-        </Panel>
-        <Panel className="tint-peach">
-          <SectionTitle
-            title="Emergency contact"
-            description="Someone to contact when it matters most."
-          />
-          <div className="grid gap-5 sm:grid-cols-2 min-[90rem]:grid-cols-1">
-            <Field
-              label="Contact name"
-              registration={register('emergency_contact_name')}
-              error={errors.emergency_contact_name?.message}
-            />
-            <Field
-              label="Phone number"
-              type="tel"
-              autoComplete="tel"
-              placeholder="+1 555 010 0200"
-              registration={register('emergency_contact_phone')}
-              error={errors.emergency_contact_phone?.message}
-            />
-          </div>
+          {fields.length ? (
+            <table className="block w-full table-fixed md:table">
+              <caption className="sr-only">
+                Allergies and medical conditions
+              </caption>
+              <thead className="hidden text-left text-xs text-muted-foreground md:table-header-group">
+                <tr>
+                  <th scope="col" className="w-[20%] p-3">
+                    Type
+                  </th>
+                  <th scope="col" className="w-[30%] p-3">
+                    Name
+                  </th>
+                  <th scope="col" className="p-3">
+                    Doctor&apos;s instructions (optional)
+                  </th>
+                  <th scope="col" className="w-16 p-3">
+                    <span className="sr-only">Actions</span>
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="grid gap-3 md:table-row-group">
+                {fields.map((row, index) => (
+                  <tr
+                    key={row.id}
+                    className="grid min-w-0 gap-3 rounded-xl border bg-card p-3 sm:grid-cols-2 md:table-row md:p-0"
+                  >
+                    <td className="min-w-0 align-top md:p-3 [&_label]:md:sr-only">
+                      <Controller
+                        name={`medical_background.${index}.type`}
+                        control={control}
+                        render={({ field }) => (
+                          <SelectField
+                            label={`Type ${index + 1}`}
+                            name={field.name}
+                            ref={field.ref}
+                            onBlur={field.onBlur}
+                            value={field.value ?? ''}
+                            onValueChange={field.onChange}
+                            disabled={mutation.pending}
+                            options={[
+                              { value: 'allergy', label: 'Allergy' },
+                              { value: 'condition', label: 'Condition' },
+                            ]}
+                            error={
+                              errors.medical_background?.[index]?.type?.message
+                            }
+                          />
+                        )}
+                      />
+                    </td>
+                    <td className="min-w-0 align-top md:p-3 [&_label]:md:sr-only">
+                      <TextField
+                        label={`Name ${index + 1}`}
+                        placeholder="Allergy or condition"
+                        rows={2}
+                        maxLength={2000}
+                        registration={register(
+                          `medical_background.${index}.name`,
+                        )}
+                        error={
+                          errors.medical_background?.[index]?.name?.message
+                        }
+                      />
+                    </td>
+                    <td className="min-w-0 align-top sm:col-span-2 md:p-3 [&_label]:md:sr-only">
+                      <TextField
+                        label={`Doctor's instructions ${index + 1}`}
+                        placeholder="Only instructions provided by your doctor"
+                        rows={2}
+                        maxLength={2000}
+                        registration={register(
+                          `medical_background.${index}.instructions`,
+                        )}
+                        error={
+                          errors.medical_background?.[index]?.instructions
+                            ?.message
+                        }
+                      />
+                    </td>
+                    <td className="align-top md:p-3">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="icon"
+                        aria-label={`Remove medical background row ${index + 1}`}
+                        onClick={() => remove(index)}
+                      >
+                        <Trash2 />
+                      </Button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          ) : (
+            <p className="rounded-xl border border-dashed p-5 text-sm text-muted-foreground">
+              No medical background added. Use Add row for each known allergy or
+              condition.
+            </p>
+          )}
+          <p className="mt-3 text-xs leading-5 text-muted-foreground">
+            Up to 20 entries. Leave unknown information blank by not adding a
+            row.
+            {savedProfile?.medical_background == null &&
+            (allergies || conditions)
+              ? ' Your previous text is kept together; separate it into rows if needed.'
+              : ''}
+          </p>
+          {(errors.medical_background?.root?.message ||
+            errors.medical_background?.message) && (
+            <p role="alert" className="mt-3 text-sm text-red-700">
+              {errors.medical_background.root?.message ||
+                errors.medical_background.message}
+            </p>
+          )}
         </Panel>
         {mutation.error && (
-          <div className="min-[90rem]:col-span-2">
+          <div>
             <ErrorState message={mutation.error} />
           </div>
         )}
-        <div className="flex justify-end min-[90rem]:col-span-2">
+        <div className="flex justify-end">
           <SubmitButton busy={mutation.pending}>
             Save health profile
           </SubmitButton>
@@ -435,12 +546,18 @@ function FamilyProfiles() {
                   />
                 )}
               />
-              <Field
-                label="Date of birth"
-                type="date"
-                max={localDate()}
-                registration={register('date_of_birth')}
-                error={errors.date_of_birth?.message}
+              <Controller
+                name="date_of_birth"
+                control={control}
+                render={({ field }) => (
+                  <DateOfBirthField
+                    value={field.value}
+                    onChange={field.onChange}
+                    onBlur={field.onBlur}
+                    inputRef={field.ref}
+                    error={errors.date_of_birth?.message}
+                  />
+                )}
               />
             </div>
             {mutation.error && <ErrorState message={mutation.error} />}
@@ -483,22 +600,11 @@ function FamilyProfiles() {
 }
 
 export default function ProfilePage() {
-  const {
-    healthProfile,
-    familyHealthProfiles,
-    familyMembers,
-    profile,
-    selectedFamilyMemberId,
-  } = useVault()
+  const { familyMembers, selectedFamilyMemberId } = useVault()
   const member = familyMembers.find(
     (familyMember) => familyMember.id === selectedFamilyMemberId,
   )
   const isSelf = member?.relationship === 'self'
-  const hasSavedHealthProfile = isSelf
-    ? Boolean(healthProfile)
-    : familyHealthProfiles.some(
-        (familyProfile) => familyProfile.family_member_id === member?.id,
-      )
   return (
     <>
       <PageTitle
@@ -510,48 +616,7 @@ export default function ProfilePage() {
         }
       />
       <ReviewedResults vitalsOnly />
-      <div className="grid items-start gap-6 xl:grid-cols-[1fr_280px]">
-        <ProfileForm />
-        <div className="space-y-5">
-          <Panel>
-            <div className="mx-auto mb-4 flex size-16 items-center justify-center rounded-full bg-teal-50 text-primary">
-              <UserRound size={30} />
-            </div>
-            <h2 className="text-center text-lg font-semibold">
-              {isSelf
-                ? healthProfile?.full_name ||
-                  profile?.full_name ||
-                  'Your profile'
-                : member?.full_name || 'Family profile'}
-            </h2>
-            <p className="mt-2 text-center text-sm text-muted-foreground">
-              {hasSavedHealthProfile
-                ? isSelf
-                  ? 'Personal health information'
-                  : 'Family health details'
-                : 'Health details have not been added yet'}
-            </p>
-            <div className="mt-6 space-y-4 border-t pt-5">
-              <p className="flex gap-2 text-xs leading-5 text-muted-foreground">
-                <ShieldCheck className="size-4 shrink-0 text-primary" />
-                Only your account can access these private details.
-              </p>
-              <p className="flex gap-2 text-xs leading-5 text-muted-foreground">
-                <Phone className="size-4 shrink-0 text-primary" />
-                Keep{' '}
-                {isSelf
-                  ? 'your'
-                  : `${member?.full_name ?? 'this family member'}'s`}{' '}
-                emergency contact up to date.
-              </p>
-            </div>
-            <p className="mt-5 border-t pt-4 text-xs leading-5 text-muted-foreground">
-              Review your profile after appointments so your records reflect the
-              information shared by your care team.
-            </p>
-          </Panel>
-        </div>
-      </div>
+      <ProfileForm />
       <FamilyProfiles />
       <SafetyNote />
     </>

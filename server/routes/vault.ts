@@ -5,6 +5,8 @@ import {
   profileSchema,
 } from '../../shared/schemas.ts'
 import { accountExportSchema, vaultSchema } from '../../shared/contracts.ts'
+import { medicalBackgroundText } from '../../shared/medical-background.ts'
+import type { MedicalBackgroundEntry } from '../../shared/database.types.ts'
 import {
   resultReviewRow,
   reviewResultsSchema,
@@ -15,6 +17,15 @@ import {
   validate,
   type RouteContext,
 } from './context.ts'
+
+function backgroundFields(entries: MedicalBackgroundEntry[] | undefined) {
+  return entries === undefined
+    ? {}
+    : {
+        allergies: medicalBackgroundText(entries, 'allergy'),
+        conditions: medicalBackgroundText(entries, 'condition'),
+      }
+}
 
 export function vaultRoutes(context: RouteContext) {
   const router = Router()
@@ -68,6 +79,7 @@ export function vaultRoutes(context: RouteContext) {
         .upsert(
           {
             ...input,
+            ...backgroundFields(input.medical_background),
             user_id: res.locals.user.id,
             date_of_birth: input.date_of_birth || null,
             gender: input.gender || null,
@@ -145,6 +157,7 @@ export function vaultRoutes(context: RouteContext) {
         .upsert(
           {
             ...input,
+            ...backgroundFields(input.medical_background),
             user_id: res.locals.user.id,
             family_member_id: id,
             gender: input.gender || null,

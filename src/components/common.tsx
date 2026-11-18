@@ -1,4 +1,4 @@
-import { useId, useState, type ReactNode } from 'react'
+import { useId, useState, type ReactNode, type Ref } from 'react'
 import {
   Activity,
   AlertCircle,
@@ -335,7 +335,10 @@ export function Field({
   hint,
   registration,
   ...props
-}: FieldCommon & InputHTMLAttributes<HTMLInputElement>) {
+}: FieldCommon &
+  InputHTMLAttributes<HTMLInputElement> & {
+    ref?: Ref<HTMLInputElement>
+  }) {
   const id = useId()
   return (
     <div className="space-y-2">

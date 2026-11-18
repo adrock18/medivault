@@ -1,13 +1,18 @@
 import { z } from 'zod'
 import { localDate } from './health.ts'
 import { medicationForms } from './database.types.ts'
+import { medicalBackgroundSchema } from './medical-background.ts'
 
 export const calendarDateSchema = z
   .string()
   .regex(/^\d{4}-\d{2}-\d{2}$/, 'Choose a valid date.')
   .refine((value) => {
     const parsed = new Date(`${value}T12:00:00`)
-    return !Number.isNaN(parsed.getTime()) && localDate(parsed) === value
+    return (
+      !value.startsWith('0000-') &&
+      !Number.isNaN(parsed.getTime()) &&
+      localDate(parsed) === value
+    )
   }, 'Choose a valid calendar date.')
 const date = calendarDateSchema
 const optionalPastDate = z.union([
@@ -50,6 +55,7 @@ const profileFieldsSchema = z.object({
   weight_kg: numberOrBlank(0.1, 700),
   allergies: z.string().trim().max(2000),
   conditions: z.string().trim().max(2000),
+  medical_background: medicalBackgroundSchema.optional(),
   emergency_contact_name: z.string().trim().max(120),
   emergency_contact_phone: z
     .string()
@@ -85,6 +91,7 @@ export const familyHealthProfileSchema = profileFieldsSchema
     weight_kg: true,
     allergies: true,
     conditions: true,
+    medical_background: true,
     emergency_contact_name: true,
     emergency_contact_phone: true,
   })

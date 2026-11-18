@@ -56,6 +56,11 @@ export type NotificationPreferences = Timestamps & {
   email_reminders_enabled: boolean
   timezone: string
 }
+export type MedicalBackgroundEntry = {
+  type: 'allergy' | 'condition'
+  name: string
+  instructions: string
+}
 export type HealthProfile = Timestamps & {
   id: string
   user_id: string
@@ -67,6 +72,7 @@ export type HealthProfile = Timestamps & {
   weight_kg: number | null
   allergies: string
   conditions: string
+  medical_background?: MedicalBackgroundEntry[] | null
   emergency_contact_name: string
   emergency_contact_phone: string
 }
@@ -79,6 +85,7 @@ export type FamilyHealthProfile = Timestamps & {
   weight_kg: number | null
   allergies: string
   conditions: string
+  medical_background?: MedicalBackgroundEntry[] | null
   emergency_contact_name: string
   emergency_contact_phone: string
 }

@@ -44,6 +44,9 @@ it.
 - **Health profile and dashboard:** manage profile details and see a
   database-backed overview of records, medications, today's schedule, and
   pending follow-ups. Saved follow-up dates are not booked appointments.
+  Birth dates support typed day/month/year entry. Medical background uses
+  add/remove rows for allergies and conditions, with optional doctor-provided
+  instructions; the app never generates treatment advice.
 - **Settings:** change appearance, update a password, export account data, and
   create an optional private activity summary.
 
@@ -137,6 +140,16 @@ Confirmed measurement dates are fixed; upload a corrected report separately
 if its date was wrong. Retain or correct previously synced profile measurements
 when revising a report. Deleting its source file retains reviewed history and
 synced profile values, with the file link marked unavailable.
+
+Apply the `structured_medical_background` migration before deploying the
+profile-table update. It adds nullable JSONB entries to owner and family health
+profiles without changing RLS. Existing free text stays intact and appears as
+one row per category until edited; commas and newlines are not automatically
+split. Saving structured entries also maintains the legacy allergy/condition
+summary text for exports and activity summaries. Older clients must refresh
+before changing background text after structured entries have been saved.
+Emergency-contact fields and the profile-summary sidebar are no longer shown
+on the profile page; previously saved contacts and gender values are preserved.
 
 Local OCR suggestions support explicit height/cm, weight/kg, pulse/bpm,
 oxygen/%, blood pressure/mmHg, ABO/Rh blood group, hemoglobin/g/dL,

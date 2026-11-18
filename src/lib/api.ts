@@ -161,6 +161,7 @@ export const api = {
           weight_kg: values.weight_kg,
           allergies: values.allergies,
           conditions: values.conditions,
+          medical_background: values.medical_background,
           emergency_contact_name: values.emergency_contact_name,
           emergency_contact_phone: values.emergency_contact_phone,
         }),

@@ -1,6 +1,7 @@
 import { z } from 'zod'
 import { medicationForms } from './database.types.ts'
 import { resultReviewRow } from './record-results.ts'
+import { medicalBackgroundSchema } from './medical-background.ts'
 import type {
   Profile,
   FamilyMember,
@@ -78,6 +79,7 @@ export const healthProfileRow: z.ZodType<HealthProfile> = z.object({
   weight_kg: z.number().nullable(),
   allergies: z.string(),
   conditions: z.string(),
+  medical_background: medicalBackgroundSchema.nullable().optional(),
   emergency_contact_name: z.string(),
   emergency_contact_phone: z.string(),
   ...timestamps,
@@ -95,6 +97,7 @@ export const familyHealthProfileRow: z.ZodType<FamilyHealthProfile> = z.object({
   weight_kg: z.number().nullable(),
   allergies: z.string(),
   conditions: z.string(),
+  medical_background: medicalBackgroundSchema.nullable().optional(),
   emergency_contact_name: z.string(),
   emergency_contact_phone: z.string(),
   ...timestamps,

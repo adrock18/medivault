@@ -137,6 +137,7 @@ export type Database = {
           family_member_id: string
           gender: string | null
           height_cm: number | null
+          medical_background: Json | null
           updated_at: string
           user_id: string
           weight_kg: number | null
@@ -151,6 +152,7 @@ export type Database = {
           family_member_id: string
           gender?: string | null
           height_cm?: number | null
+          medical_background?: Json | null
           updated_at?: string
           user_id: string
           weight_kg?: number | null
@@ -165,6 +167,7 @@ export type Database = {
           family_member_id?: string
           gender?: string | null
           height_cm?: number | null
+          medical_background?: Json | null
           updated_at?: string
           user_id?: string
           weight_kg?: number | null
@@ -291,6 +294,7 @@ export type Database = {
           gender: string | null
           height_cm: number | null
           id: string
+          medical_background: Json | null
           updated_at: string
           user_id: string
           weight_kg: number | null
@@ -307,6 +311,7 @@ export type Database = {
           gender?: string | null
           height_cm?: number | null
           id?: string
+          medical_background?: Json | null
           updated_at?: string
           user_id: string
           weight_kg?: number | null
@@ -323,6 +328,7 @@ export type Database = {
           gender?: string | null
           height_cm?: number | null
           id?: string
+          medical_background?: Json | null
           updated_at?: string
           user_id?: string
           weight_kg?: number | null
