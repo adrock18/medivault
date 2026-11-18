@@ -17,7 +17,8 @@ The browser sends same-origin HttpOnly cookies, not JavaScript-accessible tokens
 Express validates the user with Supabase Auth and uses a separate request-scoped
 client for that user's ordinary data requests. PostgreSQL RLS independently
 enforces account ownership. The server-only secret client is reserved for
-controlled storage, readiness, Auth administration and optional reminder work.
+controlled storage, readiness and Auth administration. Medication reminders use
+the open website; the former medication-email routes are no longer mounted.
 
 ## Page and mutation lifecycle
 

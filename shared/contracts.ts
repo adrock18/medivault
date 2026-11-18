@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import { medicationForms } from './database.types.ts'
+import { resultReviewRow } from './record-results.ts'
 import type {
   Profile,
   FamilyMember,
@@ -228,6 +229,7 @@ export const visitFollowUpRow: z.ZodType<VisitFollowUp> = z.object({
   ...timestamps,
 })
 export const accountExportSchema = z.object({
+  record_result_reviews: z.array(resultReviewRow),
   exported_at: z.string(),
   profile: profileRow,
   family_members: z.array(familyMemberRow),
@@ -251,6 +253,7 @@ export const registrationResultSchema = z.union([
 ])
 export type RegistrationResult = z.infer<typeof registrationResultSchema>
 export const vaultSchema = z.object({
+  resultReviews: z.array(resultReviewRow),
   profile: profileRow,
   familyMembers: z.array(familyMemberRow),
   notificationPreferences: notificationPreferencesRow,

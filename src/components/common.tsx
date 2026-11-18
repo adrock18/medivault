@@ -143,24 +143,26 @@ export function PageSkeleton({ variant }: { variant: PageSkeletonVariant }) {
       {variant === 'dashboard' && (
         <>
           <div className="daybook mb-6">
-            <Panel>
-              <Skeleton className="mb-6 h-5 w-40" />
-              <Skeleton className="mb-7 h-12 w-60 max-w-full rounded-full" />
-              <div className="space-y-6">
-                {[0, 1, 2].map((row) => (
-                  <div key={row}>
-                    <Skeleton className="mb-3 h-3 w-20" />
-                    <div className="grid grid-cols-[76px_1fr] gap-4 border-b pb-5">
-                      <Skeleton className="h-24 w-full" />
-                      <Skeleton className="h-24 w-full" />
+            <div className="grid min-w-0 gap-5">
+              <Panel>
+                <Skeleton className="mb-6 h-5 w-40" />
+                <Skeleton className="mb-7 h-12 w-60 max-w-full rounded-full" />
+                <div className="space-y-6">
+                  {[0, 1, 2].map((row) => (
+                    <div key={row}>
+                      <Skeleton className="mb-3 h-3 w-20" />
+                      <div className="grid grid-cols-[76px_1fr] gap-4 border-b pb-5">
+                        <Skeleton className="h-24 w-full" />
+                        <Skeleton className="h-24 w-full" />
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  ))}
+                </div>
+              </Panel>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <Skeleton className="h-20 w-full" />
+                <Skeleton className="h-20 w-full" />
               </div>
-            </Panel>
-            <div className="grid gap-3 sm:grid-cols-2">
-              <Skeleton className="h-20 w-full" />
-              <Skeleton className="h-20 w-full" />
             </div>
             <Panel className="daybook-summary">
               <Skeleton className="mb-5 h-5 w-40" />
@@ -514,13 +516,15 @@ export function ConfirmationDialog({
 }
 export function SubmitButton({
   busy,
+  disabled = false,
   children,
 }: {
   busy: boolean
+  disabled?: boolean
   children: ReactNode
 }) {
   return (
-    <Button type="submit" disabled={busy}>
+    <Button type="submit" disabled={busy || disabled}>
       {busy && <LoaderCircle className="animate-spin" />}
       {busy ? 'Saving...' : children}
     </Button>

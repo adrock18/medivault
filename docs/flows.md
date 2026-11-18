@@ -284,22 +284,16 @@ prescription was active. Calendar unlogged entries use the current schedule and
 are explicitly projections, not verified historical/missed doses. Recorded
 adherence is taken divided by logged outcomes, excluding unlogged entries.
 
-## Optional email reminders
+## Website medication reminders
 
-The signed-in owner can opt in and save an IANA time zone. Delivery is enabled
-only when the server has `RESEND_API_KEY`, `EMAIL_FROM`, and a
-`REMINDER_CRON_SECRET` of at least 32 characters. A separately managed external
-scheduler calls `POST /api/internal/reminders` with that secret as a bearer
-token; the application does not run its own always-on worker.
+The open website compares the current local time with pending scheduled doses
+and shows due/pending and next-dose status. Users record taken/skipped outcomes
+themselves. Vault state refreshes every minute and on window focus. There is no
+background/push guarantee and no medication email delivery.
 
-Each scheduler run checks the current and previous four minute slots for
-opted-in users. The email contains a generic count and a link/sign-in prompt,
-not medication or family-member names. A unique per-medication/date/time
-delivery row and Resend idempotency key suppress duplicates; failed attempts
-can be retried on later scheduler runs. Provider or scheduler failures can
-still delay or prevent delivery, particularly on sleeping/free hosts. A
-successful email request is not proof the dose was taken, and the reminder is
-not an emergency alert or treatment instruction.
+The former notification-preference and scheduler routes are not mounted.
+Historical database preference/delivery structures remain inert for compatibility.
+Supabase Auth confirmation and recovery emails are independent and unchanged.
 
 ## Endpoint reference
 
@@ -328,7 +322,7 @@ authentication, request-protection and inaccessible-owner errors remain
 | `PATCH /api/family-members/:id`              | Update an owned family profile; the account owner's self name uses health profile.                                                                      |
 | `PUT /api/family-members/:id/health-profile` | Validated health details -> saved private health profile for an owned non-owner profile.                                                                |
 | `DELETE /api/family-members/:id`             | Deletes an empty non-owner profile and its health details; self is rejected (400), dependent data blocks deletion (409), other owners are hidden (404). |
-| `PUT /api/notification-preferences`          | email_reminders_enabled/timezone -> saved opt-in settings.                                                                                              |
+| `POST /api/records/:id/results`              | Reviewed measurement date and result rows -> append-only review; latest eligible profile fields sync atomically.                                        |
 | `POST /api/care-tracks`                      | family_member_id/title/kind -> care track, 201.                                                                                                         |
 | `PATCH /api/care-tracks/:id`                 | Update owned care track.                                                                                                                                |
 | `DELETE /api/care-tracks/:id`                | Deletes track; its visits remain standalone.                                                                                                            |
@@ -348,7 +342,6 @@ authentication, request-protection and inaccessible-owner errors remain
 | `POST /api/dose-logs`                        | medication_id/scheduled_date/scheduled_time/status -> log, 201.                                                                                         |
 | `PATCH /api/dose-logs/:id`                   | taken/skipped status -> saved log; coordinates immutable.                                                                                               |
 | `DELETE /api/dose-logs/:id`                  | Undo -> 204.                                                                                                                                            |
-| `POST /api/internal/reminders`               | Bearer scheduler secret -> `{sent,failed}`; public route, secret-protected, optional.                                                                   |
 
 There is no public file-list API, account-sharing API, diagnosis API, or server
 endpoint that prescribes a medication. Sample data and JSON export are explicit

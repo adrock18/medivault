@@ -24,11 +24,6 @@ import { medicationRoutes } from './routes/medications.ts'
 import { careRoutes } from './routes/care.ts'
 import { recordRoutes } from './routes/records.ts'
 import { vaultRoutes } from './routes/vault.ts'
-import {
-  privateNotificationRoutes,
-  publicReminderRoutes,
-} from './routes/notifications.ts'
-import type { ReminderEmailSettings } from './config.ts'
 
 declare global {
   namespace Express {
@@ -48,7 +43,6 @@ export type AppOptions = {
   trustProxy?: number
   documentStore?: DocumentStore
   ocrSpaceApiKey?: string
-  reminderEmail?: ReminderEmailSettings
   supabaseSettings?: SupabaseSettings
   authGatewayFactory?: AuthGatewayFactory
 }
@@ -84,8 +78,6 @@ export function createApp(options: AppOptions) {
   app.use(express.json({ limit: '64kb' }))
   app.use(cookieParser())
   app.use('/api', (req, _res, next) => {
-    if (req.path === '/internal/reminders' && req.method === 'POST')
-      return next()
     if (!['GET', 'HEAD', 'OPTIONS'].includes(req.method)) {
       if (req.get('X-MediVault-Request') !== '1')
         return next(new HttpError(403, 'Missing request protection header.'))
@@ -132,7 +124,6 @@ export function createApp(options: AppOptions) {
     auth,
     authLimit,
     ocrSpaceApiKey: options.ocrSpaceApiKey,
-    reminderEmail: options.reminderEmail,
   })
 
   app.get('/api/health', async (_req, res) => {
@@ -143,7 +134,6 @@ export function createApp(options: AppOptions) {
     res.json({ status: 'ok' })
   })
   app.use('/api', publicAuthRoutes(routes))
-  app.use('/api', publicReminderRoutes(routes))
   app.use('/api', async (req, res, next) => {
     const user = await routes.auth.getSession(req, res)
     if (!user)
@@ -154,7 +144,6 @@ export function createApp(options: AppOptions) {
     next()
   })
   app.use('/api', accountRoutes(routes))
-  app.use('/api', privateNotificationRoutes(routes))
   app.use('/api', vaultRoutes(routes))
   app.use('/api', recordRoutes(routes))
   app.use('/api', medicationRoutes(routes))

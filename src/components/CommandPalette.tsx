@@ -1,13 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import {
-  Search,
-  Plus,
-  ScanLine,
-  Upload,
-  CalendarDays,
-  ArrowUpRight,
-} from 'lucide-react'
+import { Search, Plus, Upload, CalendarDays, ArrowUpRight } from 'lucide-react'
 import { navigation } from '../lib/navigation'
 import { Button } from './ui/button'
 import { Field } from './common'
@@ -28,9 +21,9 @@ const actions = [
   },
   {
     to: '/medications?action=scan',
-    label: 'Scan prescription',
-    icon: ScanLine,
-    keywords: 'ocr document',
+    label: 'Upload prescription',
+    icon: Upload,
+    keywords: 'ocr scan document',
   },
   {
     to: '/medical-records?action=upload',
@@ -91,13 +84,14 @@ export function CommandPalette() {
     <>
       <Button
         ref={trigger}
-        variant="ghost"
+        variant="outline"
+        className="w-full min-w-0 justify-start rounded-xl text-muted-foreground"
         aria-label="Search actions"
         onClick={() => setOpen(true)}
       >
         <Search className="size-4" />
-        <span className="hidden xl:inline">Search actions</span>
-        <kbd className="hidden rounded border px-1.5 text-xs text-muted-foreground xl:inline">
+        <span className="truncate">Search</span>
+        <kbd className="ml-auto hidden rounded border px-1.5 text-xs text-muted-foreground sm:inline">
           Ctrl / ⌘ K
         </kbd>
       </Button>

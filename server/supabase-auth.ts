@@ -216,9 +216,25 @@ export function createSupabaseAuthGateway(
       )
       if (error) {
         request.discardCookies()
+        const details = errorDetails(error)
+        if (details.code === 'over_email_send_rate_limit')
+          throw new HttpError(
+            429,
+            'The confirmation email limit has been reached. Please wait before trying again.',
+          )
+        if (details.status === 429)
+          throw new HttpError(
+            429,
+            'Too many sign-up attempts. Please wait before trying again.',
+          )
         if (isUnavailable(error)) throw unavailable()
-        if (errorDetails(error).code === 'user_already_exists')
+        if (details.code === 'user_already_exists')
           throw new HttpError(409, 'An account with that email already exists.')
+        if (details.code === 'email_address_invalid')
+          throw new HttpError(
+            400,
+            'Enter a valid email address that can receive confirmation emails.',
+          )
         throw new HttpError(
           400,
           'Unable to create an account with those details.',

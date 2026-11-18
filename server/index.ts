@@ -17,7 +17,6 @@ export async function startApi(env: NodeJS.ProcessEnv = process.env) {
     trustProxy: config.trustProxy,
     supabaseSettings: supabase,
     ocrSpaceApiKey: config.ocrSpaceApiKey,
-    reminderEmail: config.reminderEmail,
   })
   if (!(await readiness()))
     throw new Error(

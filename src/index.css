@@ -760,12 +760,10 @@
 @media (min-width: 1280px) {
   .daybook {
     grid-template-columns: minmax(0, 1fr) 320px;
-    grid-template-rows: auto 1fr;
   }
 
   .daybook-summary {
     grid-column: 2;
-    grid-row: 1 / span 2;
   }
 }
 

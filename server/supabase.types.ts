@@ -738,6 +738,19 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      get_reviewed_results: {
+        Args: never
+        Returns: Json
+      }
+      save_reviewed_results: {
+        Args: {
+          p_record_id: string
+          p_measured_on: string
+          p_results: Json
+          p_confirm_blood_group_change?: boolean
+        }
+        Returns: Json
+      }
       check_app_readiness: {
         Args: never
         Returns: boolean

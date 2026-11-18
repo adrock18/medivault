@@ -10,7 +10,14 @@ and JSON export retain earlier measurements.
 
 The server validates Supabase sessions, then uses a request-scoped user client
 for ordinary PostgreSQL reads and writes. The server-only secret client handles
-validated object mutations, schema readiness and optional reminder-worker RPCs.
+validated object mutations and schema readiness. Medication email routes are
+disabled; legacy preference/delivery structures and worker SQL remain inert.
+
+Reviewed report results live in the append-only `record_result_reviews` table.
+The `save_reviewed_results` invoker RPC validates source ownership and saves a
+review and eligible latest profile measurements atomically. Measurement dates
+determine latest values; a newer review supersedes the same source's snapshot.
+The owner-isolated `get_reviewed_results` RPC supplies vault and export history.
 
 | Layer            | Technology and reason                                                                                                  |
 | ---------------- | ---------------------------------------------------------------------------------------------------------------------- |
@@ -21,7 +28,7 @@ validated object mutations, schema readiness and optional reminder-worker RPCs.
 | Database         | Supabase PostgreSQL with owner-scoped RLS, composite foreign keys and versioned migrations.                            |
 | Files            | Private Supabase Storage; bytes are delivered only through authenticated API requests.                                 |
 | Document reading | PDF.js and Tesseract run locally by default; optional OCR.Space processing is server-keyed and consent-gated per scan. |
-| Email reminders  | Optional Resend delivery from a bearer-protected scheduler endpoint, disabled until configured.                        |
+| Dose reminders   | Current-time status while the website is open; no medication email endpoint or settings UI.                            |
 | Verification     | Vitest, Testing Library, Supertest, startup/build checks; see [workflow](development.md) for what each proves.         |
 
 ```mermaid
@@ -34,8 +41,6 @@ flowchart LR
   Express --> Auth["Supabase Auth"]
   Express --> DB[("Supabase PostgreSQL + RLS")]
   Express --> Documents["Private Supabase Storage"]
-  Scheduler["External scheduler"] -->|"Bearer secret"| Express
-  Express -->|"Generic email"| Resend["Resend"]
   Other["Other account"] -->|"Ownership checked on every request"| Express
 ```
 
@@ -281,7 +286,7 @@ bookmark table.
 | [auth routes](../server/routes/auth.ts), [route context](../server/routes/context.ts)                                                                                                                    | Public auth and password routes; shared validation, session, ownership and CRUD helpers.                                 |
 | [vault routes](../server/routes/vault.ts), [care routes](../server/routes/care.ts)                                                                                                                       | Owned vault/profile endpoints and profile-scoped care tracks/visits.                                                     |
 | [record routes](../server/routes/records.ts), [medication routes](../server/routes/medications.ts)                                                                                                       | Owner-scoped private document operations, opt-in OCR forwarding, medication CRUD and explicit dose logs.                 |
-| [notification routes](../server/routes/notifications.ts)                                                                                                                                                 | Reminder preferences and secret-authorized, idempotent scheduled Resend delivery.                                        |
+| [notification routes](../server/routes/notifications.ts)                                                                                                                                                 | Retired, unmounted implementation; no active preference or email scheduler endpoint.                                     |
 | [Supabase clients](../server/supabase.ts), [generated database types](../server/supabase.types.ts), [managed migrations](../supabase/migrations)                                                         | Typed request/admin client boundaries, PostgreSQL RLS and transactional guards.                                          |
 | [config](../server/config.ts), [index](../server/index.ts), [frontend-build](../server/frontend-build.ts)                                                                                                | Validated startup, shutdown and production-artifact refusal before opening storage.                                      |
 | [document-store](../server/document-store.ts)                                                                                                                                                            | Private native Supabase put/get/delete interface; injectable failure seam.                                               |

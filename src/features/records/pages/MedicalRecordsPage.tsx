@@ -7,10 +7,10 @@ import {
   ChevronRight,
   Star,
   Pencil,
-  Plus,
   Search,
   Trash2,
   Upload,
+  ClipboardList,
 } from 'lucide-react'
 import { useVault } from '@/contexts/DataContext'
 import { useMutation } from '@/hooks/useMutation'
@@ -18,11 +18,7 @@ import { useQueryParams } from '@/hooks/useQueryParams'
 import { documentKinds, localDate } from '@/lib/utils'
 import { api } from '@/lib/api'
 import { deleteRecord } from '../lib/records'
-import type {
-  CareTrack,
-  CareVisit,
-  MedicalRecord,
-} from '@shared/database.types'
+import type { CareVisit, MedicalRecord } from '@shared/database.types'
 import {
   PageTitle,
   EmptyState,
@@ -41,14 +37,13 @@ import {
   type PreviewSelection,
 } from '../components/RecordPreview'
 import { FollowUpDialog } from '../components/FollowUpDialog'
+import { ReviewedResults } from '../components/ReviewedResults'
+import { RecordResultsDialog } from '../components/RecordResultsDialog'
 
 type Removal =
-  | { type: 'record'; item: MedicalRecord }
-  | { type: 'visit'; item: CareVisit }
-  | { type: 'track'; item: CareTrack }
+  { type: 'record'; item: MedicalRecord } | { type: 'visit'; item: CareVisit }
 
-type CareDialogState =
-  { kind: 'track'; track?: CareTrack } | { kind: 'visit'; visit?: CareVisit }
+type CareDialogState = { kind: 'visit'; visit?: CareVisit }
 
 export default function MedicalRecordsPage() {
   const { selectedFamilyMemberId } = useVault()
@@ -85,6 +80,7 @@ function RecordsWorkspace() {
   const results = useRef<HTMLSpanElement>(null)
   const mutation = useMutation()
   const upload = params.get('action') === 'upload'
+  const showResults = params.get('view') === 'results'
   const filtered = records
     .filter(
       (record) =>
@@ -169,12 +165,10 @@ function RecordsWorkspace() {
     const saved = await mutation.run(
       async () => {
         if (remove.type === 'record') await deleteRecord(remove.item)
-        else if (remove.type === 'visit')
-          await api.care.removeVisit(remove.item.id)
-        else await api.care.removeTrack(remove.item.id)
+        else await api.care.removeVisit(remove.item.id)
         await reload()
       },
-      `${remove.type === 'record' ? 'Medical record' : remove.type === 'visit' ? 'Visit' : 'Care track'} deleted.`,
+      `${remove.type === 'record' ? 'Medical record' : 'Visit'} deleted.`,
     )
     if (saved) setRemove(null)
   }
@@ -376,10 +370,9 @@ function RecordsWorkspace() {
           <div className="flex flex-wrap gap-2">
             <Button
               variant="outline"
-              onClick={() => setCareDialog({ kind: 'track' })}
+              onClick={() => updateParams({ action: 'results' })}
             >
-              <Plus />
-              Care track
+              <ClipboardList /> Review results
             </Button>
             <Button
               variant="outline"
@@ -395,246 +388,238 @@ function RecordsWorkspace() {
           </div>
         }
       />
-      {(selected || selectedVisit) && (
-        <div className="mb-5 flex flex-wrap items-center justify-between gap-2 rounded-xl border bg-card p-4">
-          <p className="text-sm">
-            {selected
-              ? 'Showing the linked medical record.'
-              : 'Showing the selected visit.'}
-          </p>
-          <Button
-            variant="outline"
-            onClick={() => updateParams({ record: null, visit: null })}
-          >
-            Show all records
-          </Button>
-        </div>
-      )}
-      <div className="mb-6 rounded-2xl border bg-card p-4 sm:p-5">
-        <div className="grid min-w-0 gap-4 sm:grid-cols-2 xl:grid-cols-[minmax(0,1fr)_minmax(0,190px)_minmax(0,175px)_auto]">
-          <div className="min-w-0">
-            <Field
-              label="Search records"
-              className="h-12 min-h-12"
-              placeholder="Search by title, provider, or file name..."
-              value={search}
-              onChange={(event) => setSearch(event.target.value)}
-            />
-          </div>
-          <div className="min-w-0">
-            <SelectField
-              className="h-12 min-h-12"
-              label="Document type"
-              value={kind}
-              onValueChange={setKind}
-              options={[
-                { value: '', label: 'All document types' },
-                ...Object.entries(documentKinds).map(([value, label]) => ({
-                  value,
-                  label,
-                })),
-              ]}
-            />
-          </div>
-          <div className="min-w-0">
-            <SelectField
-              label="Date order"
-              className="h-12 min-h-12"
-              value={order}
-              options={[
-                { value: 'newest', label: 'Newest first' },
-                { value: 'oldest', label: 'Oldest first' },
-              ]}
-              onValueChange={(value) => {
-                if (value === 'newest' || value === 'oldest') setOrder(value)
-              }}
-            />
-          </div>
-          <div className="min-w-0 space-y-2">
-            <p
-              id="records-favourites-label"
-              className="text-sm leading-none font-medium"
-            >
-              Favourites
-            </p>
-            <Button
-              variant="outline"
-              className="h-12 min-h-12 w-full"
-              aria-describedby="records-favourites-label"
-              aria-pressed={favouritesOnly}
-              onClick={() => setFavouritesOnly((value) => !value)}
-            >
-              <Star aria-hidden="true" />
-              Favourites only
-            </Button>
-          </div>
-        </div>
-        <span
-          ref={results}
-          tabIndex={-1}
-          role="status"
-          aria-label="Record results"
-          className="mt-4 block text-xs text-muted-foreground focus:outline-2 focus:outline-offset-4 focus:outline-ring"
+      <div
+        className="mb-5 flex w-fit max-w-full gap-1 rounded-2xl border bg-card p-1"
+        role="group"
+        aria-label="Medical record views"
+      >
+        <Button
+          variant={showResults ? 'ghost' : 'secondary'}
+          aria-pressed={!showResults}
+          onClick={() => updateParams({ view: null })}
         >
-          {filtered.length} record{filtered.length !== 1 && 's'}
-        </span>
+          Documents
+        </Button>
+        <Button
+          variant={showResults ? 'secondary' : 'ghost'}
+          aria-pressed={showResults}
+          onClick={() => updateParams({ view: 'results' })}
+        >
+          Test results
+        </Button>
       </div>
-
-      {pendingFollowUps.length > 0 && (
-        <section
-          aria-label="Pending follow-ups"
-          className="mb-6 rounded-2xl border bg-card p-4 sm:p-5"
-        >
-          <SectionTitle
-            title="Follow-ups due"
-            description="Manually recorded return dates, not booked appointments. Shown independently of document filters."
-          />
-          <ul className="divide-y">
-            {pendingFollowUps.map((item) => {
-              const visit = visits.find((visit) => visit.id === item.visit_id)
-              return (
-                <li
-                  key={item.id}
-                  className="flex flex-wrap items-center justify-between gap-3 py-3 first:pt-0 last:pb-0"
-                >
-                  <div className="min-w-0 flex-1">
-                    <p className="break-words text-sm font-medium">
-                      {visit?.title}
-                    </p>
-                    <p className="mt-1 text-xs text-muted-foreground">
-                      {item.due_date} ·{' '}
-                      {item.due_date < localDate(now)
-                        ? 'Past due date'
-                        : item.due_date === localDate(now)
-                          ? 'Due today'
-                          : 'Upcoming'}
-                    </p>
-                  </div>
-                  <Button
-                    variant="outline"
-                    aria-label={`Open follow-up for ${visit?.title}`}
-                    onClick={() => {
-                      setSearch('')
-                      setKind('')
-                      setFavouritesOnly(false)
-                      updateParams({ record: null, visit: item.visit_id })
-                    }}
-                  >
-                    Open visit
-                  </Button>
-                </li>
-              )
-            })}
-          </ul>
-        </section>
-      )}
-      <div className="space-y-7">
-        {!visibleVisits.length &&
-        !filtered.length &&
-        (hasDocumentConstraints || selectedVisit) ? (
-          <EmptyState
-            icon={Search}
-            title="No matching records or visits"
-            description="The linked item may no longer be available for this profile, or the current filters hide it."
-            action={
-              <Button variant="outline" onClick={clearFilters}>
-                Clear filters
+      {showResults ? (
+        <ReviewedResults
+          recordId={selected ?? undefined}
+          onReview={() => updateParams({ action: 'results' })}
+        />
+      ) : (
+        <>
+          {(selected || selectedVisit) && (
+            <div className="mb-5 flex flex-wrap items-center justify-between gap-2 rounded-xl border bg-card p-4">
+              <p className="text-sm">
+                {selected
+                  ? 'Showing the linked medical record.'
+                  : 'Showing the selected visit.'}
+              </p>
+              <Button
+                variant="outline"
+                onClick={() => updateParams({ record: null, visit: null })}
+              >
+                Show all records
               </Button>
-            }
-          />
-        ) : (
-          <>
-            {visibleVisits.length > 0 && (
-              <section aria-label="Visit timeline" className="space-y-3">
-                <SectionTitle
-                  title="Visit timeline"
-                  description="Visits are ordered by visit date; documents within each visit use their own record dates. Expand a visit for details."
+            </div>
+          )}
+          <div className="mb-6 rounded-2xl border bg-card p-4 sm:p-5">
+            <div className="grid min-w-0 items-end gap-4 sm:grid-cols-2 min-[1440px]:grid-cols-[minmax(0,1fr)_190px_175px_auto]">
+              <div className="min-w-0">
+                <Field
+                  label="Search records"
+                  className="h-12 min-h-12"
+                  placeholder="Search by title, provider, or file name..."
+                  value={search}
+                  onChange={(event) => setSearch(event.target.value)}
                 />
-                {visibleVisits.map(renderVisit)}
-              </section>
-            )}
-            {unassigned.length > 0 ? (
-              <section className="space-y-4">
-                <SectionTitle
-                  title="Unassigned records"
-                  description={`Documents for ${selectedMember} that are not attached to a visit.`}
+              </div>
+              <div className="min-w-0">
+                <SelectField
+                  className="h-12 min-h-12"
+                  label="Document type"
+                  value={kind}
+                  onValueChange={setKind}
+                  options={[
+                    { value: '', label: 'All document types' },
+                    ...Object.entries(documentKinds).map(([value, label]) => ({
+                      value,
+                      label,
+                    })),
+                  ]}
                 />
-                {renderRecords(unassigned)}
-              </section>
-            ) : (
-              !visits.length &&
-              !records.length && (
-                <EmptyState
-                  icon={FolderHeart}
-                  title={
-                    records.length
-                      ? 'No unassigned records'
-                      : 'Your vault is ready'
-                  }
-                  description={
-                    records.length
-                      ? 'Attach documents to a visit or upload a new record.'
-                      : 'Add a visit or upload your first prescription, lab report, or medical document.'
-                  }
-                  action={
-                    <Button onClick={() => openUpload()}>
-                      <Upload />
-                      Upload record
-                    </Button>
-                  }
+              </div>
+              <div className="min-w-0">
+                <SelectField
+                  label="Date order"
+                  className="h-12 min-h-12"
+                  value={order}
+                  options={[
+                    { value: 'newest', label: 'Newest first' },
+                    { value: 'oldest', label: 'Oldest first' },
+                  ]}
+                  onValueChange={(value) => {
+                    if (value === 'newest' || value === 'oldest')
+                      setOrder(value)
+                  }}
                 />
-              )
-            )}
-          </>
-        )}
-        {careTracks.length > 0 && (
-          <details className="rounded-2xl border bg-card p-4 sm:p-5">
-            <summary className="min-h-11 cursor-pointer content-center text-sm font-medium focus-visible:outline-2 focus-visible:outline-ring">
-              Manage care tracks ({careTracks.length})
-            </summary>
-            <ul className="mt-3 divide-y">
-              {careTracks.map((track) => (
-                <li
-                  key={track.id}
-                  className="flex items-center justify-between gap-2 py-2"
+              </div>
+              <div className="min-w-0">
+                <p
+                  id="records-favourites-label"
+                  className="text-sm leading-none font-medium"
                 >
-                  <div className="min-w-0">
-                    <p className="break-words text-sm font-medium">
-                      {track.title}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      {
-                        visits.filter(
-                          (visit) => visit.care_track_id === track.id,
-                        ).length
-                      }{' '}
-                      visits · {track.kind.replaceAll('_', ' ')}
-                    </p>
-                  </div>
-                  <div className="flex shrink-0 gap-1">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      aria-label={`Edit care track ${track.title}`}
-                      onClick={() => setCareDialog({ kind: 'track', track })}
+                  Favourites
+                </p>
+                <Button
+                  variant="outline"
+                  className="mt-2 h-12 min-h-12 w-full rounded-xl"
+                  aria-describedby="records-favourites-label"
+                  aria-pressed={favouritesOnly}
+                  onClick={() => setFavouritesOnly((value) => !value)}
+                >
+                  <Star aria-hidden="true" />
+                  Favourites only
+                </Button>
+              </div>
+            </div>
+            <span
+              ref={results}
+              tabIndex={-1}
+              role="status"
+              aria-label="Record results"
+              className="mt-4 block text-xs text-muted-foreground focus:outline-2 focus:outline-offset-4 focus:outline-ring"
+            >
+              {filtered.length} record{filtered.length !== 1 && 's'}
+            </span>
+          </div>
+
+          {pendingFollowUps.length > 0 && (
+            <section
+              aria-label="Pending follow-ups"
+              className="mb-6 rounded-2xl border bg-card p-4 sm:p-5"
+            >
+              <SectionTitle
+                title="Follow-ups due"
+                description="Manually recorded return dates, not booked appointments. Shown independently of document filters."
+              />
+              <ul className="divide-y">
+                {pendingFollowUps.map((item) => {
+                  const visit = visits.find(
+                    (visit) => visit.id === item.visit_id,
+                  )
+                  return (
+                    <li
+                      key={item.id}
+                      className="flex flex-wrap items-center justify-between gap-3 py-3 first:pt-0 last:pb-0"
                     >
-                      <Pencil />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      aria-label={`Delete care track ${track.title}`}
-                      onClick={() => setRemove({ type: 'track', item: track })}
-                    >
-                      <Trash2 />
-                    </Button>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          </details>
-        )}
-      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="break-words text-sm font-medium">
+                          {visit?.title}
+                        </p>
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          {item.due_date} ·{' '}
+                          {item.due_date < localDate(now)
+                            ? 'Past due date'
+                            : item.due_date === localDate(now)
+                              ? 'Due today'
+                              : 'Upcoming'}
+                        </p>
+                      </div>
+                      <Button
+                        variant="outline"
+                        aria-label={`Open follow-up for ${visit?.title}`}
+                        onClick={() => {
+                          setSearch('')
+                          setKind('')
+                          setFavouritesOnly(false)
+                          updateParams({ record: null, visit: item.visit_id })
+                        }}
+                      >
+                        Open visit
+                      </Button>
+                    </li>
+                  )
+                })}
+              </ul>
+            </section>
+          )}
+          <div className="space-y-7">
+            {!visibleVisits.length &&
+            !filtered.length &&
+            (hasDocumentConstraints || selectedVisit) ? (
+              <EmptyState
+                icon={Search}
+                title="No matching records or visits"
+                description="The linked item may no longer be available for this profile, or the current filters hide it."
+                action={
+                  <Button variant="outline" onClick={clearFilters}>
+                    Clear filters
+                  </Button>
+                }
+              />
+            ) : (
+              <>
+                {visibleVisits.length > 0 && (
+                  <section aria-label="Visit timeline" className="space-y-3">
+                    <SectionTitle
+                      title="Visit timeline"
+                      description="Visits are ordered by visit date; documents within each visit use their own record dates. Expand a visit for details."
+                    />
+                    {visibleVisits.map(renderVisit)}
+                  </section>
+                )}
+                {unassigned.length > 0 ? (
+                  <section className="space-y-4">
+                    <SectionTitle
+                      title="Unassigned records"
+                      description={`Documents for ${selectedMember} that are not attached to a visit.`}
+                    />
+                    {renderRecords(unassigned)}
+                  </section>
+                ) : (
+                  !visits.length &&
+                  !records.length && (
+                    <EmptyState
+                      icon={FolderHeart}
+                      title={
+                        records.length
+                          ? 'No unassigned records'
+                          : 'Your vault is ready'
+                      }
+                      description={
+                        records.length
+                          ? 'Attach documents to a visit or upload a new record.'
+                          : 'Add a visit or upload your first prescription, lab report, or medical document.'
+                      }
+                      action={
+                        <Button onClick={() => openUpload()}>
+                          <Upload />
+                          Upload record
+                        </Button>
+                      }
+                    />
+                  )
+                )}
+              </>
+            )}
+          </div>
+        </>
+      )}
+
+      {params.get('action') === 'results' && (
+        <RecordResultsDialog
+          recordId={selected ?? undefined}
+          onClose={() => updateParams({ action: null }, { replace: true })}
+        />
+      )}
 
       {currentFollowUpVisit && (
         <FollowUpDialog
@@ -656,14 +641,9 @@ function RecordsWorkspace() {
       )}
       {careDialog && (
         <CareDialog
-          key={`${careDialog.kind}:${
-            careDialog.kind === 'track'
-              ? (careDialog.track?.id ?? 'new')
-              : (careDialog.visit?.id ?? 'new')
-          }`}
+          key={careDialog.visit?.id ?? 'new'}
           kind={careDialog.kind}
-          track={careDialog.kind === 'track' ? careDialog.track : undefined}
-          visit={careDialog.kind === 'visit' ? careDialog.visit : undefined}
+          visit={careDialog.visit}
           onClose={() => setCareDialog(null)}
         />
       )}
@@ -679,19 +659,15 @@ function RecordsWorkspace() {
         open={remove?.type === 'record'}
         onClose={() => setRemove(null)}
         title="Delete this medical record?"
-        description={`"${remove?.type === 'record' ? remove.item.title : ''}" and its uploaded file will be permanently removed. Linked medications and saved prescription wording will remain, without the file link. This cannot be undone.`}
+        description={`"${remove?.type === 'record' ? remove.item.title : ''}" and its uploaded file will be permanently removed. Reviewed result history, synced profile values, linked medications and saved prescription wording will remain, without the file link. This cannot be undone.`}
         busy={mutation.pending}
         onConfirm={() => void confirmDelete()}
       />
       <ConfirmationDialog
-        open={remove?.type === 'visit' || remove?.type === 'track'}
+        open={remove?.type === 'visit'}
         onClose={() => setRemove(null)}
-        title={`Delete this ${remove?.type === 'track' ? 'care track' : 'visit'}?`}
-        description={
-          remove?.type === 'track'
-            ? `Visits in "${remove.item.title}" will remain as standalone visits.`
-            : `Documents attached to "${remove?.type === 'visit' ? remove.item.title : ''}" will remain in Unassigned records. Its follow-up will be removed; other follow-ups linked to this return visit keep their status without that link.`
-        }
+        title="Delete this visit?"
+        description={`Documents attached to "${remove?.type === 'visit' ? remove.item.title : ''}" will remain in Unassigned records. Its follow-up will be removed; other follow-ups linked to this return visit keep their status without that link.`}
         busy={mutation.pending}
         onConfirm={() => void confirmDelete()}
       />

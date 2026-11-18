@@ -30,6 +30,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
     careTracks: [],
     visits: [],
     followUps: [],
+    resultReviews: [],
   })
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
@@ -102,6 +103,9 @@ export function DataProvider({ children }: { children: ReactNode }) {
         ),
         followUps: data.followUps.filter(
           (followUp) => followUp.family_member_id === familyMemberId,
+        ),
+        resultReviews: data.resultReviews.filter(
+          (review) => review.family_member_id === familyMemberId,
         ),
         now,
         loading,

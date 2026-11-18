@@ -24,6 +24,10 @@ only; this portfolio MVP is not a healthcare-compliance claim.
 5. Keep email confirmation enabled for a public release. Verify the configured
    sender using an owner-controlled mailbox. Pending confirmation does not
    establish email delivery; PKCE links must open in the registration browser.
+   Supabase's built-in email provider allows only two Auth emails per hour per
+   project. If registration reports the confirmation email limit, wait for the
+   quota to reset or configure custom SMTP in Supabase Auth. Do not disable
+   confirmation to work around this on a public release.
 
 This is a fresh start: old SQLite accounts, passwords and health data are not
 imported or deleted. Returning users must register again.
@@ -53,8 +57,16 @@ Set these variables on the existing web service:
 
 Render supplies `PORT`. Remove obsolete `DOCUMENT_STORAGE`, `DATA_DIR`,
 `S3_*` and `LITESTREAM_*` variables. Do not delete old remote objects or replicas.
-Leave `RESEND_API_KEY`, `EMAIL_FROM`, `REMINDER_CRON_SECRET` and any reminder
-scheduler disabled unless separately authorized. Remote OCR is also optional.
+Remove `RESEND_API_KEY`, `EMAIL_FROM`, `REMINDER_CRON_SECRET` and disable any old
+medication-reminder scheduler: its routes and settings UI are no longer active.
+Current-time medication status remains available while the website is open.
+Supabase Auth confirmation/recovery email is unchanged. Remote OCR is optional.
+
+Before deploying reviewed checkup results, apply the additive
+`20261118072112_reviewed_record_results.sql` migration. It preserves existing data
+and adds owner-isolated, append-only report review snapshots and transactional
+profile syncing. Runtime readiness verifies the new RPCs are present. No existing
+medical documents are automatically extracted or reinterpreted.
 
 Run `npm run verify` and `npm audit --omit=dev`, publish the verified revision,
 then deploy it. Record the actual revision and URL. Restore `checksPass`

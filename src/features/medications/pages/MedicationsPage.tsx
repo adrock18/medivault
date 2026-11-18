@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react'
-import { Plus, Pill, CheckCheck, Clock3, ScanLine } from 'lucide-react'
+import { Plus, Pill, CheckCheck, Clock3, Upload } from 'lucide-react'
 import { subDays } from 'date-fns'
 import { useVault } from '@/contexts/DataContext'
 import { useMutation } from '@/hooks/useMutation'
@@ -86,8 +86,8 @@ export default function MedicationsPage() {
               variant="outline"
               onClick={() => updateParams({ action: 'scan' })}
             >
-              <ScanLine />
-              Scan prescription
+              <Upload />
+              Upload prescription
             </Button>
             <Button onClick={() => updateParams({ action: 'add' })}>
               <Plus />
@@ -159,10 +159,19 @@ export default function MedicationsPage() {
         recordId={record}
         onToday={() => todaySchedule.current?.focus()}
       />
-      <Panel className="mb-5">
-        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+      <section aria-label="Medication collection" className="mt-6">
+        <div className="mb-4 flex flex-wrap items-baseline justify-between gap-2">
           <h2 className="font-semibold">Your medications</h2>
-          <div className="flex flex-wrap gap-1 rounded-xl border bg-card p-1">
+          <p role="status" className="text-xs text-muted-foreground">
+            {visible.length} medication{visible.length === 1 ? '' : 's'} shown
+          </p>
+        </div>
+        <div className="mb-5 flex flex-wrap items-end justify-between gap-4">
+          <div
+            role="group"
+            aria-label="Medication status"
+            className="flex max-w-full flex-wrap gap-1 rounded-2xl border bg-card p-1"
+          >
             {['active', 'upcoming', 'completed', 'all'].map((value) => (
               <Button
                 key={value}
@@ -171,76 +180,75 @@ export default function MedicationsPage() {
                 onClick={() => setFilter(value)}
                 aria-pressed={filter === value}
                 className={cn(
-                  'capitalize',
-                  filter === value && 'bg-teal-50 text-primary',
+                  'min-h-11 capitalize',
+                  filter === value && 'bg-primary/10 text-primary',
                 )}
               >
                 {value}
               </Button>
             ))}
           </div>
-        </div>
-        <Field
-          label="Search medications"
-          placeholder="Search by medicine name..."
-          value={search}
-          onChange={(event) => setSearch(event.target.value)}
-        />
-        <p className="mt-3 text-xs text-muted-foreground">
-          {visible.length} medication{visible.length === 1 ? '' : 's'} shown
-        </p>
-      </Panel>
-      {visible.length ? (
-        <div className="grid gap-5 md:grid-cols-2">
-          {visible.map((med) => (
-            <MedicationCard
-              key={med.id}
-              medication={med}
-              sourceRecord={records.find(
-                (record) => record.id === med.source_record_id,
-              )}
-              day={today}
-              onEdit={() => setEdit(med)}
-              onDelete={() => setRemove(med)}
+          <div className="min-w-0 flex-1 sm:max-w-sm">
+            <Field
+              label="Search medications"
+              placeholder="Search by medicine name..."
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
             />
-          ))}
+          </div>
         </div>
-      ) : (
-        <Panel>
-          <EmptyState
-            icon={Pill}
-            title={
-              medications.length
-                ? 'No matching medications'
-                : 'Your medication space is ready'
-            }
-            description={
-              medications.length
-                ? 'Try a different medicine name or status filter.'
-                : 'Add an existing prescription to organize its schedule and keep track of your doses.'
-            }
-            action={
-              medications.length ? (
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    setSearch('')
-                    setFilter('active')
-                    updateParams({ record: null })
-                  }}
-                >
-                  Clear filters
-                </Button>
-              ) : (
-                <Button onClick={() => updateParams({ action: 'add' })}>
-                  <Plus />
-                  Add medication
-                </Button>
-              )
-            }
-          />
-        </Panel>
-      )}
+        {visible.length ? (
+          <div className="grid gap-5 md:grid-cols-2">
+            {visible.map((med) => (
+              <MedicationCard
+                key={med.id}
+                medication={med}
+                sourceRecord={records.find(
+                  (record) => record.id === med.source_record_id,
+                )}
+                day={today}
+                onEdit={() => setEdit(med)}
+                onDelete={() => setRemove(med)}
+              />
+            ))}
+          </div>
+        ) : (
+          <Panel>
+            <EmptyState
+              icon={Pill}
+              title={
+                medications.length
+                  ? 'No matching medications'
+                  : 'Your medication space is ready'
+              }
+              description={
+                medications.length
+                  ? 'Try a different medicine name or status filter.'
+                  : 'Add an existing prescription to organize its schedule and keep track of your doses.'
+              }
+              action={
+                medications.length ? (
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setSearch('')
+                      setFilter('active')
+                      updateParams({ record: null })
+                    }}
+                  >
+                    Clear filters
+                  </Button>
+                ) : (
+                  <Button onClick={() => updateParams({ action: 'add' })}>
+                    <Plus />
+                    Add medication
+                  </Button>
+                )
+              }
+            />
+          </Panel>
+        )}
+      </section>
       <Panel className="mt-6">
         <SectionTitle
           title="Dose history"

@@ -10,7 +10,6 @@ import {
   LogOut,
   Menu,
   ShieldCheck,
-  ChevronRight,
   LoaderCircle,
   UsersRound,
 } from 'lucide-react'
@@ -71,7 +70,6 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
   )
 }
 export function Header({ onMenu }: { onMenu: () => void }) {
-  const location = useLocation()
   const { session, signOut } = useAuth()
   const {
     profile,
@@ -80,16 +78,10 @@ export function Header({ onMenu }: { onMenu: () => void }) {
     selectedFamilyMemberId,
     selectFamilyMember,
   } = useVault()
-  const selectedMember = familyMembers.find(
-    (member) => member.id === selectedFamilyMemberId,
-  )
   const navigate = useNavigate()
   const [signingOut, setSigningOut] = useState(false)
   const name =
-    selectedMember?.full_name ??
-    profile?.full_name ??
-    session?.user.email?.split('@')[0] ??
-    'Your account'
+    profile?.full_name ?? session?.user.email?.split('@')[0] ?? 'Your account'
   const avatarName = name
     .replace(/^\[DEMO\]\s*/i, '')
     .split(' - ')[0]
@@ -114,8 +106,8 @@ export function Header({ onMenu }: { onMenu: () => void }) {
     }
   }
   return (
-    <header className="workspace-header flex min-h-20 flex-col justify-center gap-2 px-4 py-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between sm:gap-2 sm:px-8 sm:py-2">
-      <div className="flex min-w-0 items-center gap-2 sm:gap-3">
+    <header className="workspace-header grid min-h-20 grid-cols-[minmax(0,1fr)_auto] items-center gap-3 px-4 py-3 sm:px-8 xl:grid-cols-[minmax(0,1fr)_minmax(180px,300px)_minmax(0,1fr)]">
+      <div className="col-span-2 flex min-w-0 items-center gap-2 sm:col-span-1">
         <Button
           variant="ghost"
           size="icon"
@@ -125,36 +117,22 @@ export function Header({ onMenu }: { onMenu: () => void }) {
         >
           <Menu />
         </Button>
-        <span className="hidden text-sm text-slate-400 sm:block">
-          {selectedMember?.relationship === 'self'
-            ? 'Personal workspace'
-            : `${selectedMember?.full_name ?? 'Family'} workspace`}
-        </span>
-        <ChevronRight className="hidden size-3 text-slate-300 sm:block" />
-        <span className="truncate text-sm font-semibold text-slate-700">
-          {navigation.find((n) => n.to === location.pathname)?.label ??
-            'MediVault'}
-        </span>
-        {refreshing && (
-          <LoaderCircle
-            aria-label="Refreshing data"
-            className="size-3 animate-spin text-primary"
-          />
-        )}
-      </div>
-      <div className="flex w-full min-w-0 flex-wrap items-center justify-between gap-2 sm:w-auto sm:shrink-0 sm:justify-end sm:gap-3">
-        {familyMembers.length > 1 && (
-          <div className="flex min-w-0 flex-1 items-center gap-2 rounded-full border border-input bg-card px-3 max-[359px]:basis-full sm:w-60 sm:flex-none">
+        {familyMembers.length > 0 ? (
+          <div className="flex min-w-0 max-w-72 flex-1 items-center gap-2">
             <UsersRound
               aria-hidden="true"
               className="size-4 shrink-0 text-primary"
             />
-            <span className="hidden shrink-0 text-[11px] font-medium text-muted-foreground sm:inline">
+            <label
+              htmlFor="viewing-profile"
+              className="shrink-0 text-xs text-muted-foreground"
+            >
               Viewing
-            </span>
+            </label>
             <Select
+              id="viewing-profile"
               aria-label="Viewing profile"
-              className="!min-h-10 !w-auto !max-w-none !flex-1 !rounded-full !border-0 !bg-transparent !px-0 !py-2 text-xs font-semibold"
+              className="!min-h-11 !flex-1 !rounded-xl !py-2 text-sm font-medium"
               value={selectedFamilyMemberId}
               onValueChange={selectFamilyMember}
               options={familyMembers.map((member) => ({
@@ -163,30 +141,34 @@ export function Header({ onMenu }: { onMenu: () => void }) {
               }))}
             />
           </div>
+        ) : (
+          <span className="truncate text-sm font-medium">Your workspace</span>
         )}
-        <div className="flex shrink-0 items-center gap-1 sm:gap-3">
-          <CommandPalette />
-          <ThemeSelect />
-        </div>
+        {refreshing && (
+          <LoaderCircle
+            aria-label="Refreshing data"
+            className="size-3 animate-spin text-primary"
+          />
+        )}
+      </div>
+      <div className="col-start-1 row-start-2 min-w-0 sm:col-span-2 xl:col-span-1 xl:col-start-2 xl:row-start-1">
+        <CommandPalette />
+      </div>
+      <div className="col-start-2 row-start-2 flex items-center justify-end gap-1 sm:row-start-1 sm:gap-2 xl:col-start-3">
         <Link
-          to="/profile"
-          aria-label={`Health profile for ${name}`}
-          className="hidden items-center gap-3 rounded-lg focus-visible:outline-2 focus-visible:outline-primary sm:flex"
+          to="/settings"
+          aria-label={`Account settings for ${name}`}
+          className="hidden min-w-0 items-center gap-2 rounded-lg focus-visible:outline-2 focus-visible:outline-primary sm:flex"
         >
-          <div className="hidden text-right sm:block">
-            <p className="max-w-40 truncate text-sm font-medium text-slate-800">
-              {name}
-            </p>
-            <p className="text-[11px] text-slate-400">
-              {selectedMember?.relationship === 'self'
-                ? 'Personal account'
-                : 'Family profile'}
-            </p>
+          <div className="hidden min-w-0 text-right min-[1440px]:block">
+            <p className="max-w-32 truncate text-sm font-medium">{name}</p>
+            <p className="text-[11px] text-slate-400">Account</p>
           </div>
-          <span className="flex size-10 items-center justify-center rounded-full border border-primary/20 bg-primary/10 text-xs font-semibold tracking-wide text-primary">
+          <span className="flex size-10 shrink-0 items-center justify-center rounded-full border border-primary/20 bg-primary/10 text-xs font-semibold tracking-wide text-primary">
             {initials}
           </span>
         </Link>
+        <ThemeSelect />
         <Button
           variant="ghost"
           size="icon"

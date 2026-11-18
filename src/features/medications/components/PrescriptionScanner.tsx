@@ -71,6 +71,12 @@ export function PrescriptionScanner({
         }
       }
       if (!abort.signal.aborted) {
+        if (!result.text.trim()) {
+          setError(
+            'No readable text was found. Try a clearer PDF or image, or add the medication manually from your prescription.',
+          )
+          return
+        }
         setText(result.text)
         setAdded(new Set())
       }
@@ -113,9 +119,24 @@ export function PrescriptionScanner({
       <FormDialog
         open={!uploading && !draft}
         onClose={close}
-        title="Scan a prescription"
-        description="Read text locally by default, review it against the original, then add medications."
+        title="Add medications from a prescription"
+        description="Upload or choose a saved document, read its text, then review each medication before saving."
       >
+        <ol
+          aria-label="Prescription steps"
+          className="grid gap-2 text-xs font-medium sm:grid-cols-3"
+        >
+          {['1. Choose document', '2. Read text', '3. Review & save'].map(
+            (step) => (
+              <li
+                key={step}
+                className="rounded-xl border bg-muted/40 px-3 py-2"
+              >
+                {step}
+              </li>
+            ),
+          )}
+        </ol>
         <p className="text-sm leading-6 text-muted-foreground">
           Works best with clear, printed English. Handwriting and OCR can be
           wrong. Missing doses, dates, and times must be entered from your
@@ -139,25 +160,37 @@ export function PrescriptionScanner({
               </span>
             </label>
           )}
-          <SelectField
-            label="Prescription or medical record"
-            value={selected}
-            disabled={busy}
-            onValueChange={(value) => {
-              setSelected(value)
-              setText('')
-              setRemoteConsent(false)
-              setError(null)
-              setAdded(new Set())
-            }}
-            options={[
-              { value: '', label: 'Choose a saved document' },
-              ...records.map((item) => ({ value: item.id, label: item.title })),
-            ]}
-          />
+          {records.length > 0 && (
+            <SelectField
+              label="Choose a saved prescription or record"
+              value={selected}
+              disabled={busy}
+              onValueChange={(value) => {
+                setSelected(value)
+                setText('')
+                setRemoteConsent(false)
+                setError(null)
+                setAdded(new Set())
+              }}
+              options={[
+                { value: '', label: 'Choose a saved document' },
+                ...records.map((item) => ({
+                  value: item.id,
+                  label: item.title,
+                })),
+              ]}
+            />
+          )}
+          {!record && (
+            <p className="text-sm text-muted-foreground">
+              {records.length
+                ? 'Choose a saved document above, or upload a new prescription below.'
+                : 'Start by uploading a PDF, JPG, or PNG prescription. It will be saved in your private vault.'}
+            </p>
+          )}
           <div className="flex flex-wrap gap-2">
             <Button
-              variant="outline"
+              variant={record ? 'outline' : 'default'}
               disabled={busy}
               onClick={() => setUploading(true)}
             >
@@ -166,7 +199,11 @@ export function PrescriptionScanner({
             </Button>
             <Button disabled={!record || busy} onClick={() => void scan()}>
               <ScanLine />
-              {busy ? 'Scanning...' : text ? 'Scan again' : 'Scan document'}
+              {busy
+                ? 'Reading text...'
+                : text
+                  ? 'Read again'
+                  : 'Read prescription text'}
             </Button>
             {record && (
               <Button
@@ -182,6 +219,12 @@ export function PrescriptionScanner({
               </Button>
             )}
           </div>
+          {record && !text && !busy && (
+            <p className="text-xs text-muted-foreground">
+              Selected: {record.title}. Select &quot;Read prescription
+              text&quot; to continue. Medications are not saved automatically.
+            </p>
+          )}
           {busy && (
             <p role="status" className="rounded-xl bg-accent p-4 text-sm">
               {progress} You may close this dialog to cancel.
@@ -241,7 +284,7 @@ export function PrescriptionScanner({
           {error && <ErrorState message={error} />}
           <div className="flex justify-end border-t pt-4">
             <Button variant="outline" onClick={close}>
-              {busy ? 'Cancel scan' : 'Done'}
+              {busy ? 'Cancel scan' : 'Close'}
             </Button>
           </div>
         </div>
@@ -253,6 +296,7 @@ export function PrescriptionScanner({
           onUploaded={(item) => {
             setSelected(item.id)
             setText('')
+            setError(null)
             setRemoteConsent(false)
             setAdded(new Set())
           }}

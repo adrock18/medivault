@@ -146,25 +146,6 @@ export function apiConfig(env: NodeJS.ProcessEnv = process.env) {
     throw new Error(
       'Set COOKIE_SECURE=true when serving a production application over HTTPS.',
     )
-  const reminderValues = [
-    env.RESEND_API_KEY?.trim(),
-    env.EMAIL_FROM?.trim(),
-    env.REMINDER_CRON_SECRET?.trim(),
-  ]
-  const reminderConfigured = reminderValues.some(Boolean)
-  if (reminderConfigured && reminderValues.some((value) => !value))
-    throw new Error(
-      'Set RESEND_API_KEY, EMAIL_FROM, and REMINDER_CRON_SECRET together to enable email reminders.',
-    )
-  const reminderEmail = reminderConfigured
-    ? {
-        resendApiKey: reminderValues[0]!,
-        from: reminderValues[1]!,
-        cronSecret: reminderValues[2]!,
-      }
-    : undefined
-  if (reminderEmail && reminderEmail.cronSecret.length < 32)
-    throw new Error('REMINDER_CRON_SECRET must be at least 32 characters.')
   return {
     port,
     host: env.HOST ?? '127.0.0.1',
@@ -173,6 +154,5 @@ export function apiConfig(env: NodeJS.ProcessEnv = process.env) {
     production,
     trustProxy: trustProxyHops(env.TRUST_PROXY),
     ocrSpaceApiKey: env.OCR_SPACE_API_KEY?.trim() || undefined,
-    reminderEmail,
   }
 }

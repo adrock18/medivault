@@ -143,16 +143,13 @@ export function CareHistoryGraph({
     unassignedRecords.length > 0
 
   return (
-    <section
-      className="mb-7 rounded-2xl border bg-muted/20 p-5 sm:p-6"
-      aria-label="Care history map"
-    >
+    <section className="mb-6 min-w-0" aria-label="Care history map">
       <SectionTitle
         title="Care history map"
         description="Explore saved care tracks, visits, documents and linked medication schedules for the selected profile, oldest to newest."
       />
       {hasCareHistory ? (
-        <div className="mt-5 space-y-5">
+        <div className="grid items-start gap-5 min-[1440px]:grid-cols-2">
           {tracks.map((track) => {
             const trackVisits = visits
               .filter((visit) => visit.care_track_id === track.id)
@@ -164,7 +161,7 @@ export function CareHistoryGraph({
             return (
               <article
                 key={track.id}
-                className="min-w-0 rounded-xl border bg-card p-3 sm:p-5"
+                className="min-w-0 rounded-2xl border bg-card p-4 sm:p-5"
               >
                 <div className="flex min-w-0 items-start gap-2 sm:gap-3">
                   <span
@@ -180,6 +177,10 @@ export function CareHistoryGraph({
                     <h3 className="mt-1 break-words font-semibold">
                       {track.title}
                     </h3>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      {trackVisits.length}{' '}
+                      {trackVisits.length === 1 ? 'visit' : 'visits'}
+                    </p>
                     {trackVisits.length ? (
                       <ol className="mt-4 space-y-0 border-l-2 border-primary/25 pl-5">
                         {trackVisits.map(renderVisitNode)}

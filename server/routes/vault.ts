@@ -6,6 +6,10 @@ import {
 } from '../../shared/schemas.ts'
 import { accountExportSchema, vaultSchema } from '../../shared/contracts.ts'
 import {
+  resultReviewRow,
+  reviewResultsSchema,
+} from '../../shared/record-results.ts'
+import {
   databaseResult,
   HttpError,
   validate,
@@ -16,28 +20,44 @@ export function vaultRoutes(context: RouteContext) {
   const router = Router()
 
   router.get('/vault', async (_req, res) => {
-    const data = await databaseResult(
-      res.locals.supabase.rpc('get_account_vault_data'),
-    )
+    const [data, resultReviews] = await Promise.all([
+      databaseResult(res.locals.supabase.rpc('get_account_vault_data')),
+      databaseResult(res.locals.supabase.rpc('get_reviewed_results')),
+    ])
     res.json(
       vaultSchema.parse({
         ...data,
+        resultReviews,
         features: {
           remoteOcrAvailable: !!context.ocrSpaceApiKey,
-          emailRemindersConfigured: !!context.reminderEmail,
+          emailRemindersConfigured: false,
         },
       }),
     )
   })
 
   router.get('/account/export', async (_req, res) => {
+    const [data, reviews] = await Promise.all([
+      databaseResult(res.locals.supabase.rpc('get_account_export_data')),
+      databaseResult(res.locals.supabase.rpc('get_reviewed_results')),
+    ])
     res.json(
-      accountExportSchema.parse(
-        await databaseResult(
-          res.locals.supabase.rpc('get_account_export_data'),
-        ),
-      ),
+      accountExportSchema.parse({ ...data, record_result_reviews: reviews }),
     )
+  })
+
+  router.post('/records/:id/results', async (req, res) => {
+    const input = validate(reviewResultsSchema, req.body)
+    const result = await res.locals.supabase.rpc('save_reviewed_results', {
+      p_record_id: context.requestId(req),
+      p_measured_on: input.measured_on,
+      p_results: input.results,
+      p_confirm_blood_group_change: input.confirm_blood_group_change,
+    })
+    if (result.error?.code === '22023')
+      throw new HttpError(409, result.error.message)
+    const row = await databaseResult(Promise.resolve(result))
+    res.status(201).json(resultReviewRow.parse(row))
   })
 
   router.put('/health-profile', async (req, res) => {

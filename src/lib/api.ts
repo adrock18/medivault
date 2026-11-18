@@ -1,5 +1,9 @@
 import { z } from 'zod'
 import {
+  resultReviewRow,
+  type ReviewResultsValues,
+} from '@shared/record-results'
+import {
   sessionSchema,
   registrationResultSchema,
   vaultSchema,
@@ -186,6 +190,12 @@ export const api = {
       }),
   },
   records: {
+    saveResults: (id: string, values: ReviewResultsValues) =>
+      request(
+        `/records/${encodeURIComponent(id)}/results`,
+        resultReviewRow,
+        json('POST', values),
+      ),
     favourite: (id: string, is_favourite: boolean) =>
       request(
         `/records/${encodeURIComponent(id)}/favourite`,

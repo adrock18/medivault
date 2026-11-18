@@ -20,6 +20,7 @@ import {
 import { api } from '@/lib/api'
 import { localDate } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
+import { ReviewedResults } from '@/features/records/components/ReviewedResults'
 import {
   PageTitle,
   Panel,
@@ -117,8 +118,11 @@ function ProfileForm() {
   }
   return (
     <form onSubmit={handleSubmit(submit)} noValidate>
-      <fieldset disabled={mutation.pending} className="space-y-6">
-        <Panel className="tint-sky">
+      <fieldset
+        disabled={mutation.pending}
+        className="grid min-w-0 gap-5 min-[1440px]:grid-cols-2"
+      >
+        <Panel className="tint-sky min-[1440px]:col-span-2">
           <SectionTitle
             title={isSelf ? 'Personal information' : 'Health details'}
             description={
@@ -127,7 +131,7 @@ function ProfileForm() {
                 : `Keep ${member?.full_name ?? 'this family member'}'s health details organized with their care history.`
             }
           />
-          <div className="grid gap-5 sm:grid-cols-2">
+          <div className="grid gap-5 sm:grid-cols-2 min-[1440px]:grid-cols-3">
             {isSelf && (
               <>
                 <Field
@@ -215,7 +219,7 @@ function ProfileForm() {
             title="Medical background"
             description="Record known information from your healthcare providers."
           />
-          <div className="grid gap-5 sm:grid-cols-2">
+          <div className="grid gap-5 sm:grid-cols-2 min-[1440px]:grid-cols-1">
             <TextField
               label="Known allergies"
               placeholder="e.g. Penicillin, peanuts"
@@ -236,7 +240,7 @@ function ProfileForm() {
             title="Emergency contact"
             description="Someone to contact when it matters most."
           />
-          <div className="grid gap-5 sm:grid-cols-2">
+          <div className="grid gap-5 sm:grid-cols-2 min-[1440px]:grid-cols-1">
             <Field
               label="Contact name"
               registration={register('emergency_contact_name')}
@@ -252,8 +256,12 @@ function ProfileForm() {
             />
           </div>
         </Panel>
-        {mutation.error && <ErrorState message={mutation.error} />}
-        <div className="flex justify-end">
+        {mutation.error && (
+          <div className="min-[1440px]:col-span-2">
+            <ErrorState message={mutation.error} />
+          </div>
+        )}
+        <div className="flex justify-end min-[1440px]:col-span-2">
           <SubmitButton busy={mutation.pending}>
             Save health profile
           </SubmitButton>
@@ -332,9 +340,9 @@ function FamilyProfiles() {
         {familyMembers.map((member) => (
           <article
             key={member.id}
-            className="flex items-center justify-between gap-3 rounded-xl border bg-card p-4"
+            className="flex flex-wrap items-center justify-between gap-3 rounded-xl border bg-card p-4"
           >
-            <div className="min-w-0">
+            <div className="min-w-0 flex-1 basis-32">
               <h3 className="truncate text-sm font-semibold">
                 {member.full_name}
               </h3>
@@ -490,6 +498,7 @@ export default function ProfilePage() {
             : `Health details for ${member?.full_name ?? 'the selected family member'}.`
         }
       />
+      <ReviewedResults vitalsOnly />
       <div className="grid items-start gap-6 xl:grid-cols-[1fr_280px]">
         <ProfileForm />
         <div className="space-y-5">
@@ -525,16 +534,11 @@ export default function ProfilePage() {
                 emergency contact up to date.
               </p>
             </div>
-          </Panel>
-          <div className="rounded-2xl bg-teal-50 p-5">
-            <p className="text-sm font-semibold text-teal-900">
-              A helpful habit
-            </p>
-            <p className="mt-2 text-sm leading-6 text-teal-800">
+            <p className="mt-5 border-t pt-4 text-xs leading-5 text-muted-foreground">
               Review your profile after appointments so your records reflect the
               information shared by your care team.
             </p>
-          </div>
+          </Panel>
         </div>
       </div>
       <FamilyProfiles />
