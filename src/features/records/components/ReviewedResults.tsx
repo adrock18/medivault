@@ -70,7 +70,7 @@ export function ReviewedResults({
         <div
           className={
             vitalsOnly
-              ? 'grid min-w-0 gap-3 sm:grid-cols-2 min-[1440px]:grid-cols-3'
+              ? 'grid min-w-0 gap-3 sm:grid-cols-2 min-[90rem]:grid-cols-3'
               : 'space-y-3'
           }
         >

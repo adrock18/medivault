@@ -74,7 +74,18 @@ function ProfileForm() {
     formState: { errors },
   } = useForm<ProfileValues>({
     resolver: zodResolver(profileSchema),
-    defaultValues: { full_name: '', date_of_birth: '' },
+    defaultValues: {
+      full_name: fullName,
+      date_of_birth: dateOfBirth,
+      gender,
+      blood_group: bloodGroup,
+      height_cm: height,
+      weight_kg: weight,
+      allergies,
+      conditions,
+      emergency_contact_name: emergencyContactName,
+      emergency_contact_phone: emergencyContactPhone,
+    },
   })
   useEffect(() => {
     reset({
@@ -120,9 +131,9 @@ function ProfileForm() {
     <form onSubmit={handleSubmit(submit)} noValidate>
       <fieldset
         disabled={mutation.pending}
-        className="grid min-w-0 gap-5 min-[1440px]:grid-cols-2"
+        className="grid min-w-0 gap-5 min-[90rem]:grid-cols-2"
       >
-        <Panel className="tint-sky min-[1440px]:col-span-2">
+        <Panel className="tint-sky min-[90rem]:col-span-2">
           <SectionTitle
             title={isSelf ? 'Personal information' : 'Health details'}
             description={
@@ -131,7 +142,7 @@ function ProfileForm() {
                 : `Keep ${member?.full_name ?? 'this family member'}'s health details organized with their care history.`
             }
           />
-          <div className="grid gap-5 sm:grid-cols-2 min-[1440px]:grid-cols-3">
+          <div className="grid gap-5 sm:grid-cols-2 min-[90rem]:grid-cols-3">
             {isSelf && (
               <>
                 <Field
@@ -219,7 +230,7 @@ function ProfileForm() {
             title="Medical background"
             description="Record known information from your healthcare providers."
           />
-          <div className="grid gap-5 sm:grid-cols-2 min-[1440px]:grid-cols-1">
+          <div className="grid gap-5 sm:grid-cols-2 min-[90rem]:grid-cols-1">
             <TextField
               label="Known allergies"
               placeholder="e.g. Penicillin, peanuts"
@@ -240,7 +251,7 @@ function ProfileForm() {
             title="Emergency contact"
             description="Someone to contact when it matters most."
           />
-          <div className="grid gap-5 sm:grid-cols-2 min-[1440px]:grid-cols-1">
+          <div className="grid gap-5 sm:grid-cols-2 min-[90rem]:grid-cols-1">
             <Field
               label="Contact name"
               registration={register('emergency_contact_name')}
@@ -257,11 +268,11 @@ function ProfileForm() {
           </div>
         </Panel>
         {mutation.error && (
-          <div className="min-[1440px]:col-span-2">
+          <div className="min-[90rem]:col-span-2">
             <ErrorState message={mutation.error} />
           </div>
         )}
-        <div className="flex justify-end min-[1440px]:col-span-2">
+        <div className="flex justify-end min-[90rem]:col-span-2">
           <SubmitButton busy={mutation.pending}>
             Save health profile
           </SubmitButton>

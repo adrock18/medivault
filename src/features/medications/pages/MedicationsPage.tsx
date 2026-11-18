@@ -188,7 +188,7 @@ export default function MedicationsPage() {
               </Button>
             ))}
           </div>
-          <div className="min-w-0 flex-1 sm:max-w-sm">
+          <div className="min-w-0 basis-full sm:max-w-sm sm:flex-1 sm:basis-64">
             <Field
               label="Search medications"
               placeholder="Search by medicine name..."

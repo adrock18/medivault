@@ -431,7 +431,7 @@ function RecordsWorkspace() {
             </div>
           )}
           <div className="mb-6 rounded-2xl border bg-card p-4 sm:p-5">
-            <div className="grid min-w-0 items-end gap-4 sm:grid-cols-2 min-[1440px]:grid-cols-[minmax(0,1fr)_190px_175px_auto]">
+            <div className="grid min-w-0 items-end gap-4 sm:grid-cols-2 min-[90rem]:grid-cols-[minmax(0,1fr)_190px_175px_auto]">
               <div className="min-w-0">
                 <Field
                   label="Search records"
