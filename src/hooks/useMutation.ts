@@ -1,13 +1,27 @@
+/**
+ * Shared workspace-write lifecycle. Locks duplicate submissions, exposes
+ * pending/error state, notifies users and refreshes the vault after either
+ * outcome.
+ */
+
 import { useRef, useState } from 'react'
 import { toast } from 'sonner'
 import { errorMessage } from '../lib/api'
 import { useVault } from '../contexts/DataContext'
 
+/**
+ * Provide consistent async write feedback; vault refresh failures are exposed by
+ * the data provider separately.
+ */
 export function useMutation() {
   const { reload } = useVault()
   const [pending, setPending] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const lock = useRef(false)
+  /**
+   * Run one write at a time and return whether the action succeeded, always
+   * releasing the lock and refreshing shared data.
+   */
   async function run(
     action: () => Promise<void>,
     success: string | (() => string),

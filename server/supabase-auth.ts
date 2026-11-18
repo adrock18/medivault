@@ -1,3 +1,7 @@
+/**
+ * Server-side identity boundary. Browser JSON receives user summaries;
+ * Supabase session tokens are committed through the HttpOnly cookie adapter.
+ */
 import type { Request, Response } from 'express'
 import type { CookieMethodsServer } from '@supabase/ssr'
 import type { User } from '@supabase/supabase-js'
@@ -9,6 +13,10 @@ import {
 } from './supabase.ts'
 import { HttpError } from './routes/context.ts'
 
+/**
+ * Read only recognized provider-error fields from an unknown failure for
+ * controlled classification.
+ */
 function errorDetails(error: unknown) {
   if (!error || typeof error !== 'object')
     return { status: undefined, code: undefined, name: undefined }
@@ -26,6 +34,10 @@ function errorDetails(error: unknown) {
   }
 }
 
+/**
+ * Identify expired or absent credentials separately from temporary
+ * authentication-service failures.
+ */
 function isInvalidSession(error: unknown) {
   const { status, code, name, message } = errorDetails(error)
   return (
@@ -47,6 +59,10 @@ function isInvalidSession(error: unknown) {
   )
 }
 
+/**
+ * Recognize network and timeout exceptions that need a retryable
+ * authentication-unavailable response.
+ */
 function isTransportFailure(error: unknown) {
   return (
     error instanceof TypeError ||
@@ -55,11 +71,19 @@ function isTransportFailure(error: unknown) {
   )
 }
 
+/**
+ * Classify unstructured, rate-limited and server-side provider failures as
+ * temporary unavailability.
+ */
 function isUnavailable(error: unknown) {
   const { status } = errorDetails(error)
   return status === undefined || status === 0 || status === 429 || status >= 500
 }
 
+/**
+ * Discard staged cookie changes when a provider call throws; translate network
+ * failures without hiding other exceptions.
+ */
 async function runAuthRequest<T>(
   request: { discardCookies(): void },
   operation: () => PromiseLike<T>,
@@ -80,6 +104,10 @@ function unavailable() {
   )
 }
 
+/**
+ * Build redirects from configured APP_ORIGIN, permitting request-derived origins
+ * only for loopback development.
+ */
 function callbackOrigin(req: Request, settings: SupabaseSettings) {
   if (settings.appOrigin) return settings.appOrigin
   let origin: URL
@@ -102,6 +130,10 @@ function callbackOrigin(req: Request, settings: SupabaseSettings) {
   return origin.origin
 }
 
+/**
+ * Recognize confirmation links that cannot complete the browser-bound PKCE
+ * exchange.
+ */
 function isMissingVerifier(error: unknown) {
   const { code, name, message } = errorDetails(error)
   return (
@@ -112,10 +144,18 @@ function isMissingVerifier(error: unknown) {
   )
 }
 
+/**
+ * Implement session, password and confirmation workflows without exposing
+ * Supabase tokens to browser JavaScript.
+ */
 export function createSupabaseAuthGateway(
   settings: SupabaseSettings,
   cookieOptions: AuthCookieOptions,
 ): AuthGateway {
+  /**
+   * Create an isolated cookie-backed client and stage cookie mutations until the
+   * operation can commit them safely.
+   */
   function createRequest(req: Request, res: Response) {
     let pendingCookies: Parameters<
       NonNullable<CookieMethodsServer['setAll']>
@@ -136,6 +176,10 @@ export function createSupabaseAuthGateway(
 
     return {
       client,
+      /**
+       * Commit staged provider cookies, converting maxAge seconds into Express
+       * milliseconds.
+       */
       commitCookies() {
         for (const { name, value, options } of pendingCookies)
           res.cookie(name, value, {
@@ -155,6 +199,10 @@ export function createSupabaseAuthGateway(
     }
   }
 
+  /**
+   * Resolve the authenticated account summary; a missing profile is a service
+   * failure, not a successful empty login.
+   */
   async function sessionUser(
     request: ReturnType<typeof createRequest>,
     user: User,
@@ -172,6 +220,10 @@ export function createSupabaseAuthGateway(
   }
 
   return {
+    /**
+     * Validate credentials with getUser and expose a request-scoped authenticated
+     * database client only for a valid identity.
+     */
     async getSession(req, res) {
       const request = createRequest(req, res)
       request.clearLegacyCookie()
@@ -197,6 +249,10 @@ export function createSupabaseAuthGateway(
       return user
     },
 
+    /**
+     * Create an account and report whether confirmation is required instead of
+     * assuming registration creates a session.
+     */
     async register(req, res, input) {
       const request = createRequest(req, res)
       request.clearLegacyCookie()
@@ -250,6 +306,10 @@ export function createSupabaseAuthGateway(
       return { user }
     },
 
+    /**
+     * Request another signup email using the trusted callback origin; keep
+     * unknown/already-confirmed outcomes generic.
+     */
     async resendConfirmation(req, res, input) {
       const request = createRequest(req, res)
       request.clearLegacyCookie()
@@ -291,6 +351,10 @@ export function createSupabaseAuthGateway(
       request.commitCookies()
     },
 
+    /**
+     * Authenticate credentials and distinguish unconfirmed email from invalid
+     * credentials and service outages.
+     */
     async login(req, res, input) {
       const request = createRequest(req, res)
       request.clearLegacyCookie()
@@ -328,6 +392,10 @@ export function createSupabaseAuthGateway(
       return { user }
     },
 
+    /**
+     * End this browser session; do not report logout success if the provider
+     * cannot complete it.
+     */
     async logout(req, res) {
       const request = createRequest(req, res)
       request.clearLegacyCookie()
@@ -341,6 +409,10 @@ export function createSupabaseAuthGateway(
       request.commitCookies()
     },
 
+    /**
+     * Verify the current password with an isolated client, update it, and report
+     * any failure to revoke other sessions.
+     */
     async changePassword(req, res, input) {
       const request = createRequest(req, res)
       const verifier = createVerificationSupabaseClient(settings)
@@ -387,6 +459,10 @@ export function createSupabaseAuthGateway(
       )
     },
 
+    /**
+     * Exchange a browser-bound confirmation code and redirect to controlled
+     * success or actionable confirmation-status pages.
+     */
     async callback(req, res, code, providerError) {
       const origin = callbackOrigin(req, settings)
       const request = createRequest(req, res)

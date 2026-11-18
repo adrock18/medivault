@@ -1,7 +1,17 @@
+/**
+ * Account vault cache and managed-profile view. Refreshes from Express on mount,
+ * focus and a timer; ignores stale requests and filters profile-owned
+ * collections.
+ */
+
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import { api, errorMessage } from '../lib/api'
 import { DataContext, type DataState } from './DataContext'
 
+/**
+ * Keep one owner snapshot while exposing the selected family member without
+ * switching login identity.
+ */
 export function DataProvider({ children }: { children: ReactNode }) {
   const [data, setData] = useState<
     Omit<
@@ -38,6 +48,10 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const [selectedFamilyMemberId, setSelectedFamilyMemberId] = useState('')
   const [now, setNow] = useState(() => new Date())
   const sequence = useRef(0)
+  /**
+   * Accept only the latest vault response; retain the last snapshot on failure
+   * and expose an explicit refresh error.
+   */
   const reload = useCallback(async () => {
     const current = ++sequence.current
     setNow(new Date())

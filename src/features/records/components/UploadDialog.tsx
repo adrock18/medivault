@@ -1,3 +1,8 @@
+/**
+ * Medical-record upload and metadata-edit form. Keeps new-file validation
+ * distinct from editing metadata for an already stored private document.
+ */
+
 import { useId, useState } from 'react'
 import { Controller, useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -17,7 +22,12 @@ import {
   SubmitButton,
 } from '@/components/common'
 import { Button } from '@/components/ui/button'
+import { DateField } from '@/components/DateField'
 
+/**
+ * Initialize record/profile/visit fields and coordinate a validated upload or
+ * metadata edit.
+ */
 export function UploadDialog({
   onClose,
   record,
@@ -36,10 +46,13 @@ export function UploadDialog({
   const fileId = useId()
   const [file, setFile] = useState<File | null>(null)
   const [fileError, setFileError] = useState<string | null>(null)
+  const defaultVisit = visits.find((visit) => visit.id === defaultVisitId)
   const {
     register,
     control,
     handleSubmit,
+    getValues,
+    setValue,
     formState: { errors },
   } = useForm<RecordValues>({
     resolver: zodResolver(recordSchema),
@@ -49,7 +62,8 @@ export function UploadDialog({
           visit_id: record.visit_id ?? '',
           title: record.title,
           document_kind: record.document_kind,
-          provider: record.provider,
+          hospital_name: record.hospital_name,
+          doctor_name: record.doctor_name,
           record_date: record.record_date,
         }
       : {
@@ -57,10 +71,15 @@ export function UploadDialog({
           visit_id: defaultVisitId,
           title: '',
           document_kind: defaultKind,
-          provider: '',
+          hospital_name: defaultVisit?.hospital_name ?? '',
+          doctor_name: defaultVisit?.doctor_name ?? '',
           record_date: localDate(),
         },
   })
+  /**
+   * Require a file only for new records, persist through the normal API and
+   * notify callers only after success.
+   */
   async function submit(values: RecordValues) {
     if (!record && !file) {
       setFileError('Choose a PDF, JPG, or PNG document.')
@@ -175,12 +194,19 @@ export function UploadDialog({
                 />
               )}
             />
-            <Field
-              label="Record date *"
-              type="date"
-              max={localDate()}
-              registration={register('record_date')}
-              error={errors.record_date?.message}
+            <Controller
+              name="record_date"
+              control={control}
+              render={({ field }) => (
+                <DateField
+                  label="Record date *"
+                  value={field.value}
+                  onChange={field.onChange}
+                  onBlur={field.onBlur}
+                  inputRef={field.ref}
+                  error={errors.record_date?.message}
+                />
+              )}
             />
             <Controller
               name="visit_id"
@@ -192,7 +218,25 @@ export function UploadDialog({
                   ref={field.ref}
                   onBlur={field.onBlur}
                   value={field.value}
-                  onValueChange={field.onChange}
+                  onValueChange={(value) => {
+                    const previousVisit = visits.find(
+                      (visit) => visit.id === field.value,
+                    )
+                    const nextVisit = visits.find((visit) => visit.id === value)
+                    // Preserve document-specific overrides independently for each name.
+                    for (const name of [
+                      'hospital_name',
+                      'doctor_name',
+                    ] as const) {
+                      const current = getValues(name)
+                      if (!current || current === previousVisit?.[name])
+                        setValue(name, nextVisit?.[name] ?? '', {
+                          shouldDirty: true,
+                          shouldValidate: true,
+                        })
+                    }
+                    field.onChange(value)
+                  }}
                   disabled={mutation.pending}
                   options={[
                     { value: '', label: 'Keep in unassigned records' },
@@ -207,12 +251,24 @@ export function UploadDialog({
               )}
             />
           </div>
-          <Field
-            label="Hospital or doctor"
-            placeholder="e.g. Riverside Medical Center"
-            registration={register('provider')}
-            error={errors.provider?.message}
-          />
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Field
+              label="Hospital"
+              placeholder="Hospital, clinic or laboratory"
+              registration={register('hospital_name')}
+              error={errors.hospital_name?.message}
+            />
+            <Field
+              label="Doctor"
+              placeholder="Doctor's name"
+              registration={register('doctor_name')}
+              error={errors.doctor_name?.message}
+            />
+          </div>
+          <p className="text-xs text-muted-foreground">
+            Filled from the selected visit. You can change either name for this
+            document.
+          </p>
           {mutation.error && <ErrorState message={mutation.error} />}
           <div className="flex flex-wrap justify-end gap-2 border-t pt-5">
             <Button type="button" variant="outline" onClick={onClose}>

@@ -1,3 +1,8 @@
+/**
+ * Vite integration for self-hosted scanning assets. Makes PDF and OCR workers,
+ * language data and licenses available locally.
+ */
+
 import { createReadStream, readFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import type { Plugin } from 'vite'
@@ -9,6 +14,10 @@ const assets = localScanningAssets.map(([name, dependency]) => ({
   path: require.resolve(dependency),
 }))
 
+/**
+ * Provide local scanning assets during development and emit the same assets into
+ * production output.
+ */
 export function localOcrAssets(): Plugin {
   return {
     name: 'medivault-local-ocr',

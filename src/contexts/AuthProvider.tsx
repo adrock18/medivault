@@ -1,3 +1,8 @@
+/**
+ * Browser authentication coordinator. Loads server-validated sessions and
+ * serializes auth actions so stale responses cannot restore an obsolete identity.
+ */
+
 import {
   useEffect,
   useLayoutEffect,
@@ -17,10 +22,18 @@ import {
 import { AuthContext } from './AuthContext'
 import { cancelThemeTransition } from '../lib/theme'
 
+/**
+ * Distinguish a signed-in registration result from one that still requires email
+ * confirmation.
+ */
 function isSession(result: RegistrationResult): result is Session {
   return 'user' in result
 }
 
+/**
+ * Own session loading, retry and expiry state; expose auth actions to forms
+ * without placing tokens in JavaScript storage.
+ */
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null)
   const [loading, setLoading] = useState(true)
@@ -33,6 +46,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [session?.user.id])
   useEffect(() => {
     let mounted = true
+    /**
+     * Refresh on mount/focus and accept only the latest still-mounted session
+     * response.
+     */
     async function refresh() {
       if (authenticating.current) return
       const current = ++sequence.current
@@ -50,6 +67,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
       }
     }
+    /**
+     * Invalidate pending session responses before clearing a server-expired
+     * session.
+     */
     function expired() {
       sequence.current++
       setSession(null)
@@ -65,6 +86,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       window.removeEventListener('medivault:session-expired', expired)
     }
   }, [attempt])
+  /**
+   * Serialize sign-in/signup and prevent overlapping refresh results from
+   * overwriting the action outcome.
+   */
   async function authenticate<T extends Session | RegistrationResult>(
     action: () => Promise<T>,
   ) {
@@ -91,6 +116,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   async function signUp(values: z.infer<typeof registerSchema>) {
     return authenticate(() => api.auth.register(values))
   }
+  /**
+   * Serialize confirmation resend with other auth actions and invalidate earlier
+   * session refreshes.
+   */
   async function resendConfirmation(
     values: z.infer<typeof confirmationEmailSchema>,
   ) {
@@ -104,6 +133,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       authenticating.current = false
     }
   }
+  /**
+   * Clear local identity only after server logout succeeds so provider failure
+   * remains visible to the caller.
+   */
   async function signOut() {
     if (authenticating.current)
       throw new Error('An authentication request is already running.')

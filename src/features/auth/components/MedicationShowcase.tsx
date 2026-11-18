@@ -1,3 +1,8 @@
+/**
+ * Decorative authentication-page illustration. Its medication artwork is
+ * presentation, not a patient schedule or database-backed health summary.
+ */
+
 import { useId } from 'react'
 import { Pause, Play } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -216,6 +221,10 @@ function MedicationArtwork({ form, id }: { form: MedicationForm; id: string }) {
   )
 }
 
+/**
+ * Present responsive auth-page artwork without participating in authentication or
+ * medical decisions.
+ */
 export function MedicationShowcase({
   compact = false,
   paused,

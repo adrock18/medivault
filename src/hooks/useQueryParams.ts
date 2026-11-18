@@ -1,3 +1,8 @@
+/**
+ * Route-query update helper for actionable deep links. Changes only requested
+ * parameters so unrelated navigation state survives dialog actions.
+ */
+
 import { useCallback } from 'react'
 import { useSearchParams, type NavigateOptions } from 'react-router-dom'
 

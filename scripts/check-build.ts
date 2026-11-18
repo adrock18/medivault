@@ -1,3 +1,8 @@
+/**
+ * Build-verification entry point. Rejects incomplete frontend output and
+ * oversized entry bundles before publication.
+ */
+
 import {
   checkFrontendBuild,
   ENTRY_BYTE_LIMIT,

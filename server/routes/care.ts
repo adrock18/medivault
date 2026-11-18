@@ -1,3 +1,8 @@
+/**
+ * Owner-scoped care tracks, visits and follow-ups. Validates related-profile
+ * links before persistence; reviewed report results belong to the vault router.
+ */
+
 import { Router } from 'express'
 import {
   careTrackSchema,
@@ -6,6 +11,7 @@ import {
 } from '../../shared/schemas.ts'
 import { databaseResult, validate, type RouteContext } from './context.ts'
 
+/** Register care-organization endpoints while preserving owner/profile links. */
 export function careRoutes(context: RouteContext) {
   const router = Router()
 

@@ -1,78 +1,14 @@
-import { useEffect, useId, useRef, useState, type Ref } from 'react'
-import { Field } from '@/components/common'
+/**
+ * Profile date-of-birth adapter for the shared typed calendar-date control.
+ * Retains birthday autocomplete and the existing profile form contract.
+ */
 
-function dateParts(value: string) {
-  const [year = '', month = '', day = ''] = value.split('-')
-  return { day, month, year }
-}
+import type { ComponentProps } from 'react'
+import { DateField } from '@/components/DateField'
 
-/** Allows direct date entry while keeping the API's ISO date format and rejecting partial dates. */
-export function DateOfBirthField({
-  value,
-  onChange,
-  onBlur,
-  inputRef,
-  error,
-}: {
-  value: string
-  onChange: (value: string) => void
-  onBlur: () => void
-  inputRef: Ref<HTMLInputElement>
-  error?: string
-}) {
-  const [parts, setParts] = useState(() => dateParts(value))
-  const emitted = useRef(value)
-  const helpId = useId()
-  useEffect(() => {
-    if (value !== emitted.current) {
-      emitted.current = value
-      setParts(dateParts(value))
-    }
-  }, [value])
-
-  function change(part: keyof typeof parts, text: string) {
-    const next = { ...parts, [part]: text }
-    setParts(next)
-    const date =
-      next.day || next.month || next.year
-        ? `${next.year}-${next.month.padStart(2, '0')}-${next.day.padStart(2, '0')}`
-        : ''
-    emitted.current = date
-    onChange(date)
-  }
-
-  return (
-    <fieldset className="min-w-0 space-y-2" aria-invalid={!!error}>
-      <legend className="text-sm font-medium">Date of birth</legend>
-      <div className="grid grid-cols-[1fr_1fr_1.4fr] gap-2">
-        {(['day', 'month', 'year'] as const).map((part) => (
-          <Field
-            key={part}
-            label={part[0].toUpperCase() + part.slice(1)}
-            placeholder={
-              part === 'year' ? 'YYYY' : part === 'month' ? 'MM' : 'DD'
-            }
-            inputMode="numeric"
-            autoComplete={`bday-${part}`}
-            maxLength={part === 'year' ? 4 : 2}
-            value={parts[part]}
-            onChange={(event) => change(part, event.target.value)}
-            onBlur={onBlur}
-            ref={part === 'day' ? inputRef : undefined}
-            aria-invalid={!!error}
-            aria-describedby={helpId}
-          />
-        ))}
-      </div>
-      <p
-        id={helpId}
-        role={error ? 'alert' : undefined}
-        className={
-          error ? 'text-xs text-red-700' : 'text-xs text-muted-foreground'
-        }
-      >
-        {error || 'Type the day, month, and four-digit year.'}
-      </p>
-    </fieldset>
-  )
+/** Present the shared date fields with birthday-specific labeling. */
+export function DateOfBirthField(
+  props: Omit<ComponentProps<typeof DateField>, 'label' | 'birthday'>,
+) {
+  return <DateField {...props} label="Date of birth" birthday />
 }

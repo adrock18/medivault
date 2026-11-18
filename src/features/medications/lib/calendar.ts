@@ -1,11 +1,21 @@
+/**
+ * Pure medication-calendar calculations. Produce local calendar grids and per-day
+ * agenda data without maintaining UI state.
+ */
+
 import { addDays, addMonths, startOfMonth, startOfWeek } from 'date-fns'
 import type { DoseLog, Medication } from '@shared/database.types'
 import { localDate, scheduledDoses, type ScheduledDose } from '@/lib/utils'
 
+/**
+ * Move a month view without overflowing a long month day into the wrong
+ * destination month.
+ */
 export function shiftCalendarMonth(day: string, offset: number) {
   return localDate(addMonths(new Date(`${day}T12:00:00`), offset))
 }
 
+/** Build the week-aligned grid needed to render the selected calendar month. */
 export function calendarDays(day: string) {
   const first = startOfWeek(startOfMonth(new Date(`${day}T12:00:00`)), {
     weekStartsOn: 1,
@@ -15,6 +25,10 @@ export function calendarDays(day: string) {
   )
 }
 
+/**
+ * Combine schedule doses and saved logs for one calendar day, including
+ * historical outcomes.
+ */
 export function calendarAgenda(
   medications: Medication[],
   logs: DoseLog[],

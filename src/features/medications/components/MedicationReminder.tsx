@@ -1,3 +1,8 @@
+/**
+ * In-app medication reminder presentation. This component does not schedule
+ * background jobs, send email or alter prescribed doses.
+ */
+
 import { CheckCheck, Clock3 } from 'lucide-react'
 import { cn, doseTiming, type ScheduledDose } from '@/lib/utils'
 

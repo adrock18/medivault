@@ -1,3 +1,8 @@
+/**
+ * Selected-profile medical-history page. Resets local workspace state when the
+ * managed profile changes and coordinates confirmed track deletion.
+ */
+
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { FolderHeart, Plus, Pencil, Trash2 } from 'lucide-react'
@@ -10,11 +15,19 @@ import { Button } from '@/components/ui/button'
 import { CareHistoryGraph } from '../components/CareHistoryGraph'
 import { CareDialog } from '../components/CareDialog'
 
+/**
+ * Key history workspace state by managed profile so selections do not carry
+ * across people.
+ */
 export default function MedicalHistoryPage() {
   const { selectedFamilyMemberId } = useVault()
   return <HistoryWorkspace key={selectedFamilyMemberId} />
 }
 
+/**
+ * Connect stored care relationships to history presentation and working
+ * track/visit actions.
+ */
 function HistoryWorkspace() {
   const { careTracks, visits, records, medications, followUps, reload } =
     useVault()
@@ -22,6 +35,10 @@ function HistoryWorkspace() {
   const [removing, setRemoving] = useState<CareTrack | null>(null)
   const mutation = useMutation()
 
+  /**
+   * Remove the explicitly chosen care track through the mutation boundary and
+   * retain failures for retry.
+   */
   async function removeTrack() {
     if (!removing) return
     const saved = await mutation.run(async () => {

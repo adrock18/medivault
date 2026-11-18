@@ -1,3 +1,8 @@
+/**
+ * Visit follow-up editor. Records a user-entered due date, not a booked
+ * appointment; calculated intervals require explicit confirmation.
+ */
+
 import { useState, type FormEvent } from 'react'
 import { useForm, useWatch } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -17,6 +22,10 @@ import {
 import { Button } from '@/components/ui/button'
 import { calculateFollowUpDate } from '../lib/follow-ups'
 
+/**
+ * Edit a visit-linked follow-up and validate source/completion links against the
+ * selected profile workspace.
+ */
 export function FollowUpDialog({
   visit,
   followUp,
@@ -51,6 +60,10 @@ export function FollowUpDialog({
   const calculated = calculateFollowUpDate(visit.visit_date, interval)
   const confirmationKey = `${visit.visit_date}:${interval}`
 
+  /**
+   * Persist the validated follow-up and dismiss only after the shared mutation
+   * reports success.
+   */
   async function save(values: VisitFollowUpValues) {
     if (
       await mutation.run(async () => {
@@ -60,6 +73,10 @@ export function FollowUpDialog({
     )
       onClose()
   }
+  /**
+   * Require confirmation of the current interval-derived date before passing
+   * values to schema validation.
+   */
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     if (mode === 'days') {

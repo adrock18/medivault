@@ -6,18 +6,20 @@ All private operations select by the authenticated owner. Mutation requests send
 `X-MediVault-Request: 1`; supplied origins must match the request host or configured
 `APP_ORIGIN`. JSON is limited to 64 KiB. Bodies are validated with strict shared
 schemas; UUID parameters are validated separately. Success responses are
-runtime-validated by the browser. Errors have `{ "error": "Helpful message" }`.
+runtime-validated by the browser. Errors have `{ "error": "Helpful message" }`
+and may include an optional stable `code`, for example `email_not_confirmed`.
+The UI branches on that code when needed rather than parsing message wording.
 
 | Status          | Meaning                                                                                                                    |
 | --------------- | -------------------------------------------------------------------------------------------------------------------------- |
 | 400             | Invalid fields/JSON/schedule/current password or rejected document.                                                        |
 | 401             | No valid session; private-client requests trigger workspace invalidation.                                                  |
-| 403             | Request-protection/origin failure.                                                                                         |
+| 403             | Request-protection/origin failure or denied database permission.                                                           |
 | 404             | Unknown/unavailable owned entry or absent file; no other owner's metadata.                                                 |
 | 409             | Account/data conflict, such as a duplicate email or dose coordinate.                                                       |
 | 413             | Body/file size limit.                                                                                                      |
 | 422             | The optional OCR provider returned no readable text.                                                                       |
-| 429             | Authentication attempt limit.                                                                                              |
+| 429             | Authentication/resend request limit or provider confirmation-email quota.                                                  |
 | 500 / 502 / 503 | Explicit server/provider/storage failure, never a successful placeholder. Do not assume every provider error is transient. |
 
 Responses and files under `/api` use `Cache-Control: no-store`. Downloaded copies
@@ -37,10 +39,15 @@ sequenceDiagram
   API->>Auth: Supabase signUp
   Auth->>DB: Bootstrap profile, self member and preferences
   Auth-->>API: User and session, or confirmation required
-  API-->>Browser: User + HttpOnly Supabase cookies
-  Browser->>API: GET /api/auth/callback?code=... (same browser)
-  API->>Auth: exchangeCodeForSession using the PKCE verifier cookie
-  API-->>Browser: 303 to fixed dashboard or safe login status
+  alt Session returned
+    API-->>Browser: 201 user summary + HttpOnly session cookies
+  else Confirmation required
+    API-->>Browser: 201 confirmation_required + verifier cookie
+    Owner->>Browser: Open confirmation link in registration browser
+    Browser->>API: GET /api/auth/callback?code=...
+    API->>Auth: exchangeCodeForSession using verifier cookie
+    API-->>Browser: 303 to dashboard or safe login status
+  end
   Browser->>API: GET /api/auth/session after reload
   API->>Auth: getUser; refresh via request cookie adapter
   API->>DB: Read owner profile name
@@ -69,6 +76,19 @@ destination. Missing codes/verifiers, expired links and provider outages return
 safe sign-in/retry guidance without echoing codes or claiming email delivery.
 Configure the project Site URL and exact callback allowlist as described in the
 development guide.
+
+An unconfirmed login includes `code: "email_not_confirmed"`, enabling contextual
+resend guidance. `POST /api/auth/resend-confirmation` accepts a validated email
+and uses the configured callback origin. Unknown/already-confirmed outcomes stay
+generic to avoid confirming account existence. A 204 means the request was
+handled, not that email arrived. Express limits resend to one per minute per IP
+in addition to the shared auth limiter; Supabase email quotas still apply.
+The provider may remain unavailable or rate-limited; those failures are explicit.
+
+There is no self-service forgotten-password reset workflow. Settings changes a
+known password using the current password; confirmation resend is not password
+recovery.
+
 Passwords and session persistence belong to Supabase Auth; the application no
 longer creates local password hashes or sessions. Password changes verify the
 current password in an isolated non-persisted Auth client, revoke that temporary
@@ -98,6 +118,59 @@ The JSON export intentionally contains the full account dataset. The optional
 printable activity summary uses only the selected profile's records,
 medications, and related dose outcomes; owner health-profile fields cannot
 appear in a different member's summary.
+
+## Health profile save
+
+```mermaid
+sequenceDiagram
+  actor Owner
+  participant Form as Profile form
+  participant Client as Shared API client
+  participant API as Express vault routes
+  participant DB as PostgreSQL + owner RLS
+  Owner->>Form: Edit selected person's health details
+  Form->>Form: React Hook Form + shared Zod validation
+  Form->>Client: Validated values, including background rows
+  alt Account owner's self profile
+    Client->>API: PUT /api/health-profile
+    API->>DB: Upsert health_profiles with session owner
+  else Managed family member
+    Client->>API: PUT /api/family-members/:id/health-profile
+    API->>API: Verify owned non-self member
+    API->>DB: Upsert family_health_profiles
+  end
+  DB->>DB: Validate rows and derive legacy summaries
+  DB-->>API: Saved profile, or explicit failure
+  API-->>Client: Validated saved row / safe HTTP error
+  Client-->>Form: Success or thrown error
+  Form->>Client: Refresh vault through mutation lifecycle
+```
+
+The DOB control allows direct day/month/four-digit-year typing. It emits an
+ISO-shaped date string; the shared schema rejects incomplete, impossible or
+future birth dates. No timezone conversion is needed for a birth date.
+
+Medical background is an array of `{ type, name, instructions }`, with up to 20
+entries. Type is `allergy` or `condition`; names are required, and instructions
+are optional wording entered by the user, not generated treatment. Name and
+instruction limits are 2,000 characters each; combined names for either type
+must also fit the 2,000-character legacy summary.
+
+Untouched legacy allergy/condition text becomes one editable row per nonblank
+field, not a guessed comma/newline split. A missing/null structured value retains
+that fallback; a saved empty array means deliberately cleared. A database trigger
+validates structured writes and rejects stale legacy-only edits after conversion.
+
+New gender selections are Male/Female. Existing historical values and stored
+emergency contacts are preserved rather than silently erased; the contact and
+summary-sidebar UI is removed. Family name/relationship/DOB use the separate
+family-management form, not the family health-details endpoint. The account
+owner's full name stays synchronized by the existing database guard.
+
+Implementation: [profile page](../src/features/profile/pages/ProfilePage.tsx),
+[DOB control](../src/features/profile/components/DateOfBirthField.tsx),
+[background compatibility](../shared/medical-background.ts) and
+[vault routes](../server/routes/vault.ts).
 
 ## Visit follow-ups
 
@@ -154,10 +227,10 @@ Deletion confirmation explains that the origin's follow-up is removed.
   `/medical-records?record=<id>`; visits use `?visit=<id>`, including empty visits;
   medication links open `/medications?record=<source-id>`.
 - **Health profile** retains demographic and personal health details. History
-  sits above it in shared navigation and command search. The existing four
+  sits above it in shared navigation. The existing four
   mobile dock destinations remain; history is available in the mobile menu.
 
-Records discovery aligns Search, Document type, Date order and Favourites in
+Records discovery aligns Search, Document type, Date order and **Important!** in
 one desktop row, with the result count below and responsive rows on narrow
 screens. Filters combine before visits are rendered; hidden documents never
 masquerade as genuinely empty visits. Active filters produce one no-match state
@@ -301,47 +374,51 @@ Full field validation lives in [schemas](../shared/schemas.ts); response shapes
 live in [contracts](../shared/contracts.ts). PATCH metadata/medication/care
 requests use their complete form payload, not arbitrary merge patches.
 Document responses include a strict `is_favourite` boolean. Favourite PUTs are
+the compatibility API behind the UI's **Important!** mark; existing marks and
+endpoint names are unchanged. These PUTs are
 desired-state, owner-scoped writes: repeated equal states are idempotent and do
 not rewrite metadata or document bytes. Metadata PATCH does not accept or clear
 this flag. Missing/non-boolean/extra favourite fields return 400; ordinary
 authentication, request-protection and inaccessible-owner errors remain
 401/403/404 respectively.
 
-| Endpoint                                     | Request / response                                                                                                                                      |
-| -------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `GET /api/health`                            | Database probe -> `{status:"ok"}`; not backup or document readiness.                                                                                    |
-| `GET /api/auth/session`                      | Supabase `getUser()` and supported cookie refresh -> user session or null; outage is an explicit retryable error.                                       |
-| `POST /api/auth/register`                    | full_name/email/password/confirm_password -> 201 with a session or typed confirmation-required result.                                                  |
-| `POST /api/auth/login`                       | email/password -> session.                                                                                                                              |
-| `POST /api/auth/logout`                      | Supabase local-session sign-out -> 204.                                                                                                                 |
-| `POST /api/auth/password`                    | Verify current_password; set matching password/confirm_password and revoke other sessions -> 204, or explicit failure/partial-success error.            |
-| `GET /api/vault`                             | -> owned profile, family members, preferences, feature flags, owner and family health profiles, records, medications, logs, care tracks and visits.     |
-| `GET /api/account/export`                    | Full account export, including family health profiles and archived historical measurements.                                                             |
-| `PUT /api/health-profile`                    | Validated account-owner profile form -> saved health profile.                                                                                           |
-| `POST /api/family-members`                   | full_name/relationship/date_of_birth -> owner-managed profile, 201.                                                                                     |
-| `PATCH /api/family-members/:id`              | Update an owned family profile; the account owner's self name uses health profile.                                                                      |
-| `PUT /api/family-members/:id/health-profile` | Validated health details -> saved private health profile for an owned non-owner profile.                                                                |
-| `DELETE /api/family-members/:id`             | Deletes an empty non-owner profile and its health details; self is rejected (400), dependent data blocks deletion (409), other owners are hidden (404). |
-| `POST /api/records/:id/results`              | Reviewed measurement date and result rows -> append-only review; latest eligible profile fields sync atomically.                                        |
-| `POST /api/care-tracks`                      | family_member_id/title/kind -> care track, 201.                                                                                                         |
-| `PATCH /api/care-tracks/:id`                 | Update owned care track.                                                                                                                                |
-| `DELETE /api/care-tracks/:id`                | Deletes track; its visits remain standalone.                                                                                                            |
-| `POST /api/care-visits`                      | family_member_id/care_track_id/title/reason/setting/provider/visit_date/notes -> visit, 201.                                                            |
-| `PATCH /api/care-visits/:id`                 | Update owned visit and optional track association.                                                                                                      |
-| `PUT /api/care-visits/:id/follow-up`         | Idempotent manually managed follow-up; see visit follow-ups above.                                                                                      |
-| `DELETE /api/care-visits/:id`                | Deletes visit; its documents become unassigned.                                                                                                         |
-| `POST /api/records`                          | Multipart file/family_member_id/visit_id/title/document_kind/provider/record_date -> record, 201.                                                       |
-| `PATCH /api/records/:id`                     | Record metadata including family_member_id, visit_id and document_kind -> saved record.                                                                 |
-| `PUT /api/records/:id/favourite`             | Strict `{is_favourite:boolean}` -> saved owned record, 200; desired state, not toggle.                                                                  |
-| `POST /api/records/:id/ocr`                  | `{confirm_external_processing:true}` -> OCR.Space text, only if configured and owned.                                                                   |
-| `GET /api/records/:id/file`                  | Authorized bytes; `?download=1` sets attachment.                                                                                                        |
-| `DELETE /api/records/:id`                    | Confirmed owned deletion -> 204.                                                                                                                        |
-| `POST /api/medications`                      | Prescription form -> medication, 201.                                                                                                                   |
-| `PATCH /api/medications/:id`                 | Prescription form -> saved medication.                                                                                                                  |
-| `DELETE /api/medications/:id`                | Deletes prescription and cascading logs -> 204.                                                                                                         |
-| `POST /api/dose-logs`                        | medication_id/scheduled_date/scheduled_time/status -> log, 201.                                                                                         |
-| `PATCH /api/dose-logs/:id`                   | taken/skipped status -> saved log; coordinates immutable.                                                                                               |
-| `DELETE /api/dose-logs/:id`                  | Undo -> 204.                                                                                                                                            |
+| Endpoint                                     | Request / response                                                                                                                                             |
+| -------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `GET /api/health`                            | Database probe -> `{status:"ok"}`; not backup or document readiness.                                                                                           |
+| `GET /api/auth/session`                      | Supabase `getUser()` and supported cookie refresh -> user session or null; outage is an explicit retryable error.                                              |
+| `POST /api/auth/register`                    | full_name/email/password/confirm_password -> 201 with a session or typed confirmation-required result.                                                         |
+| `POST /api/auth/login`                       | email/password -> session.                                                                                                                                     |
+| `POST /api/auth/resend-confirmation`         | email -> generic 204; request/provider limits apply and delivery is not guaranteed.                                                                            |
+| `GET /api/auth/callback`                     | Same-browser PKCE code -> controlled 303 destination or confirmation-status guidance.                                                                          |
+| `POST /api/auth/logout`                      | Supabase local-session sign-out -> 204.                                                                                                                        |
+| `POST /api/auth/password`                    | Verify current_password; set matching password/confirm_password and revoke other sessions -> 204, or explicit failure/partial-success error.                   |
+| `GET /api/vault`                             | -> owned profile, family members, preferences, feature flags, health profiles, records, medications, logs, care tracks, visits, follow-ups and result reviews. |
+| `GET /api/account/export`                    | Full account export, including family health profiles and archived historical measurements.                                                                    |
+| `PUT /api/health-profile`                    | Validated account-owner profile form -> saved health profile.                                                                                                  |
+| `POST /api/family-members`                   | full_name/relationship/date_of_birth -> owner-managed profile, 201.                                                                                            |
+| `PATCH /api/family-members/:id`              | Update an owned family profile; the account owner's self name uses health profile.                                                                             |
+| `PUT /api/family-members/:id/health-profile` | Validated health details -> saved private health profile for an owned non-owner profile.                                                                       |
+| `DELETE /api/family-members/:id`             | Deletes an empty non-owner profile and its health details; self is rejected (400), dependent data blocks deletion (409), other owners are hidden (404).        |
+| `POST /api/records/:id/results`              | Reviewed measurement date and result rows -> append-only review; latest eligible profile fields sync atomically.                                               |
+| `POST /api/care-tracks`                      | family_member_id/title/kind -> care track, 201.                                                                                                                |
+| `PATCH /api/care-tracks/:id`                 | Update owned care track.                                                                                                                                       |
+| `DELETE /api/care-tracks/:id`                | Deletes track; its visits remain standalone.                                                                                                                   |
+| `POST /api/care-visits`                      | family_member_id/care_track_id/title/reason/setting/hospital_name/doctor_name/visit_date/notes -> visit, 201.                                                  |
+| `PATCH /api/care-visits/:id`                 | Update owned visit and optional track association.                                                                                                             |
+| `PUT /api/care-visits/:id/follow-up`         | Idempotent manually managed follow-up; see visit follow-ups above.                                                                                             |
+| `DELETE /api/care-visits/:id`                | Deletes visit; its documents become unassigned.                                                                                                                |
+| `POST /api/records`                          | Multipart file/family_member_id/visit_id/title/document_kind/hospital_name/doctor_name/record_date -> record, 201.                                             |
+| `PATCH /api/records/:id`                     | Record metadata including family_member_id, visit_id and document_kind -> saved record.                                                                        |
+| `PUT /api/records/:id/favourite`             | Strict `{is_favourite:boolean}` -> saved owned record, 200; desired state, not toggle.                                                                         |
+| `POST /api/records/:id/ocr`                  | `{confirm_external_processing:true}` -> OCR.Space text, only if configured and owned.                                                                          |
+| `GET /api/records/:id/file`                  | Authorized bytes; `?download=1` sets attachment.                                                                                                               |
+| `DELETE /api/records/:id`                    | Confirmed owned deletion -> 204.                                                                                                                               |
+| `POST /api/medications`                      | Prescription form -> medication, 201.                                                                                                                          |
+| `PATCH /api/medications/:id`                 | Prescription form -> saved medication.                                                                                                                         |
+| `DELETE /api/medications/:id`                | Deletes prescription and cascading logs -> 204.                                                                                                                |
+| `POST /api/dose-logs`                        | medication_id/scheduled_date/scheduled_time/status -> log, 201.                                                                                                |
+| `PATCH /api/dose-logs/:id`                   | taken/skipped status -> saved log; coordinates immutable.                                                                                                      |
+| `DELETE /api/dose-logs/:id`                  | Undo -> 204.                                                                                                                                                   |
 
 There is no public file-list API, account-sharing API, diagnosis API, or server
 endpoint that prescribes a medication. Sample data and JSON export are explicit

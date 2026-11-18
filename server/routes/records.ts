@@ -1,3 +1,8 @@
+/**
+ * Medical-document endpoints. Coordinate owner-scoped metadata with private
+ * Storage, compensating failed uploads and surfacing partial deletions.
+ */
+
 import { Router } from 'express'
 import { randomUUID } from 'node:crypto'
 import { pipeline } from 'node:stream/promises'
@@ -345,6 +350,10 @@ export function recordRoutes(context: RouteContext) {
   return router
 }
 
+/**
+ * Map the richer document-kind vocabulary onto the retained category column for
+ * compatibility.
+ */
 function legacyCategory(
   kind: import('../../shared/database.types.ts').DocumentKind,
 ) {

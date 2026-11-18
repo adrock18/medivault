@@ -1,3 +1,8 @@
+/**
+ * Owner and managed-family health profiles. Preserve legacy fields while editing
+ * structured medical-background rows and separate family demographics.
+ */
+
 import { Controller, useFieldArray, useForm } from 'react-hook-form'
 import { useEffect, useMemo, useState } from 'react'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -31,6 +36,10 @@ import {
   ConfirmationDialog,
 } from '@/components/common'
 
+/**
+ * Bind the selected person to owner/family health data, retaining legacy values
+ * and stable background rows across identical refreshes.
+ */
 function ProfileForm() {
   const {
     healthProfile,
@@ -124,6 +133,10 @@ function ProfileForm() {
     emergencyContactName,
     emergencyContactPhone,
   ])
+  /**
+   * Send validated health details to the owner or managed-family endpoint; never
+   * change authentication identity.
+   */
   async function submit(values: ProfileValues) {
     await mutation.run(
       async () => {
@@ -149,7 +162,7 @@ function ProfileForm() {
                 : `Keep ${member?.full_name ?? 'this family member'}'s health details organized with their care history.`
             }
           />
-          <div className="grid gap-5 sm:grid-cols-2 min-[90rem]:grid-cols-3">
+          <div className="profile-personal-fields grid items-start gap-5 sm:grid-cols-2 min-[90rem]:grid-cols-3">
             {isSelf && (
               <>
                 <Field
@@ -393,6 +406,10 @@ function ProfileForm() {
   )
 }
 
+/**
+ * Manage account-owned family demographics separately from the selected person
+ * health-details form.
+ */
 function FamilyProfiles() {
   const { familyMembers, reload, selectedFamilyMemberId, selectFamilyMember } =
     useVault()
@@ -426,6 +443,10 @@ function FamilyProfiles() {
     })
   }, [editingId, editingMember, reset])
 
+  /**
+   * Create or update a managed family profile and dismiss editing only after
+   * persistence succeeds.
+   */
   async function submit(values: FamilyMemberValues) {
     const saved = await mutation.run(
       async () => {
@@ -438,6 +459,10 @@ function FamilyProfiles() {
     if (saved) setEditingId(null)
   }
 
+  /**
+   * Apply the explicitly confirmed managed-profile deletion and preserve the
+   * dialog when the mutation fails.
+   */
   async function removeMember() {
     if (!removingMember) return
     const saved = await mutation.run(async () => {
@@ -517,7 +542,7 @@ function FamilyProfiles() {
             <h3 className="font-semibold">
               {editingMember ? 'Edit family profile' : 'Add family profile'}
             </h3>
-            <div className="grid gap-4 sm:grid-cols-3">
+            <div className="profile-personal-fields grid items-start gap-4 sm:grid-cols-3">
               <Field
                 label="Full name *"
                 registration={register('full_name')}
@@ -599,6 +624,10 @@ function FamilyProfiles() {
   )
 }
 
+/**
+ * Compose the selected person health form and family-management panel without
+ * nesting their forms.
+ */
 export default function ProfilePage() {
   const { familyMembers, selectedFamilyMemberId } = useVault()
   const member = familyMembers.find(

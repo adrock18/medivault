@@ -1,3 +1,8 @@
+/**
+ * Retained reminder-route implementation, currently not mounted by the
+ * application. Its presence does not enable scheduled email delivery.
+ */
+
 import { createHash, timingSafeEqual } from 'node:crypto'
 import { Router } from 'express'
 import { notificationPreferencesSchema } from '../../shared/schemas.ts'
@@ -8,6 +13,10 @@ import {
   type RouteContext,
 } from './context.ts'
 
+/**
+ * Compare fixed-length hashes of the configured scheduler secret and supplied
+ * bearer token.
+ */
 function authorized(secret: string, header: string | undefined) {
   const supplied = header?.startsWith('Bearer ') ? header.slice(7) : ''
   return timingSafeEqual(
@@ -16,6 +25,10 @@ function authorized(secret: string, header: string | undefined) {
   )
 }
 
+/**
+ * Build the retained preference router; application composition currently leaves
+ * it unmounted.
+ */
 export function privateNotificationRoutes(context: RouteContext) {
   const router = Router()
   router.put('/notification-preferences', async (req, res) => {
@@ -39,6 +52,10 @@ export function privateNotificationRoutes(context: RouteContext) {
   return router
 }
 
+/**
+ * Build the retained scheduler router with delivery claims and explicit outcomes;
+ * it is not an active app endpoint.
+ */
 export function publicReminderRoutes(context: RouteContext) {
   const router = Router()
   const { admin, reminderEmail } = context

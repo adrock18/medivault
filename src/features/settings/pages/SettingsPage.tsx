@@ -1,3 +1,8 @@
+/**
+ * Account settings and explicit data tools. Handles password change, appearance,
+ * private JSON export, printable summaries and opt-in fictional samples.
+ */
+
 import { lazy, Suspense, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -32,6 +37,7 @@ const ActivitySummary = lazy(
   () => import('@/features/dashboard/components/ActivitySummary'),
 )
 
+/** Keep account-wide actions separate from the selected-profile browsing context. */
 export default function SettingsPage() {
   const { session } = useAuth()
   const data = useVault()
@@ -47,6 +53,10 @@ export default function SettingsPage() {
   } = useForm<z.infer<typeof passwordSchema>>({
     resolver: zodResolver(passwordSchema),
   })
+  /**
+   * Submit a current-password-verified change and preserve an actionable error
+   * when it cannot complete.
+   */
   async function password(values: z.infer<typeof passwordSchema>) {
     setError(null)
     try {
@@ -57,6 +67,10 @@ export default function SettingsPage() {
       setError(errorMessage(err))
     }
   }
+  /**
+   * Download the server-validated account-wide JSON export and warn the user to
+   * store the private file securely.
+   */
   async function exportData() {
     try {
       const content = await api.exportData()
@@ -79,6 +93,10 @@ export default function SettingsPage() {
       toast.error(errorMessage(err))
     }
   }
+  /**
+   * Add clearly labeled fictional data only after the user requests it and keep
+   * failures visible.
+   */
   async function seed() {
     if (
       await sample.run(

@@ -1,3 +1,9 @@
+/**
+ * Reusable application presentation and form patterns. Centralize accessible
+ * field feedback, async states and busy-safe dialogs; domain actions stay in
+ * callers.
+ */
+
 import { useId, useState, type ReactNode, type Ref } from 'react'
 import {
   Activity,
@@ -129,6 +135,10 @@ export function Skeleton({ className }: { className?: string }) {
   )
 }
 export type PageSkeletonVariant = 'dashboard' | 'list' | 'form'
+/**
+ * Reserve page-shaped space during loading and announce a single accessible
+ * loading status.
+ */
 export function PageSkeleton({ variant }: { variant: PageSkeletonVariant }) {
   return (
     <div
@@ -248,6 +258,10 @@ export function EmptyState({
     </div>
   )
 }
+/**
+ * Announce a recoverable failure and offer a retry only when the caller provides
+ * one.
+ */
 export function ErrorState({
   message,
   retry,
@@ -270,6 +284,10 @@ export function ErrorState({
     </div>
   )
 }
+/**
+ * Display the fictional-data warning only when the public-demo build flag is
+ * enabled.
+ */
 export function DemoNotice() {
   if (import.meta.env.VITE_PUBLIC_DEMO !== 'true') return null
   return (
@@ -329,6 +347,10 @@ type FieldCommon = {
   hint?: string
   registration?: UseFormRegisterReturn
 }
+/**
+ * Associate an input with its label, validation/help text and optional React Hook
+ * Form registration.
+ */
 export function Field({
   label,
   error,
@@ -364,6 +386,10 @@ export function Field({
     </div>
   )
 }
+/**
+ * Provide the multiline equivalent of Field with the same accessible error and
+ * hint contract.
+ */
 export function TextField({
   label,
   error,
@@ -396,6 +422,10 @@ export function TextField({
     </div>
   )
 }
+/**
+ * Connect the controlled select primitive to a stable label and validation/help
+ * description.
+ */
 export function SelectField({
   label,
   error,
@@ -426,6 +456,10 @@ export function SelectField({
     </div>
   )
 }
+/**
+ * Host form content in a scrollable accessible dialog and prevent dismissal
+ * during a pending mutation.
+ */
 export function FormDialog({
   open,
   onClose,
@@ -450,7 +484,7 @@ export function FormDialog({
     >
       <DialogContent
         aria-busy={busy}
-        className="max-h-[90dvh] grid-cols-1 overflow-y-auto rounded-2xl p-5 shadow-xl sm:max-w-lg sm:p-7"
+        className="medical-form-dialog max-h-[90dvh] grid-cols-1 overflow-y-auto rounded-2xl p-5 shadow-xl sm:max-w-lg sm:p-7"
         showCloseButton={!busy}
       >
         <DialogHeader className="mb-2 pr-12">
@@ -464,6 +498,10 @@ export function FormDialog({
     </Dialog>
   )
 }
+/**
+ * Require explicit destructive confirmation, retain close-animation text and show
+ * retryable mutation errors.
+ */
 export function ConfirmationDialog({
   open,
   onClose,

@@ -1,3 +1,8 @@
+/**
+ * Medical-history relationship view. Presents supplied care tracks, visits and
+ * attached records without inventing causal or clinical relationships.
+ */
+
 import { GitBranch } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import type {
@@ -8,6 +13,7 @@ import type {
   VisitFollowUp,
 } from '@shared/database.types'
 import { EmptyState, SectionTitle } from '@/components/common'
+import { providerSummary } from '@/lib/utils'
 
 type Props = {
   careTracks: CareTrack[]
@@ -17,6 +23,10 @@ type Props = {
   followUps: VisitFollowUp[]
 }
 
+/**
+ * Render the stored care hierarchy with links back to actionable visit and
+ * document views.
+ */
 export function CareHistoryGraph({
   careTracks,
   visits,
@@ -53,7 +63,9 @@ export function CareHistoryGraph({
                 <p className="mt-1 text-xs capitalize text-muted-foreground">
                   {record.document_kind.replaceAll('_', ' ')} ·{' '}
                   {record.record_date}
-                  {record.provider ? ` · ${record.provider}` : ''}
+                  {providerSummary(record)
+                    ? ` · ${providerSummary(record)}`
+                    : ''}
                 </p>
                 {linkedMedications.length > 0 && (
                   <ul
@@ -113,7 +125,7 @@ export function CareHistoryGraph({
           </div>
           <p className="mt-1 break-words text-sm text-muted-foreground">
             {visit.reason || visit.setting.replaceAll('_', ' ')}
-            {visit.provider ? ` · ${visit.provider}` : ''}
+            {providerSummary(visit) ? ` · ${providerSummary(visit)}` : ''}
           </p>
           {followUp && (
             <p className="mt-3 break-words rounded-lg bg-muted/50 p-3 text-xs text-muted-foreground">

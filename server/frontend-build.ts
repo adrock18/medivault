@@ -1,3 +1,8 @@
+/**
+ * Production artifact contract shared by startup and CI. Checks Vite manifest
+ * references, scanning assets and optional entry-size limits.
+ */
+
 import { readFileSync, statSync } from 'node:fs'
 import { isAbsolute, join, relative, resolve } from 'node:path'
 
@@ -57,6 +62,7 @@ export class FrontendBuildError extends Error {
   }
 }
 
+/** Validate optional manifest lists before walking their referenced files. */
 function isStringList(value: unknown): value is string[] {
   return (
     value === undefined ||
@@ -64,6 +70,10 @@ function isStringList(value: unknown): value is string[] {
   )
 }
 
+/**
+ * Read untrusted build metadata and accumulate actionable problems instead of
+ * accepting a partial manifest silently.
+ */
 function parseManifest(distDir: string, problems: string[]) {
   let raw: unknown
   try {
@@ -112,6 +122,10 @@ export function checkFrontendBuild(
   const root = resolve(distDir)
   const problems: string[] = []
   const sizes = new Map<string, number>()
+  /**
+   * Check a nonempty file stays inside the build directory and cache verified
+   * sizes.
+   */
   function requireFile(file: string, label: string) {
     const path = resolve(root, file)
     const inside = relative(root, path)

@@ -1,3 +1,8 @@
+/**
+ * Shared label presentation. Callers provide htmlFor to associate the label with
+ * its control.
+ */
+
 import * as React from 'react'
 import { cn } from 'cn'
 

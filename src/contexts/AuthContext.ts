@@ -1,3 +1,8 @@
+/**
+ * Authentication context contract and consumer hook. Shares public session state
+ * and auth actions, never provider session tokens.
+ */
+
 import { createContext, useContext } from 'react'
 import { z } from 'zod'
 import type { Session } from '@shared/contracts'
@@ -23,6 +28,10 @@ export type AuthState = {
   ) => Promise<void>
 }
 export const AuthContext = createContext<AuthState | null>(null)
+/**
+ * Read the authentication context and fail immediately if used outside its
+ * provider.
+ */
 export function useAuth() {
   const context = useContext(AuthContext)
   if (!context) throw new Error('useAuth must be used inside AuthProvider.')

@@ -1,3 +1,8 @@
+/**
+ * Local-development entry point. Loads environment configuration and exits with
+ * the paired-service supervisor result.
+ */
+
 import { runDevelopment } from './dev-runtime.ts'
 
 try {

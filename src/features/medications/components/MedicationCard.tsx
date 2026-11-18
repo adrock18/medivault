@@ -1,3 +1,8 @@
+/**
+ * Medication summary card and existing-prescription actions. Receives stored
+ * medication data and delegates edits/deletion to its page.
+ */
+
 import {
   Pill,
   Clock3,
@@ -15,10 +20,15 @@ import {
   documentKinds,
   frequencies,
   cn,
+  providerSummary,
 } from '@/lib/utils'
 import { Panel } from '@/components/common'
 import { Button } from '@/components/ui/button'
 
+/**
+ * Show schedule, source prescription and current course status without changing
+ * dose instructions automatically.
+ */
 export function MedicationCard({
   medication,
   sourceRecord,
@@ -113,7 +123,9 @@ export function MedicationCard({
                 <span className="mt-0.5 block truncate text-xs text-muted-foreground">
                   {documentKinds[sourceRecord.document_kind]} ·{' '}
                   {displayDate(sourceRecord.record_date)}
-                  {sourceRecord.provider ? ` · ${sourceRecord.provider}` : ''}
+                  {providerSummary(sourceRecord)
+                    ? ` · ${providerSummary(sourceRecord)}`
+                    : ''}
                 </span>
               )}
             </span>

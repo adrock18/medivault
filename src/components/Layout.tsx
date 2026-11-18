@@ -1,3 +1,8 @@
+/**
+ * Shared signed-in workspace shell. Provides responsive navigation, profile
+ * selection and page-level loading/error feedback.
+ */
+
 import { Suspense, useLayoutEffect, useState } from 'react'
 import {
   Link,
@@ -31,8 +36,11 @@ import { cn } from '../lib/utils'
 import { errorMessage } from '../lib/api'
 import { ThemeSelect } from './ThemeSelect'
 import { navigation, mobileNavigation } from '../lib/navigation'
-import { CommandPalette } from './CommandPalette'
 import { cancelThemeTransition } from '../lib/theme'
+/**
+ * Render shared route links with active-page styling for the responsive workspace
+ * navigation.
+ */
 export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
   return (
     <div className="flex h-full flex-col">
@@ -69,6 +77,10 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
     </div>
   )
 }
+/**
+ * Expose managed-profile selection and account actions without changing the
+ * authenticated account.
+ */
 export function Header({ onMenu }: { onMenu: () => void }) {
   const { session, signOut } = useAuth()
   const {
@@ -94,6 +106,10 @@ export function Header({ onMenu }: { onMenu: () => void }) {
       .map((part) => part[0])
       .join('')
       .toUpperCase() || 'MV'
+  /**
+   * Request server logout and show failures rather than pretending the session
+   * ended.
+   */
   async function logout() {
     setSigningOut(true)
     try {
@@ -106,8 +122,8 @@ export function Header({ onMenu }: { onMenu: () => void }) {
     }
   }
   return (
-    <header className="workspace-header grid min-h-20 grid-cols-[minmax(0,1fr)_auto] items-center gap-3 px-4 py-3 sm:px-8 xl:grid-cols-[minmax(0,1fr)_minmax(180px,300px)_minmax(0,1fr)]">
-      <div className="col-span-2 flex min-w-0 items-center gap-2 sm:col-span-1">
+    <header className="workspace-header flex min-h-20 flex-wrap items-center justify-between gap-3 px-4 py-3 sm:px-8">
+      <div className="flex min-w-0 flex-1 basis-60 items-center gap-2">
         <Button
           variant="ghost"
           size="icon"
@@ -151,10 +167,7 @@ export function Header({ onMenu }: { onMenu: () => void }) {
           />
         )}
       </div>
-      <div className="col-start-1 row-start-2 min-w-0 sm:col-span-2 xl:col-span-1 xl:col-start-2 xl:row-start-1">
-        <CommandPalette />
-      </div>
-      <div className="col-start-2 row-start-2 flex items-center justify-end gap-1 sm:row-start-1 sm:gap-2 xl:col-start-3">
+      <div className="ml-auto flex shrink-0 items-center justify-end gap-1 sm:gap-2">
         <Link
           to="/settings"
           aria-label={`Account settings for ${name}`}
@@ -186,12 +199,20 @@ export function Header({ onMenu }: { onMenu: () => void }) {
     </header>
   )
 }
+/**
+ * Choose a loading layout that matches the destination page while its lazy bundle
+ * loads.
+ */
 function pageSkeletonFor(pathname: string): PageSkeletonVariant {
   if (pathname.startsWith('/dashboard')) return 'dashboard'
   if (pathname.startsWith('/profile') || pathname.startsWith('/settings'))
     return 'form'
   return 'list'
 }
+/**
+ * Keep workspace chrome stable around nested pages and distinguish loading from
+ * failed or stale data.
+ */
 export default function Layout() {
   const [mobile, setMobile] = useState(false)
   const { loading, error, reload, profile, now } = useVault()

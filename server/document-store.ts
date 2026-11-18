@@ -1,3 +1,8 @@
+/**
+ * Private Storage adapter. Validates server-generated object keys and exposes
+ * file operations without leaking provider errors.
+ */
+
 import { Readable } from 'node:stream'
 import type { createAdminSupabaseClient } from './supabase.ts'
 
@@ -16,11 +21,19 @@ export class SupabaseDocumentStore implements DocumentStore {
   ) {
     this.bucket = client.storage.from(bucket)
   }
+  /**
+   * Reject paths outside the expected owner/document filename shape before
+   * calling privileged Storage APIs.
+   */
   private key(key: string) {
     if (!/^[\da-f-]{36}\/[\da-f-]{36}\.(pdf|jpg|jpeg|png)$/i.test(key))
       throw new Error('Invalid stored document path.')
     return key
   }
+  /**
+   * Create a private object without overwriting an existing file; surface upload
+   * failure to the route.
+   */
   async put(key: string, bytes: Buffer, contentType: string) {
     const { error } = await this.bucket.upload(this.key(key), bytes, {
       contentType,
@@ -29,6 +42,10 @@ export class SupabaseDocumentStore implements DocumentStore {
     })
     if (error) throw new Error('The private document upload failed.')
   }
+  /**
+   * Return private bytes, distinguish a missing object from provider failure, and
+   * keep provider details internal.
+   */
   async get(key: string) {
     const { data, error } = await this.bucket.download(this.key(key))
     if (error) {
@@ -45,6 +62,10 @@ export class SupabaseDocumentStore implements DocumentStore {
       size: data.size,
     }
   }
+  /**
+   * Remove the private object or fail explicitly so the route can preserve
+   * retryable metadata.
+   */
   async delete(key: string) {
     const { error } = await this.bucket.remove([this.key(key)])
     if (error) throw new Error('The private document deletion failed.')

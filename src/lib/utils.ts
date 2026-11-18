@@ -1,3 +1,8 @@
+/**
+ * Shared UI formatting and medication scheduling. Keep local dates, schedule
+ * status and explicit outcome matching consistent across pages.
+ */
+
 export { cn } from 'cn'
 import { format } from 'date-fns'
 import type { DoseLog, Medication } from '../../shared/database.types.ts'
@@ -5,6 +10,10 @@ import { localDate } from '../../shared/health.ts'
 
 export { localDate } from '../../shared/health.ts'
 export { MAX_FILE_SIZE, validateDocument } from '../../shared/documents.ts'
+/**
+ * Format date-only values at local noon to avoid displaying the previous day
+ * after timezone conversion.
+ */
 export function displayDate(value: string) {
   return format(
     value.length === 10 ? new Date(`${value}T12:00:00`) : new Date(value),
@@ -31,6 +40,18 @@ export const documentKinds = {
   insurance_claim: 'Insurance claim',
   other: 'Other',
 } as const
+/** Summarize explicitly entered facility/clinician names without legacy text. */
+export function providerSummary(details: {
+  hospital_name: string
+  doctor_name: string
+}) {
+  return [
+    details.hospital_name && `Hospital: ${details.hospital_name}`,
+    details.doctor_name && `Doctor: ${details.doctor_name}`,
+  ]
+    .filter(Boolean)
+    .join(' · ')
+}
 export const frequencies = {
   once_daily: 'Once daily',
   twice_daily: 'Twice daily',
@@ -43,6 +64,10 @@ export function fileSize(bytes: number) {
   const value = bytes / (unit === 'KiB' ? 1024 : 1024 * 1024)
   return `${value.toLocaleString(undefined, { maximumFractionDigits: 1 })} ${unit}`
 }
+/**
+ * Classify the course by its inclusive start/end dates, independently of whether
+ * a dose was logged.
+ */
 export function medicationStatus(med: Medication, day = localDate()) {
   if (med.start_date > day) return 'upcoming'
   if (med.end_date && med.end_date < day) return 'completed'
@@ -54,6 +79,10 @@ export type ScheduledDose = {
   time: string
   log: DoseLog | undefined
 }
+/**
+ * Prefer explicit outcomes; otherwise distinguish future, current-minute and
+ * earlier unlogged doses without calling them skipped.
+ */
 export function doseTiming(dose: ScheduledDose, now: Date) {
   if (dose.log) return dose.log.status
   const scheduled = new Date(`${dose.date}T${dose.time}:00`).getTime()
@@ -62,6 +91,10 @@ export function doseTiming(dose: ScheduledDose, now: Date) {
   if (elapsed < 60_000) return 'due'
   return 'past_time'
 }
+/**
+ * Expand active medication times for a local date and attach logs by
+ * medication/date/time before stable sorting.
+ */
 export function scheduledDoses(
   meds: Medication[],
   logs: DoseLog[],

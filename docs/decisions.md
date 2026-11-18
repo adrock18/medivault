@@ -102,6 +102,9 @@ documented choices, not claims of security or healthcare certification.
 
 ## D7. Owner-persistent desired-state favourites
 
+- **UI terminology:** The control now reads **Important!**, not favourites.
+  Existing `is_favourite` storage and `/favourite` API names are retained for
+  compatibility; saved marks are not reset or migrated.
 - **Context:** A user needs a private, durable way to find important documents
   without duplicating files or changing the existing date-based order.
 - **Decision:** `medical_records.is_favourite` is a PostgreSQL boolean,
@@ -178,6 +181,26 @@ documented choices, not claims of security or healthcare certification.
   Fine-pointer-only icon perspective does not resize targets.
   PDF/OCR stay lazy; no production animation dependency is added.
 - **Where:** [theme store](../src/lib/theme.ts), [CSS](../src/index.css).
+
+## D10. Structured medical background without destructive legacy conversion
+
+- **Context:** A person may have multiple allergies/conditions, each with its
+  own doctor-provided wording. Existing free text cannot safely be split at
+  commas or newlines.
+- **Decision:** Store validated `{type, name, instructions}` rows in nullable
+  JSONB on owner/family health profiles. Preserve legacy text as one row per
+  nonblank category until the user saves structured entries. A database trigger
+  validates rows and derives existing summary columns.
+- **Alternatives:** Guess separate entries from punctuation, erase old fields,
+  or add a new normalized clinical-history subsystem for this small form.
+- **Consequences:** `NULL` and `[]` have distinct meanings. Both application and
+  database enforce limits; stale clients cannot overwrite converted background
+  through legacy-only writes. Hidden contacts and historical gender values are
+  retained. New UI gender choices are Male/Female, and typed birth dates remain
+  calendar strings validated by the shared schema. No treatment is inferred.
+- **Where:** [profile form](../src/features/profile/pages/ProfilePage.tsx),
+  [background helpers](../shared/medical-background.ts),
+  [migration](../supabase/migrations/20261118133310_structured_medical_background.sql).
 
 ## D10. Fail-closed startup and separate recovery evidence
 
@@ -256,6 +279,23 @@ documented choices, not claims of security or healthcare certification.
 - **Where:** [route assembly](../server/app.ts),
   [website reminder](../src/features/medications/components/MedicationReminder.tsx),
   [operator guidance](operations.md).
+
+## Separate hospital/doctor names
+
+- **Problem:** a combined provider input cannot reliably distinguish a facility
+  from a clinician and requires repeated typing for documents in the same visit.
+- **Decision:** store validated Hospital and Doctor names separately on visits
+  and documents. Copy visit names into new document forms, preserving explicit
+  per-document overrides. Saved documents are snapshots, not live inheritance.
+- **Authorized reset:** clear only existing combined provider text for all
+  accounts; leave new names blank for manual re-entry. Do not retain a legacy
+  provider display or infer a split. Documents, relationships and all other
+  health data remain intact.
+- **Migration:** add the new fields and constrain retired provider text to stay
+  empty. Apply before the matching application release; stale combined-field
+  submissions must fail rather than silently erase structured names.
+- **Recovery:** the field reset is intentional and not reversible by a code
+  rollback; restoring old text would require an authorized backup restore.
 
 ## Decision template for future changes
 

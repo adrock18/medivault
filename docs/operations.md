@@ -28,6 +28,10 @@ only; this portfolio MVP is not a healthcare-compliance claim.
    project. If registration reports the confirmation email limit, wait for the
    quota to reset or configure custom SMTP in Supabase Auth. Do not disable
    confirmation to work around this on a public release.
+   The login/signup recovery UI supports confirmation resend, not
+   forgotten-password reset. A successful resend request does not verify
+   mailbox delivery. Test an actual confirmation link in the registration
+   browser; Settings password change requires knowing the current password.
 
 This is a fresh start: old SQLite accounts, passwords and health data are not
 imported or deleted. Returning users must register again.
@@ -68,6 +72,36 @@ and adds owner-isolated, append-only report review snapshots and transactional
 profile syncing. Runtime readiness verifies the new RPCs are present. No existing
 medical documents are automatically extracted or reinterpreted.
 
+For the structured profile editor, also apply the additive
+`20261118133310_structured_medical_background.sql` migration once. Both owner
+and family health tables need its nullable JSONB column and validation trigger.
+It preserves legacy text and RLS; it does not split existing allergies, erase
+contacts or reinterpret medical notes. Retain the hosted migration version in
+local history rather than applying a renamed duplicate.
+
+### Hospital/doctor split and scoped reset
+
+Apply `separate_visit_document_providers` before deploying this release.
+It adds non-null `hospital_name` and `doctor_name` text columns, initially
+blank, on visits and medical records. **With explicit owner authorization,
+this migration clears the old combined `provider` text for all accounts.**
+It does not delete rows, stored files, relationships or other health fields.
+This intentionally destructive field reset is not a general database reset.
+
+The retired `provider` column remains empty and constrained against new
+nonblank writes. The UI/API use only the separate fields; no legacy text is
+displayed or guessed apart. Existing visits/documents need their names entered
+again. Newly uploaded documents copy names from the selected visit as editable
+snapshots; changing a visit later does not rewrite saved document metadata.
+Readiness checks require both new columns on both tables.
+
+Validate the migration on an isolated database and confirm explicit permission
+for this all-account text reset before applying it anywhere else. Deploy the
+matching API/frontend together and refresh old browser tabs. Old versions
+cannot keep accepting the retired provider input. Rolling back application code
+does not restore cleared text; recovery of that text requires an authorized
+pre-migration backup. A Git push alone does not apply database migrations.
+
 Run `npm run verify` and `npm audit --omit=dev`, publish the verified revision,
 then deploy it. Record the actual revision and URL. Restore `checksPass`
 automatic deployment after successful cutover; never bypass failing checks.
@@ -97,6 +131,12 @@ For unavailable services, check Supabase project status, inactivity/plan limits,
 API keys, bucket policy and network access. Preserve sanitized incident IDs and
 the release revision, not patient data or credentials. A previous B2 transaction
 cap cannot prevent the new runtime from starting; it no longer contacts B2.
+
+Confirmation failures are separate from database health. Inspect the configured
+Auth sender, quota, redirect allowlist and `APP_ORIGIN` without disclosing keys.
+Missing verifier guidance means the PKCE link could not be tied to this browser;
+it is not proof of an invalid password. See
+[authentication outcomes](flows.md#authentication) for the UI/API contract.
 
 ## Documents, backups and recovery
 

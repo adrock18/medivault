@@ -1,3 +1,5 @@
+# Published gates cover source/build checks, image compilation and dependency
+# audit. Private functional/browser suites are not part of this CI workflow.
 name: Verify
 
 on:

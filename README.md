@@ -13,11 +13,18 @@ it.
 
 ## What it does
 
+- **Authentication:** signup, login, logout and confirmation-aware recovery.
+  Unconfirmed users can request another signup link; delivery still depends on
+  Supabase email configuration and quotas. Settings can change a known password;
+  self-service forgotten-password reset is not implemented.
 - **Medication workspace:** create and edit medications, view a daily schedule,
   record taken/skipped outcomes, browse history, and see an adherence summary.
 - **Medical records vault:** upload, search, categorize, preview, download, and
   delete private PDF/JPG/PNG documents, grouped by family profile, optional care
-  track, and dated visit.
+  track, and dated visit. Mark key documents **Important!** for quick filtering.
+  Hospital and Doctor are separate fields on visits and documents.
+  New documents inherit the selected visit's names as editable
+  defaults. Visit and record dates support typed day/month/year entry.
 - **Family profiles:** organize each managed person's medical records and
   medication schedule under the account owner's login.
 - **Visit-centered timeline:** group related visits under owner-created care
@@ -29,7 +36,9 @@ it.
 - **Review-first prescription OCR:** local browser OCR is the default. An
   optional, server-configured OCR.Space path requires consent for each scan;
   results remain editable and must be checked before saving.
-  Start with **Upload prescription**, choose or upload a document, select
+  Medication scanning is available only for records categorized as
+  **Prescription**, not ordinary lab reports. Start with **Upload prescription**,
+  choose or upload a prescription, select
   **Read prescription text**, then review and save each medication.
 - **Website medication reminders:** current-time due/pending and next-dose
   status while the website is open. Users explicitly mark doses taken or
@@ -103,6 +112,15 @@ serves the built frontend and API from the same Express application. See the
 [end-to-end system guide](docs/system-overview.md), and
 [request-flow guide](docs/flows.md).
 
+New to the codebase? Start with the
+[workspace screen tour](docs/system-overview.md#workspace-screen-tour) for the
+sidebar, header, dashboard introduction, record search and health profile.
+Then follow the [profile save flow](docs/flows.md#health-profile-save) from a
+React form through Express to PostgreSQL. File/function responsibility comments
+explain important implementation boundaries beside the code; the
+[source reading guide](docs/development.md#reading-and-documenting-the-source)
+provides a practical route through it.
+
 ## Run locally
 
 Requirements: Node.js **22.18 or newer**, npm and a configured Supabase project.
@@ -169,6 +187,7 @@ src/
 shared/             types, Zod schemas and client/server contracts
 server/
   routes/           auth, vault, care, records and medications
+scripts/            supervised development and build/scanning asset checks
 supabase/
   migrations/       versioned PostgreSQL schema, RLS, RPCs and private bucket
 docs/               architecture, flows, decisions, operations and development
@@ -199,14 +218,16 @@ for the exact verification boundary.
 - Ordinary data requests use the signed-in user's authorization and PostgreSQL RLS.
 - Medical documents are stored outside the public frontend and streamed only
   after an authenticated ownership check.
-- The server-only secret key is used for controlled storage and worker operations,
-  never shipped to the frontend. Use fictional data in the public demo.
+- The server-only secret key is used for controlled Storage and readiness,
+  never shipped to the frontend. Retained medication-email worker structures are
+  inactive. Use fictional data in the public demo.
 - MediVault is an educational portfolio project, not a medical device, care
   provider, or HIPAA-compliance claim. It does not diagnose, prescribe, or
   recommend treatment.
 
 ## Documentation
 
+- [Public handbook and reading order](docs/README.md)
 - [Architecture and module map](docs/architecture.md)
 - [System integration and production runtime](docs/system-overview.md)
 - [Data contracts and API request flows](docs/flows.md)

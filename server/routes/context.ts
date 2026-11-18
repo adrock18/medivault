@@ -1,3 +1,8 @@
+/**
+ * Shared route boundary: input validation, safe database-error translation and
+ * owner-scoped persistence helpers used by domain routers.
+ */
+
 import type { Request, Response, RequestHandler } from 'express'
 import multer from 'multer'
 import { z } from 'zod'
@@ -60,6 +65,10 @@ type OwnedInput = {
   [K in OwnedTable]: Omit<TablesInsert<K>, 'user_id'>
 }[OwnedTable]
 
+/**
+ * Parse untrusted input with the supplied schema and expose validation messages
+ * as an HTTP 400 response.
+ */
 export function validate<T>(schema: z.ZodType<T>, value: unknown): T {
   const parsed = schema.safeParse(value)
   if (!parsed.success)
@@ -70,10 +79,15 @@ export function validate<T>(schema: z.ZodType<T>, value: unknown): T {
   return parsed.data
 }
 
+/** Require a UUID route identifier before querying owner-scoped data. */
 export function requestId(req: Request) {
   return validate(z.uuid('Invalid record ID.'), req.params.id)
 }
 
+/**
+ * Convert transport and database failures into safe HTTP errors without returning
+ * raw SQL or provider details.
+ */
 export async function databaseResult<T>(
   operation: PromiseLike<{ data: T; error: { code?: string } | null }>,
 ): Promise<T> {
@@ -118,6 +132,10 @@ export async function databaseResult<T>(
   return result.data
 }
 
+/**
+ * Build shared route dependencies and persistence helpers; authenticated identity
+ * supplies ownership, never request JSON.
+ */
 export function createRouteContext(options: {
   documents: DocumentStore
   admin: ReturnType<typeof createAdminSupabaseClient>
@@ -126,6 +144,10 @@ export function createRouteContext(options: {
   ocrSpaceApiKey?: string
   reminderEmail?: ReminderEmailSettings
 }) {
+  /**
+   * Load an accessible row through the authenticated client and reject absent or
+   * cross-owner identifiers.
+   */
   async function owned<T>(
     table: OwnedTable,
     schema: z.ZodType<T>,
@@ -145,6 +167,10 @@ export function createRouteContext(options: {
     return schema.parse(row)
   }
 
+  /**
+   * Insert with the authenticated owner or update a matching owned row, then
+   * validate the returned data.
+   */
   async function save<T>(
     table: OwnedTable,
     schema: z.ZodType<T>,
@@ -162,6 +188,10 @@ export function createRouteContext(options: {
     return schema.parse(await databaseResult(result.select('*').single()))
   }
 
+  /**
+   * Update a matching owner-scoped row and validate its response, with RLS as an
+   * additional database guard.
+   */
   async function update<T>(
     table: OwnedTable,
     schema: z.ZodType<T>,
@@ -182,6 +212,7 @@ export function createRouteContext(options: {
     )
   }
 
+  /** Delete an accessible owned row and finish with an empty success response. */
   async function remove<T>(
     table: OwnedTable,
     schema: z.ZodType<T>,

@@ -1,3 +1,8 @@
+/**
+ * Medication month/week/day browser. Uses shared schedule calculations to keep
+ * selected-date agenda and calendar counts consistent.
+ */
+
 import { useState } from 'react'
 import { addDays, format, startOfWeek } from 'date-fns'
 import {
@@ -18,6 +23,10 @@ import { doseTiming, localDate } from '@/lib/utils'
 import { Panel, SectionTitle, SelectField } from '@/components/common'
 import { Button } from '@/components/ui/button'
 
+/**
+ * Coordinate calendar navigation and date selection for the selected profile
+ * medication schedule.
+ */
 export function MedicationCalendar({
   recordId,
   onToday,

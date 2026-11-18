@@ -1,3 +1,8 @@
+/**
+ * Structured allergy/condition validation and legacy compatibility. A null array
+ * means untouched legacy text; an empty array means explicitly cleared.
+ */
+
 import { z } from 'zod'
 import type { MedicalBackgroundEntry } from './database.types.ts'
 
@@ -13,6 +18,10 @@ export const medicalBackgroundEntrySchema = z
   })
   .strict()
 
+/**
+ * Derive newline-separated legacy names from one entry type without including
+ * doctor instructions.
+ */
 export function medicalBackgroundText(
   entries: MedicalBackgroundEntry[],
   type: MedicalBackgroundEntry['type'],
@@ -36,7 +45,10 @@ export const medicalBackgroundSchema = z
     }
   })
 
-// Keep legacy free text intact: commas and newlines do not reliably separate medical entries.
+/**
+ * Prefer saved structured rows, including an explicit empty array; preserve each
+ * legacy text field as one unsplit entry.
+ */
 export function medicalBackgroundEntries(
   profile:
     | {

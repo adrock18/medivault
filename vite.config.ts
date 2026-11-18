@@ -1,3 +1,8 @@
+/**
+ * Frontend build and development configuration. Connects React/Tailwind, shared
+ * source aliases, local scanning assets and the same-origin API proxy.
+ */
+
 import react from '@vitejs/plugin-react'
 import { defineConfig, loadEnv } from 'vite'
 import tailwindcss from '@tailwindcss/vite'

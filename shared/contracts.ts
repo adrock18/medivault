@@ -1,3 +1,8 @@
+/**
+ * Runtime API response contracts and inferred types shared by browser and server.
+ * Reject incompatible payloads at the network boundary.
+ */
+
 import { z } from 'zod'
 import { medicationForms } from './database.types.ts'
 import { resultReviewRow } from './record-results.ts'
@@ -127,7 +132,8 @@ export const recordRow: z.ZodType<MedicalRecord> = z.object({
     'other',
   ]),
   visit_id: z.uuid().nullable(),
-  provider: z.string(),
+  hospital_name: z.string(),
+  doctor_name: z.string(),
   record_date: z.string(),
   file_path: z.string(),
   file_name: z.string(),
@@ -202,7 +208,8 @@ export const careVisitRow: z.ZodType<CareVisit> = z.object({
     'telehealth',
     'other',
   ]),
-  provider: z.string(),
+  hospital_name: z.string(),
+  doctor_name: z.string(),
   visit_date: z.string(),
   notes: z.string(),
   ...timestamps,

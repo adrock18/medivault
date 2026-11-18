@@ -47,6 +47,32 @@ flowchart LR
 OCR workers are browser processes. API ownership checks and PostgreSQL RLS
 independently restrict ordinary data access; secret clients are server-only.
 
+## Browser ownership and page boundaries
+
+```mermaid
+flowchart TB
+  Bootstrap["main: initialize theme and mount React"] --> Root["App: router and render-error boundary"]
+  Root --> Auth["AuthProvider: server-validated public session"]
+  Auth --> Public["Public login / signup / confirmation guidance"]
+  Auth --> Protected["ProtectedRoute: signed-in UI gate"]
+  Protected --> Data["DataProvider keyed by account ID"]
+  Data --> Snapshot["Fresh account vault + explicit loading/stale/error state"]
+  Snapshot --> Selected["Selected managed-profile view"]
+  Selected --> Shell["Layout: sidebar, header and nested page"]
+  Shell --> Forms["Feature forms + shared schemas"]
+  Forms --> Mutation["useMutation: lock, feedback, refresh"]
+  Mutation --> API["Typed same-origin API client"]
+```
+
+The route gate is a user-experience boundary, not the authorization mechanism.
+Express verifies the session for private requests, and ordinary database calls
+also run under owner RLS. Switching account remounts the data provider; switching
+managed profile filters its account snapshot without creating another session.
+Request generations invalidate late responses on replacement or unmount.
+The header command palette and its keyboard shortcut are removed. Navigation
+stays in the sidebar/mobile menu; workflow buttons stay on their relevant pages.
+Medical Records retains local metadata search.
+
 ## Runtime and deployment
 
 ```mermaid
@@ -83,6 +109,9 @@ erDiagram
   family_members ||--o{ care_tracks : groups
   family_members ||--o{ care_visits : organizes
   family_members ||--o| family_health_profiles : details
+  profiles ||--o{ record_result_reviews : owns
+  family_members ||--o{ record_result_reviews : observations
+  medical_records o|--o{ record_result_reviews : source
   care_tracks o|--o{ care_visits : groups
   care_visits o|--o{ medical_records : contains
   care_visits ||--o| visit_follow_ups : originates
@@ -102,6 +131,7 @@ erDiagram
   health_profiles {
     UUID id PK
     UUID user_id FK,UK
+    JSONB medical_background
   }
   family_health_profiles {
     UUID family_member_id PK,FK
@@ -109,6 +139,7 @@ erDiagram
     TEXT blood_group
     FLOAT height_cm
     FLOAT weight_kg
+    JSONB medical_background
   }
   family_members {
     UUID id PK
@@ -121,6 +152,8 @@ erDiagram
     UUID family_member_id FK
     UUID visit_id FK
     TEXT document_kind
+    TEXT hospital_name
+    TEXT doctor_name
     TEXT file_path UK
     DATE record_date
     BOOLEAN is_favourite
@@ -133,6 +166,17 @@ erDiagram
     DATE end_date
     UUID source_record_id FK
     UUID family_member_id FK
+  }
+  record_result_reviews {
+    UUID id PK
+    UUID user_id FK
+    UUID family_member_id FK
+    UUID source_record_id FK
+    UUID source_record_key
+    TEXT source_title
+    DATE measured_on
+    JSONB results
+    TIMESTAMPTZ created_at
   }
   care_tracks {
     UUID id PK
@@ -147,6 +191,8 @@ erDiagram
     UUID care_track_id FK
     DATE visit_date
     TEXT setting
+    TEXT hospital_name
+    TEXT doctor_name
   }
   visit_follow_ups {
     UUID id PK
@@ -234,6 +280,19 @@ Transactional dose, profile-name and follow-up guards are enforced by the
 versioned migrations. Hosted acceptance remains separate from local build and
 real-provider API verification.
 
+Both health-profile tables contain nullable `medical_background` JSONB. Each row
+has an allergy/condition type, name and optional doctor-provided instructions.
+The application and database validate limits; a private trigger derives the
+retained allergy/condition text summaries. `NULL` means legacy text has not been
+converted; `[]` explicitly clears structured entries. Existing commas/newlines
+are not guessed into separate conditions. Stale unstructured overwrites after a
+structured save are rejected, without changing owner RLS.
+
+Reviewed-result source deletion clears `source_record_id` but retains
+`source_record_key`, source title and review history. The key is preserved
+provenance, not a second live foreign key. Latest eligible profile measurements
+are synchronized by the reviewed-results transaction, not by OCR.
+
 The retired `health_metrics` relation remains owner-scoped for account export
 compatibility but starts empty. Family profiles organize data; they are not
 separate identities or grants. Care tracks and visits remain optional
@@ -252,7 +311,7 @@ rejected. Migration creates no follow-ups for old visits.
 Medical records is the compact actual-visit/document workspace. The separate
 protected `/medical-history` page reuses the care graph and the same selected
 profile's vault data; Health profile remains personal health details. Shared
-navigation/palette include history above Profile, while the mobile dock selects
+navigation includes history above Profile, while the mobile dock selects
 its four existing destinations explicitly. No graph runtime or duplicate
 history table is introduced. Full-vault fetching remains unpaginated.
 Deleting an otherwise empty non-owner profile removes its demographic and
@@ -263,7 +322,8 @@ Care tracks and visits are optional organizational context, not inferred
 clinical relationships. Track/visit and visit/document associations must stay
 within the same account and family profile. Deleting a visit unassigns its
 documents; deleting a track leaves its visits standalone.
-Favourites are PostgreSQL booleans and strict booleans in
+The UI labels marked documents **Important!**. Their existing `is_favourite`
+values remain PostgreSQL booleans and strict booleans in
 API responses. They live on the owned record, not in a separate achievement or
 bookmark table.
 
@@ -276,7 +336,7 @@ bookmark table.
 | [auth feature](../src/features/auth), [dashboard feature](../src/features/dashboard), [profile feature](../src/features/profile), [settings feature](../src/features/settings)                           | Feature pages and feature-specific presentation; dashboard also owns visualization/summary helpers.                      |
 | [medications feature](../src/features/medications), [records feature](../src/features/records)                                                                                                           | Feature pages, components and domain helpers grouped by workflow; local OCR/PDF processing remains in records.           |
 | [demo data](../src/features/demo/sampleData.ts)                                                                                                                                                          | Explicit fictional seeding, separate from private runtime database/document storage.                                     |
-| [Layout](../src/components/Layout.tsx), [CommandPalette](../src/components/CommandPalette.tsx), [ThemeSelect](../src/components/ThemeSelect.tsx)                                                         | Responsive navigation/action discovery and shared appearance controls.                                                   |
+| [Layout](../src/components/Layout.tsx), [ThemeSelect](../src/components/ThemeSelect.tsx)                                                                                                                 | Responsive navigation, profile/account controls and shared appearance; no header command search.                         |
 | [common](../src/components/common.tsx), [UI primitives](../src/components/ui), [CSS](../src/index.css)                                                                                                   | Loading/empty/form/dialog conventions, accessible controls, design tokens and bounded visual effects.                    |
 | [App](../src/App.tsx), [main](../src/main.tsx)                                                                                                                                                           | Provider/router boundaries, lazy feature routes, signed-in/out access; legacy tracker redirect.                          |
 | [AuthProvider](../src/contexts/AuthProvider.tsx), [AuthContext](../src/contexts/AuthContext.ts)                                                                                                          | Session lifecycle, request generations, sign-in/up/out, expiry and focus refresh.                                        |
@@ -284,7 +344,7 @@ bookmark table.
 | [useMutation](../src/hooks/useMutation.ts), [useQueryParams](../src/hooks/useQueryParams.ts)                                                                                                             | Pending/error/save refresh pattern; explicit URL query updates.                                                          |
 | [app](../server/app.ts)                                                                                                                                                                                  | Express setup, security/request middleware, authentication boundary, static frontend and centralized error handling.     |
 | [auth routes](../server/routes/auth.ts), [route context](../server/routes/context.ts)                                                                                                                    | Public auth and password routes; shared validation, session, ownership and CRUD helpers.                                 |
-| [vault routes](../server/routes/vault.ts), [care routes](../server/routes/care.ts)                                                                                                                       | Owned vault/profile endpoints and profile-scoped care tracks/visits.                                                     |
+| [vault routes](../server/routes/vault.ts), [care routes](../server/routes/care.ts)                                                                                                                       | Owned vault/export/profile endpoints, reviewed results, care tracks/visits and follow-ups.                               |
 | [record routes](../server/routes/records.ts), [medication routes](../server/routes/medications.ts)                                                                                                       | Owner-scoped private document operations, opt-in OCR forwarding, medication CRUD and explicit dose logs.                 |
 | [notification routes](../server/routes/notifications.ts)                                                                                                                                                 | Retired, unmounted implementation; no active preference or email scheduler endpoint.                                     |
 | [Supabase clients](../server/supabase.ts), [generated database types](../server/supabase.types.ts), [managed migrations](../supabase/migrations)                                                         | Typed request/admin client boundaries, PostgreSQL RLS and transactional guards.                                          |

@@ -1,3 +1,8 @@
+/**
+ * Styled Base UI alert-dialog building blocks. Preserve primitive accessibility
+ * and composition; destructive business actions belong to callers.
+ */
+
 import * as React from 'react'
 import { AlertDialog as AlertDialogPrimitive } from '@base-ui/react/alert-dialog'
 import { cn } from 'cn'

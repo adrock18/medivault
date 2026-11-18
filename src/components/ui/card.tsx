@@ -1,3 +1,8 @@
+/**
+ * Card surface and slot primitives. These presentation-only wrappers provide
+ * consistent composition without fetching or mutating domain data.
+ */
+
 import * as React from 'react'
 import { cn } from 'cn'
 

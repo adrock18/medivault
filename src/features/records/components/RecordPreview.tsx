@@ -1,9 +1,19 @@
+/**
+ * Private record preview dialog. Fetches bytes through Express, revokes temporary
+ * image URLs and restores the triggering control on close.
+ */
+
 import { lazy, Suspense, useEffect, useState } from 'react'
 import { Download, ExternalLink, LockKeyhole } from 'lucide-react'
 import { toast } from 'sonner'
 import type { MedicalRecord } from '@shared/database.types'
 import { api, errorMessage } from '@/lib/api'
-import { documentKinds, displayDate, fileSize } from '@/lib/utils'
+import {
+  documentKinds,
+  displayDate,
+  fileSize,
+  providerSummary,
+} from '@/lib/utils'
 import { downloadRecord, viewRecord } from '../lib/records'
 import { Button } from '@/components/ui/button'
 import {
@@ -24,6 +34,10 @@ export type PreviewSelection = {
   trigger: HTMLButtonElement
 }
 
+/**
+ * Present the currently available record with stale-request guards and an
+ * accessible return-focus path.
+ */
 export function RecordPreview({
   selection,
   available,
@@ -60,6 +74,10 @@ export function RecordPreview({
       if (url) URL.revokeObjectURL(url)
     }
   }, [record.id, record.file_type, key, available])
+  /**
+   * Delegate open/download to authenticated helpers and keep action failures
+   * visible without dismissing preview.
+   */
   async function access(action: 'download' | 'open') {
     setBusy(true)
     try {
@@ -105,7 +123,7 @@ export function RecordPreview({
             {displayDate(record.record_date)}
           </DialogDescription>
           <p className="mt-2 break-words text-sm text-muted-foreground">
-            {record.provider || 'No provider specified'}
+            {providerSummary(record) || 'Hospital and doctor not specified'}
           </p>
           <p className="mt-1 break-words text-xs text-muted-foreground">
             {record.file_name}, {fileSize(record.file_size)}

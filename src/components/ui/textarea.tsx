@@ -1,3 +1,8 @@
+/**
+ * Styled native multiline-input primitive. Higher-level fields own labels, help
+ * text and form validation.
+ */
+
 import * as React from 'react'
 import { cn } from 'cn'
 

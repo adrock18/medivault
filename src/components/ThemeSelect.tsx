@@ -1,3 +1,8 @@
+/**
+ * Appearance preference control. Connects the shared theme store to the UI and
+ * surfaces browser-persistence failures.
+ */
+
 import { Monitor, Moon, Sun } from 'lucide-react'
 import { toast } from 'sonner'
 import { setThemePreference, useTheme } from '../lib/theme'
@@ -19,6 +24,10 @@ const appearances = [
   { value: 'dark', label: 'Dark', icon: Moon, description: 'Easy on the eyes' },
 ]
 
+/**
+ * Let users choose light, dark or system appearance without hiding
+ * preference-save errors.
+ */
 export function ThemeSelect() {
   const { preference } = useTheme()
   return (

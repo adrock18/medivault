@@ -1,6 +1,15 @@
+/**
+ * Follow-up date arithmetic. Computes explicit day intervals from a visit date
+ * without treating the result as an appointment or recommendation.
+ */
+
 import { addDays, format, parseISO } from 'date-fns'
 import { calendarDateSchema } from '@shared/schemas'
 
+/**
+ * Validate the interval and compute its calendar date, returning a user-facing
+ * error for invalid input.
+ */
 export function calculateFollowUpDate(
   visitDate: string,
   interval: string,

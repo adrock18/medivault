@@ -1,7 +1,13 @@
+/**
+ * Printable-summary validation and snapshot projection. Copy only the requested
+ * owner/profile activity and date range from a fresh vault response.
+ */
+
 import { z } from 'zod'
 import type { VaultData } from '@shared/contracts'
 import { calendarDateSchema } from '@shared/schemas'
 import { localDate } from '@shared/health'
+import { providerSummary } from '@/lib/utils'
 
 export const summaryRangeSchema = z
   .object({ from: calendarDateSchema, to: calendarDateSchema })
@@ -18,6 +24,10 @@ export const summaryRangeSchema = z
       })
   })
 
+/**
+ * Verify owner/profile identity and build a detached summary containing only the
+ * selected activity scope.
+ */
 export function activitySnapshot(
   data: VaultData,
   ownerId: string,
@@ -90,7 +100,7 @@ export function activitySnapshot(
       id: record.id,
       title: record.title,
       category: record.category,
-      provider: record.provider,
+      provider: providerSummary(record),
       date: record.record_date,
     }))
     .sort((a, b) => a.date.localeCompare(b.date) || a.id.localeCompare(b.id))

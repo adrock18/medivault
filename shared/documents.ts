@@ -1,5 +1,14 @@
+/**
+ * Document acceptance rules shared by browser and API. Check size, extension,
+ * MIME type and file signatures before private upload.
+ */
+
 export const MAX_FILE_SIZE = 10 * 1024 * 1024
 
+/**
+ * Reject unsupported, empty, oversized or signature-mismatched documents; callers
+ * surface the validation error.
+ */
 export async function validateDocument(file: File) {
   if (file.size === 0 || file.size > MAX_FILE_SIZE)
     throw new Error('Choose a non-empty file no larger than 10 MB.')

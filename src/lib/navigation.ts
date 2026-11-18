@@ -1,3 +1,8 @@
+/**
+ * Shared workspace route metadata. Desktop and mobile navigation reuse these
+ * destinations to keep page labels and icons consistent.
+ */
+
 import {
   LayoutDashboard,
   FolderHeart,

@@ -1,8 +1,17 @@
+/**
+ * Browser document operations. Validate uploads and use authenticated API bytes
+ * for opening/downloading; clean up temporary browser URLs.
+ */
+
 import { api } from '@/lib/api'
 import { validateDocument } from '@/lib/utils'
 import type { MedicalRecord } from '@shared/database.types'
 import type { RecordValues } from '@shared/schemas'
 
+/**
+ * Validate the document before sending its file and metadata through the
+ * authenticated multipart endpoint.
+ */
 export async function uploadRecord(values: RecordValues, file: File) {
   await validateDocument(file)
   if (file.name.length > 255)
@@ -12,6 +21,10 @@ export async function uploadRecord(values: RecordValues, file: File) {
 export async function deleteRecord(record: MedicalRecord) {
   await api.records.remove(record.id)
 }
+/**
+ * Open authenticated file bytes in a separate tab and report blocked popups or
+ * failed access.
+ */
 export async function viewRecord(record: MedicalRecord) {
   const tab = window.open('about:blank', '_blank')
   if (!tab)
@@ -27,6 +40,10 @@ export async function viewRecord(record: MedicalRecord) {
     throw error
   }
 }
+/**
+ * Download authenticated file bytes under the stored filename and release the
+ * temporary URL afterwards.
+ */
 export async function downloadRecord(record: MedicalRecord) {
   const blob = await api.records.file(record.id, true)
   const url = URL.createObjectURL(blob)

@@ -1,3 +1,8 @@
+/**
+ * Medication and dose-log endpoints. Preserve explicit prescription details and
+ * validate each logged dose against its actual schedule.
+ */
+
 import { Router, type Request, type Response } from 'express'
 import { z } from 'zod'
 import { calendarDateSchema, medicationSchema } from '../../shared/schemas.ts'
@@ -9,6 +14,10 @@ export function medicationRoutes(context: RouteContext) {
   const router = Router()
   const { storedMedication, storedRecord } = context
 
+  /**
+   * Validate profile/source links and normalize schedule input while preserving
+   * omitted prescription fields on edits.
+   */
   async function saveMedication(req: Request, res: Response, id?: string) {
     const input = validate(medicationSchema.strict(), req.body)
     const previous = id

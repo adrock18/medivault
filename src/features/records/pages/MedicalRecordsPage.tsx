@@ -1,3 +1,8 @@
+/**
+ * Medical-record workspace. Coordinates local metadata search, important marks, visit
+ * grouping, route-driven dialogs and confirmed deletion for one profile.
+ */
+
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
@@ -15,7 +20,7 @@ import {
 import { useVault } from '@/contexts/DataContext'
 import { useMutation } from '@/hooks/useMutation'
 import { useQueryParams } from '@/hooks/useQueryParams'
-import { documentKinds, localDate } from '@/lib/utils'
+import { documentKinds, localDate, providerSummary } from '@/lib/utils'
 import { api } from '@/lib/api'
 import { deleteRecord } from '../lib/records'
 import type { CareVisit, MedicalRecord } from '@shared/database.types'
@@ -45,11 +50,16 @@ type Removal =
 
 type CareDialogState = { kind: 'visit'; visit?: CareVisit }
 
+/** Reset record-workspace selections when the selected managed profile changes. */
 export default function MedicalRecordsPage() {
   const { selectedFamilyMemberId } = useVault()
   return <RecordsWorkspace key={selectedFamilyMemberId} />
 }
 
+/**
+ * Filter already loaded record metadata and connect discovery views to upload,
+ * preview, care and result workflows.
+ */
 function RecordsWorkspace() {
   const navigate = useNavigate()
   const {
@@ -72,7 +82,7 @@ function RecordsWorkspace() {
   const [search, setSearch] = useState('')
   const [kind, setKind] = useState('')
   const [order, setOrder] = useState<'newest' | 'oldest'>('newest')
-  const [favouritesOnly, setFavouritesOnly] = useState(false)
+  const [importantOnly, setImportantOnly] = useState(false)
   const [expanded, setExpanded] = useState<Set<string>>(() => new Set())
   const [followUpVisit, setFollowUpVisit] = useState<CareVisit | null>(null)
   const [careDialog, setCareDialog] = useState<CareDialogState | null>(null)
@@ -86,9 +96,9 @@ function RecordsWorkspace() {
       (record) =>
         (!selected || record.id === selected) &&
         (!selectedVisit || record.visit_id === selectedVisit) &&
-        (!favouritesOnly || record.is_favourite) &&
+        (!importantOnly || record.is_favourite) &&
         (!kind || record.document_kind === kind) &&
-        `${record.title} ${record.provider} ${record.file_name}`
+        `${record.title} ${record.hospital_name} ${record.doctor_name} ${record.file_name}`
           .toLowerCase()
           .includes(search.trim().toLowerCase()),
     )
@@ -101,7 +111,7 @@ function RecordsWorkspace() {
         a.id.localeCompare(b.id),
     )
   const hasDocumentConstraints = Boolean(
-    selected || search.trim() || kind || favouritesOnly,
+    selected || search.trim() || kind || importantOnly,
   )
   const visibleVisits = visits
     .filter(
@@ -141,25 +151,35 @@ function RecordsWorkspace() {
     (visit) => visit.id === followUpVisit?.id,
   )
 
+  /**
+   * Clear upload-only defaults and the URL action without removing unrelated
+   * discovery state.
+   */
   function closeUpload() {
     setEdit(null)
     setDefaultVisitId('')
     updateParams({ action: null }, { replace: true })
   }
 
+  /** Reset document discovery controls and record/visit deep links together. */
   function clearFilters() {
     setSearch('')
     setKind('')
     setOrder('newest')
-    setFavouritesOnly(false)
+    setImportantOnly(false)
     updateParams({ record: null, visit: null })
   }
 
+  /** Open the route-driven upload form, optionally preselecting a visit. */
   function openUpload(visitId = '') {
     setDefaultVisitId(visitId)
     updateParams({ action: 'upload' })
   }
 
+  /**
+   * Apply the selected record/visit deletion and leave confirmation available if
+   * persistence fails.
+   */
   async function confirmDelete() {
     if (!remove) return
     const saved = await mutation.run(
@@ -173,6 +193,10 @@ function RecordsWorkspace() {
     if (saved) setRemove(null)
   }
 
+  /**
+   * Wire each record card to workspace-owned preview, edit, deletion and
+   * prescription-scanning actions.
+   */
   function renderRecords(items: MedicalRecord[]) {
     return (
       <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
@@ -183,8 +207,8 @@ function RecordsWorkspace() {
             onPreview={(item, trigger) => setPreview({ record: item, trigger })}
             onEdit={() => setEdit(record)}
             onDelete={() => setRemove({ type: 'record', item: record })}
-            onUnfavourite={
-              favouritesOnly ? () => results.current?.focus() : undefined
+            onUnmarkImportant={
+              importantOnly ? () => results.current?.focus() : undefined
             }
             linkedCount={
               medications.filter(
@@ -200,6 +224,10 @@ function RecordsWorkspace() {
     )
   }
 
+  /**
+   * Compose a visit group from currently filtered records while retaining its
+   * care/follow-up actions.
+   */
   function renderVisit(visit: CareVisit) {
     const linkedRecords = filtered.filter(
       (record) => record.visit_id === visit.id,
@@ -254,7 +282,7 @@ function RecordsWorkspace() {
               {visit.title}
             </span>
             <span className="mt-1 block break-words text-xs text-muted-foreground">
-              {visit.provider || 'Provider not recorded'}
+              {providerSummary(visit) || 'Hospital and doctor not recorded'}
               {track ? ` · ${track.title}` : ' · Standalone visit'}
             </span>
             <span className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
@@ -436,7 +464,7 @@ function RecordsWorkspace() {
                 <Field
                   label="Search records"
                   className="h-12 min-h-12"
-                  placeholder="Search by title, provider, or file name..."
+                  placeholder="Search by title, hospital, doctor, or file name..."
                   value={search}
                   onChange={(event) => setSearch(event.target.value)}
                 />
@@ -473,20 +501,20 @@ function RecordsWorkspace() {
               </div>
               <div className="min-w-0">
                 <p
-                  id="records-favourites-label"
+                  id="records-important-label"
                   className="text-sm leading-none font-medium"
                 >
-                  Favourites
+                  Marked records
                 </p>
                 <Button
                   variant="outline"
                   className="mt-2 h-12 min-h-12 w-full rounded-xl"
-                  aria-describedby="records-favourites-label"
-                  aria-pressed={favouritesOnly}
-                  onClick={() => setFavouritesOnly((value) => !value)}
+                  aria-describedby="records-important-label"
+                  aria-pressed={importantOnly}
+                  onClick={() => setImportantOnly((value) => !value)}
                 >
                   <Star aria-hidden="true" />
-                  Favourites only
+                  Important!
                 </Button>
               </div>
             </div>
@@ -539,7 +567,7 @@ function RecordsWorkspace() {
                         onClick={() => {
                           setSearch('')
                           setKind('')
-                          setFavouritesOnly(false)
+                          setImportantOnly(false)
                           updateParams({ record: null, visit: item.visit_id })
                         }}
                       >

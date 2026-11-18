@@ -1,3 +1,8 @@
+/**
+ * Conservative prescription-text parser. Match explicit medicine/form/strength
+ * wording into editable suggestions without prescribing a schedule.
+ */
+
 import type { MedicationFormType } from '@shared/database.types'
 import type { MedicationValues } from '@shared/schemas'
 

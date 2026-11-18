@@ -1,3 +1,8 @@
+/**
+ * Database-backed daily workspace overview. Combines the selected profile
+ * schedule, recent records, follow-ups and reviewed-result summaries.
+ */
+
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { FileText, Upload, Plus, CalendarDays, ShieldCheck } from 'lucide-react'
@@ -41,6 +46,10 @@ import {
 } from '@/features/records/components/RecordPreview'
 import { MedicationReminder } from '@/features/medications/components/MedicationReminder'
 
+/**
+ * Derive today and recent activity from vault context and connect quick actions
+ * to working feature routes/dialogs.
+ */
 export default function DashboardPage() {
   const {
     profile,

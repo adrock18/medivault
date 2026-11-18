@@ -1,3 +1,8 @@
+/**
+ * Pure dashboard calculations. Derive scheduling and record-keeping summaries
+ * from persisted medications/logs without inferring clinical outcomes.
+ */
+
 import { subDays } from 'date-fns'
 import type { DoseLog, MedicalRecord, Medication } from '@shared/database.types'
 import {
@@ -22,6 +27,10 @@ export const clockTime = (date: Date) =>
 export type PartOfDay = 'Morning' | 'Afternoon' | 'Evening'
 export const partsOfDay: PartOfDay[] = ['Morning', 'Afternoon', 'Evening']
 
+/**
+ * Group an explicit schedule time into the display periods used by the daily
+ * timeline.
+ */
 export function partOfDay(time: string): PartOfDay {
   const hour = Number(time.slice(0, 2))
   if (hour < 12) return 'Morning'
@@ -29,6 +38,10 @@ export function partOfDay(time: string): PartOfDay {
   return 'Evening'
 }
 
+/**
+ * Count recorded outcomes and current unlogged doses while retaining logs whose
+ * schedule times were later removed.
+ */
 export function dayBreakdown(
   meds: Medication[],
   logs: DoseLog[],
@@ -52,6 +65,10 @@ export function dayBreakdown(
   }
 }
 
+/**
+ * Build seven local-calendar daily breakdowns ending on the supplied current
+ * date.
+ */
 export function weekBreakdown(
   meds: Medication[],
   logs: DoseLog[],
@@ -62,6 +79,10 @@ export function weekBreakdown(
   )
 }
 
+/**
+ * Calculate taken outcomes among logs in the last 30 calendar days; return null
+ * when no outcomes were logged.
+ */
 export function adherence30(logs: DoseLog[], now: Date) {
   const from = localDate(subDays(now, 29))
   const today = localDate(now)
@@ -80,6 +101,10 @@ export function adherence30(logs: DoseLog[], now: Date) {
 
 export const loggingMilestones = [3, 7, 30] as const
 
+/**
+ * Count distinct logged days and the current run ending today or yesterday,
+ * independent of clinical adherence.
+ */
 export function loggingProgress(logs: DoseLog[], now: Date) {
   const today = localDate(now)
   const dates = new Set(
@@ -102,6 +127,10 @@ export function loggingProgress(logs: DoseLog[], now: Date) {
   }
 }
 
+/**
+ * Describe a saved outcome and announce a distinct-day milestone only when this
+ * addition crosses it.
+ */
 export function loggingConfirmation(
   logs: DoseLog[],
   added: DoseLog,
@@ -113,12 +142,20 @@ export function loggingConfirmation(
   return `Dose marked as ${added.status}.${crossed ? ` ${crossed} distinct logged days recorded.` : ''}`
 }
 
+/**
+ * Find the first unlogged dose that is upcoming or currently due; callers supply
+ * schedule-sorted doses.
+ */
 export function nextDose(doses: ScheduledDose[], now: Date) {
   return doses.find(
     (dose) => !dose.log && ['scheduled', 'due'].includes(doseTiming(dose, now)),
   )
 }
 
+/**
+ * Build short factual statements about the supplied records and schedule without
+ * diagnosing or prescribing.
+ */
 export function dailyInsights({
   doses,
   medications,
@@ -168,6 +205,10 @@ export function dailyInsights({
 
 export type MarkState = 'taken' | 'skipped' | 'earlier' | 'later' | 'next'
 
+/**
+ * Choose visual dose state, preferring a saved outcome over schedule timing and
+ * next-dose emphasis.
+ */
 export function markState(
   dose: ScheduledDose,
   now: Date,

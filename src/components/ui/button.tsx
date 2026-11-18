@@ -1,3 +1,8 @@
+/**
+ * Shared styled button primitive and variants. Forward native/primitive behavior
+ * while keeping action semantics in consuming components.
+ */
+
 import { Button as ButtonPrimitive } from '@base-ui/react/button'
 import { cva, type VariantProps } from 'class-variance-authority'
 import { cn } from 'cn'

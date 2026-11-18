@@ -1,3 +1,8 @@
+/**
+ * API process entry point. Validates configuration, build artifacts and database
+ * readiness before listening, and owns graceful shutdown.
+ */
+
 import { resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { createServer } from 'node:http'
@@ -5,6 +10,10 @@ import { createApp } from './app.ts'
 import { apiConfig, supabaseSettings } from './config.ts'
 import { checkFrontendBuild, FrontendBuildError } from './frontend-build.ts'
 
+/**
+ * Start the configured HTTP server only after readiness succeeds; return a
+ * reusable shutdown operation.
+ */
 export async function startApi(env: NodeJS.ProcessEnv = process.env) {
   const config = apiConfig(env)
   const supabase = supabaseSettings(env)
@@ -29,6 +38,7 @@ export async function startApi(env: NodeJS.ProcessEnv = process.env) {
     )
   })
   let shutdownPromise: Promise<void> | undefined
+  /** Close the listener once and remove process handlers after shutdown completes. */
   function shutdown() {
     shutdownPromise ??= new Promise<void>((resolve, reject) => {
       server.close((error) => {
@@ -44,6 +54,10 @@ export async function startApi(env: NodeJS.ProcessEnv = process.env) {
     })
     return shutdownPromise
   }
+  /**
+   * Request graceful shutdown and preserve a failing exit status if cleanup
+   * cannot finish.
+   */
   function onSignal() {
     void shutdown().catch((error: unknown) => {
       console.error('Unable to shut down MediVault API:', error)

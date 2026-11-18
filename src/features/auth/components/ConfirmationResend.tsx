@@ -1,3 +1,8 @@
+/**
+ * Contextual signup-confirmation recovery form. Validates an email and requests a
+ * new link without implying that an account exists.
+ */
+
 import { useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -7,6 +12,10 @@ import { ErrorState, Field, SubmitButton } from '@/components/common'
 import { useAuth } from '@/contexts/AuthContext'
 import { errorMessage } from '@/lib/api'
 
+/**
+ * Show resend input and request feedback only where a confirmation-recovery
+ * workflow is relevant.
+ */
 export function ConfirmationResend({ initialEmail = '' }) {
   const { resendConfirmation } = useAuth()
   const [open, setOpen] = useState(Boolean(initialEmail))
@@ -31,6 +40,10 @@ export function ConfirmationResend({ initialEmail = '' }) {
     return () => window.clearTimeout(timer)
   }, [remaining])
 
+  /**
+   * Submit the validated email and present generic delivery guidance or an
+   * actionable request error.
+   */
   async function submit(values: z.infer<typeof confirmationEmailSchema>) {
     if (remaining) return
     setError(null)

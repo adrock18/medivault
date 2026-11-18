@@ -1,3 +1,8 @@
+/**
+ * Controlled select primitive over Base UI. Centralizes styled options,
+ * placeholder behavior and form-friendly value callbacks.
+ */
+
 import { useId, type FocusEventHandler, type Ref } from 'react'
 import { Select as SelectPrimitive } from '@base-ui/react/select'
 import { Check, ChevronDown, type LucideIcon } from 'lucide-react'
@@ -28,6 +33,10 @@ export type SelectProps = {
   'aria-describedby'?: string
 }
 
+/**
+ * Render controlled options through the accessible select primitive and translate
+ * its value callback for form consumers.
+ */
 export function Select({
   options,
   value,

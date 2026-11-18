@@ -1,3 +1,8 @@
+/**
+ * Daily medication timeline and outcome controls. Keep scheduled doses distinct
+ * from explicitly taken/skipped logs and offer undo through the API.
+ */
+
 import { useState } from 'react'
 import {
   Check,
@@ -35,6 +40,10 @@ const labels = {
   skipped: 'Skipped',
 }
 
+/**
+ * Display one scheduled dose and coordinate its explicit log/undo actions through
+ * the shared mutation lifecycle.
+ */
 function DoseRow({ dose, isNext }: { dose: ScheduledDose; isNext: boolean }) {
   const { now, logs } = useVault()
   const mutation = useMutation()
@@ -43,6 +52,10 @@ function DoseRow({ dose, isNext }: { dose: ScheduledDose; isNext: boolean }) {
   const PeriodIcon =
     period === 'Morning' ? Sun : period === 'Afternoon' ? Sunset : Moon
   const [changes, setChanges] = useState(0)
+  /**
+   * Persist the selected outcome and announce any new logging milestone only
+   * after the API accepts it.
+   */
   async function mark(status: 'taken' | 'skipped') {
     let confirmation = `Dose marked as ${status}.`
     const ok = await mutation.run(
@@ -59,6 +72,10 @@ function DoseRow({ dose, isNext }: { dose: ScheduledDose; isNext: boolean }) {
     )
     if (ok) setChanges((count) => count + 1)
   }
+  /**
+   * Remove the persisted outcome so the dose becomes unlogged again; leave
+   * retryable failures visible.
+   */
   async function undo() {
     const log = dose.log
     if (!log) return
@@ -165,6 +182,10 @@ const matches = (dose: ScheduledDose, filter: DoseFilter) =>
   (filter === 'logged' && !!dose.log) ||
   dose.log?.status === filter
 
+/**
+ * Filter and group supplied doses by day period while retaining an empty state
+ * for unmatched filters.
+ */
 export function DoseTimeline({
   doses,
   filter: controlled,

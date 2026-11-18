@@ -1,3 +1,8 @@
+/**
+ * Bounded in-app PDF rendering. Owns PDF.js load/render cleanup and shows
+ * recovery options rather than leaving a failed canvas blank.
+ */
+
 import { useEffect, useRef, useState } from 'react'
 import type {
   PDFDocumentProxy,
@@ -10,6 +15,10 @@ import { errorMessage } from '@/lib/api'
 import { Button } from '@/components/ui/button'
 import { LoadingState } from '@/components/common'
 
+/**
+ * Manage PDF loading, page navigation and retry while disposing stale document
+ * and render tasks.
+ */
 export default function PdfPreview({ blob }: { blob: Blob }) {
   const [document, setDocument] = useState<PDFDocumentProxy | null>(null)
   const [pageNumber, setPageNumber] = useState(1)
@@ -20,6 +29,10 @@ export default function PdfPreview({ blob }: { blob: Blob }) {
   useEffect(() => {
     let active = true
     let loading: PDFDocumentLoadingTask | undefined
+    /**
+     * Load private document bytes and ignore completion after the effect has been
+     * cleaned up.
+     */
     async function load() {
       try {
         const bytes = await blob.arrayBuffer()
@@ -51,6 +64,10 @@ export default function PdfPreview({ blob }: { blob: Blob }) {
     let task: RenderTask | undefined
     let page: PDFPageProxy | undefined
     const target = canvas.current
+    /**
+     * Render within the canvas pixel budget and suppress stale results after page
+     * changes or cleanup.
+     */
     async function renderPage() {
       try {
         page = await pdf.getPage(pageNumber)
@@ -95,6 +112,7 @@ export default function PdfPreview({ blob }: { blob: Blob }) {
       target.width = target.height = 0
     }
   }, [document, pageNumber])
+  /** Reset document/page/error state and start a fresh load attempt. */
   function retry() {
     setError(null)
     setDocument(null)
@@ -113,7 +131,7 @@ export default function PdfPreview({ blob }: { blob: Blob }) {
         </div>
       ) : (
         <>
-          <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+          <div className="mb-3 grid grid-cols-2 items-center gap-2 sm:grid-cols-[auto_1fr_auto]">
             <Button
               variant="outline"
               disabled={!document || rendering || pageNumber <= 1}
@@ -124,7 +142,10 @@ export default function PdfPreview({ blob }: { blob: Blob }) {
             >
               Previous page
             </Button>
-            <p className="text-sm tabular-nums" aria-live="polite">
+            <p
+              className="col-span-2 row-start-1 text-center text-sm tabular-nums sm:col-span-1 sm:col-start-2"
+              aria-live="polite"
+            >
               {document
                 ? `Page ${pageNumber} of ${document.numPages}`
                 : 'Preparing PDF'}

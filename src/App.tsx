@@ -1,3 +1,8 @@
+/**
+ * Frontend composition root. Connects routing, authentication, protected account
+ * data, lazy page loading and the render-error fallback.
+ */
+
 import {
   Component,
   lazy,
@@ -49,12 +54,18 @@ class ErrorBoundary extends Component<
   { failed: boolean }
 > {
   state = { failed: false }
+  /** Switch the render boundary into its recovery view after a descendant throws. */
   static getDerivedStateFromError() {
     return { failed: true }
   }
+  /**
+   * Report a rendering failure for diagnostics; asynchronous API failures are
+   * handled at their own boundaries.
+   */
   componentDidCatch(error: Error, info: ErrorInfo) {
     console.error('MediVault rendering failed', error, info.componentStack)
   }
+  /** Keep a usable reload action visible when the page tree cannot render. */
   render() {
     if (this.state.failed)
       return (
@@ -68,6 +79,10 @@ class ErrorBoundary extends Component<
     return this.props.children
   }
 }
+/**
+ * Gate workspace rendering on the session; server authorization remains the
+ * actual data-access boundary.
+ */
 function ProtectedRoute() {
   const { session } = useAuth()
   if (!session) return <Navigate to="/login" replace />
@@ -77,6 +92,7 @@ function ProtectedRoute() {
     </DataProvider>
   )
 }
+/** Resolve auth/loading/error states before selecting a public or protected page. */
 function AppRoutes() {
   const { loading, error, retry, session } = useAuth()
   const location = useLocation()
@@ -140,6 +156,10 @@ function AppRoutes() {
     </Routes>
   )
 }
+/**
+ * Mount the router, providers, lazy-loading fallback and notifications once for
+ * the browser application.
+ */
 export default function App() {
   const { resolved } = useTheme()
   return (

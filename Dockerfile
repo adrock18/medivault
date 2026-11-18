@@ -1,5 +1,7 @@
 # syntax=docker/dockerfile:1
 
+# Build and validate immutable frontend assets, then run the same-origin API as
+# a non-root user. Supabase credentials are supplied at runtime, never at build.
 FROM node:24-bookworm-slim AS build
 WORKDIR /app
 COPY package.json package-lock.json ./

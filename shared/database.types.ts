@@ -1,3 +1,8 @@
+/**
+ * Application-facing domain types and vocabularies. Shared models describe stored
+ * data without carrying server credentials or database clients.
+ */
+
 export type Category =
   'prescription' | 'lab_report' | 'scan' | 'discharge_summary' | 'other'
 export type DocumentKind =
@@ -96,7 +101,8 @@ export type MedicalRecord = Timestamps & {
   category: Category
   document_kind: DocumentKind
   visit_id: string | null
-  provider: string
+  hospital_name: string
+  doctor_name: string
   record_date: string
   file_path: string
   file_name: string
@@ -145,7 +151,8 @@ export type CareVisit = Timestamps & {
   title: string
   reason: string
   setting: VisitSetting
-  provider: string
+  hospital_name: string
+  doctor_name: string
   visit_date: string
   notes: string
 }

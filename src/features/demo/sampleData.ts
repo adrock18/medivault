@@ -1,3 +1,8 @@
+/**
+ * Explicit fictional-data seeding through the normal API. Generates labeled
+ * sample documents and records without bypassing account ownership.
+ */
+
 import { api } from '@/lib/api'
 import { uploadRecord } from '@/features/records/lib/records'
 
@@ -12,7 +17,8 @@ const examples = [
     visitReason: 'Fictional, non-clinical HL7 FHIR R4 example report.',
     visitSetting: 'diagnostic' as const,
     visitDate: '2011-03-04',
-    provider: 'Acme Laboratory, Inc. (FHIR example)',
+    hospital_name: 'Acme Laboratory, Inc. (FHIR example)',
+    doctor_name: '',
     documentTitle: `${demoLabel}: CBC report`,
     documentKind: 'lab_report' as const,
     filename: 'hl7-fhir-cbc-fictional-example.pdf',
@@ -50,7 +56,8 @@ const examples = [
       'Fictional FHIR example for OCR review only; not a valid prescription.',
     visitSetting: 'primary_care' as const,
     visitDate: '2015-01-15',
-    provider: 'Patrick Pump (FHIR example)',
+    hospital_name: '',
+    doctor_name: 'Patrick Pump (FHIR example)',
     documentTitle: `${demoLabel}: MedicationRequest OCR`,
     documentKind: 'prescription' as const,
     filename: 'hl7-fhir-medicationrequest-fictional-example.pdf',
@@ -73,6 +80,10 @@ const examples = [
   },
 ] as const
 
+/**
+ * Escape literal PDF text characters before placing fictional sample wording into
+ * a content stream.
+ */
 function escapePdfText(value: string) {
   return value
     .replaceAll('\\', '\\\\')
@@ -80,6 +91,10 @@ function escapePdfText(value: string) {
     .replaceAll(')', '\\)')
 }
 
+/**
+ * Build a small text-only PDF for the explicitly requested fictional sample
+ * records.
+ */
 function createTextPdf(lines: readonly string[], filename: string) {
   const content = [
     'BT /F1 11 Tf 42 760 Td',
@@ -110,6 +125,10 @@ function createTextPdf(lines: readonly string[], filename: string) {
   return new File([pdf], filename, { type: 'application/pdf' })
 }
 
+/**
+ * Create labeled fictional data through authenticated endpoints; failures
+ * propagate to the requesting settings action.
+ */
 export async function addSampleData() {
   const existing = await api.vault()
 
@@ -148,7 +167,8 @@ export async function addSampleData() {
         title: example.visitTitle,
         reason: example.visitReason,
         setting: example.visitSetting,
-        provider: example.provider,
+        hospital_name: example.hospital_name,
+        doctor_name: example.doctor_name,
         visit_date: example.visitDate,
         notes: `Fictional, source-attributed demonstration only. ${example.source}`,
       }))
@@ -167,7 +187,8 @@ export async function addSampleData() {
         visit_id: visit.id,
         title: example.documentTitle,
         document_kind: example.documentKind,
-        provider: example.provider,
+        hospital_name: example.hospital_name,
+        doctor_name: example.doctor_name,
         record_date: example.visitDate,
       },
       file,

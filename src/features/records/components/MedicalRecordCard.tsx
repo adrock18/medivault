@@ -1,3 +1,8 @@
+/**
+ * Medical-record discovery card. Displays stored metadata and coordinates
+ * private-file access, important marks and caller-owned record actions.
+ */
+
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import {
@@ -15,13 +20,22 @@ import {
 } from 'lucide-react'
 import { toast } from 'sonner'
 import type { MedicalRecord } from '@shared/database.types'
-import { documentKinds, displayDate, fileSize } from '@/lib/utils'
+import {
+  documentKinds,
+  displayDate,
+  fileSize,
+  providerSummary,
+} from '@/lib/utils'
 import { api, errorMessage } from '@/lib/api'
 import { useMutation } from '@/hooks/useMutation'
 import { viewRecord, downloadRecord } from '../lib/records'
 import { Panel } from '@/components/common'
 import { Button } from '@/components/ui/button'
 
+/**
+ * Show one record with source-aware actions while keeping preview/edit/delete
+ * selection in the workspace.
+ */
 export function MedicalRecordCard({
   record,
   onEdit,
@@ -30,7 +44,7 @@ export function MedicalRecordCard({
   onScan,
   linkedCount = 0,
   onPreview,
-  onUnfavourite,
+  onUnmarkImportant,
 }: {
   record: MedicalRecord
   onEdit?: () => void
@@ -39,22 +53,30 @@ export function MedicalRecordCard({
   onScan?: () => void
   linkedCount?: number
   onPreview?: (record: MedicalRecord, trigger: HTMLButtonElement) => void
-  onUnfavourite?: () => void
+  onUnmarkImportant?: () => void
 }) {
   const [busy, setBusy] = useState<'view' | 'download' | null>(null)
-  const favourite = useMutation()
-  async function toggleFavourite() {
-    const wasFavourite = record.is_favourite
-    const saved = await favourite.run(
+  const importance = useMutation()
+  /**
+   * Persist the Important! marker using the existing favourite flag; announce
+   * failures instead of silently changing the card.
+   */
+  async function toggleImportant() {
+    const wasImportant = record.is_favourite
+    const saved = await importance.run(
       async () => {
-        await api.records.favourite(record.id, !wasFavourite)
+        await api.records.favourite(record.id, !wasImportant)
       },
-      wasFavourite
-        ? 'Document removed from favourites.'
-        : 'Document added to favourites.',
+      wasImportant
+        ? 'Document no longer marked as important.'
+        : 'Document marked as important!',
     )
-    if (saved && wasFavourite) onUnfavourite?.()
+    if (saved && wasImportant) onUnmarkImportant?.()
   }
+  /**
+   * Open or download through the authenticated document helper and expose access
+   * errors to the user.
+   */
   async function access(action: 'view' | 'download') {
     setBusy(action)
     try {
@@ -112,18 +134,18 @@ export function MedicalRecordCard({
           <Button
             variant="ghost"
             size="icon"
-            aria-label={`Favourite ${record.title}`}
+            aria-label={`Important! ${record.title}`}
             aria-pressed={record.is_favourite}
-            aria-busy={favourite.pending}
-            disabled={favourite.pending}
+            aria-busy={importance.pending}
+            disabled={importance.pending}
             title={
               record.is_favourite
-                ? 'Remove from favourites'
-                : 'Add to favourites'
+                ? 'Remove important mark'
+                : 'Mark as important!'
             }
-            onClick={() => void toggleFavourite()}
+            onClick={() => void toggleImportant()}
           >
-            {favourite.pending ? (
+            {importance.pending ? (
               <LoaderCircle className="animate-spin" />
             ) : (
               <Star
@@ -141,11 +163,11 @@ export function MedicalRecordCard({
         {record.title}
       </h2>
       <p className="mt-2 break-words text-sm text-muted-foreground">
-        {record.provider || 'No provider specified'}
+        {providerSummary(record) || 'Hospital and doctor not specified'}
       </p>
-      {favourite.error && (
+      {importance.error && (
         <p role="alert" className="mt-3 text-sm text-destructive">
-          {favourite.error}
+          {importance.error}
         </p>
       )}
       <dl className="mt-3 flex flex-wrap gap-x-5 gap-y-1 text-xs">
@@ -161,7 +183,7 @@ export function MedicalRecordCard({
           </dd>
         </div>
       </dl>
-      <div className="mt-5 flex items-center justify-between gap-2 border-t pt-4">
+      <div className="mt-5 flex flex-wrap items-center justify-between gap-2 border-t pt-4">
         <Button
           variant="outline"
           aria-label={`View ${record.title}`}
@@ -216,14 +238,19 @@ export function MedicalRecordCard({
           )}
         </div>
       </div>
-      <p className="mt-3 flex items-center gap-1.5 text-[10px] text-slate-400">
-        <LockKeyhole size={11} />
+      <p className="mt-3 flex items-start gap-1.5 text-xs leading-5 text-muted-foreground">
+        <LockKeyhole size={12} className="mt-1 shrink-0" />
         Private document, open only to your signed-in account
       </p>
-      {(onScan || linkedCount > 0) && (
+      {((onScan && record.document_kind === 'prescription') ||
+        linkedCount > 0) && (
         <div className="mt-3 flex flex-wrap gap-2">
-          {onScan && (
-            <Button variant="outline" onClick={onScan}>
+          {onScan && record.document_kind === 'prescription' && (
+            <Button
+              variant="outline"
+              className="h-auto whitespace-normal text-left"
+              onClick={onScan}
+            >
               <ScanLine />
               Scan for medications
             </Button>

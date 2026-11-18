@@ -130,6 +130,74 @@ flowchart LR
 7. Release/deploy only when explicitly requested. Keep a recoverable, compatible
    rollback path; forward schema versions cannot be blindly downgraded.
 
+## Reading and documenting the source
+
+For a newcomer, follow one user action instead of reading every file at once:
+
+1. Start with the [screen tour](system-overview.md#workspace-screen-tour).
+2. Read its feature page, for example [ProfilePage](../src/features/profile/pages/ProfilePage.tsx).
+3. Follow `useVault` to [DataProvider](../src/contexts/DataProvider.tsx), or a save
+   to [useMutation](../src/hooks/useMutation.ts) and the [API client](../src/lib/api.ts).
+4. Follow the endpoint to [vault routes](../server/routes/vault.ts), then inspect
+   [shared validation](../shared/schemas.ts) and
+   [background compatibility](../shared/medical-background.ts).
+5. Consult the matching [migration](../supabase/migrations) for database
+   constraints, ownership and transactional behavior. TypeScript alone cannot
+   enforce those database invariants.
+
+### Commenting conventions
+
+- Begin handwritten modules with a short responsibility comment: what the file
+  owns, its important boundary, and any easily confused limitation.
+- Use JSDoc above meaningful components, public helpers, hooks and workflow
+  handlers. Explain their responsibility, invariants and important failure or
+  cleanup behavior. Editors then show this context on hover.
+- Let TypeScript describe ordinary parameter/return shapes. Add prose for
+  non-obvious contracts: for example, mutation success describes the write,
+  while a subsequent refresh can fail separately.
+- Explain **why** an inline guard, compatibility path or cleanup exists.
+  Stale-response generations, preserved legacy profile text, private-object
+  compensation and cancellation are worth documenting.
+- Avoid narrating assignments, every JSX element, trivial wrapper functions or
+  every inline callback. Presentation-only primitives share a file-level
+  contract rather than dozens of identical comments.
+- Update comments with behavior; stale prose is a defect. Do not copy credentials,
+  personal data or debugging dumps into comments. Do not hand-rewrite generated
+  schema sections or historical applied migrations for stylistic consistency.
+
+The public [architecture map](architecture.md#responsibility-map) explains
+cross-module ownership; comments explain the nearby implementation. Keep both
+aligned when a feature changes.
+
+## Error-handling conventions
+
+| Boundary                              | Responsibility                                                                                                    |
+| ------------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
+| Form + shared Zod schema              | Show useful field errors and reject invalid values; frontend checks are not authorization.                        |
+| Express route/context                 | Revalidate input and ownership, classify expected failures with `HttpError`, and validate returned rows.          |
+| API client                            | Reject non-success status, unexpected content type or invalid response shape; retain optional stable error codes. |
+| Mutation/form owner                   | Show pending state and explicit failure, prevent duplicate writes, and close/reset only after success.            |
+| Data provider + Layout                | Ignore superseded responses and show retained data as stale after refresh failure, never as freshly fetched.      |
+| Render boundary                       | Recover from component-render exceptions; async effects and event handlers still need their own error paths.      |
+| Document route + app error middleware | Report storage/metadata partial failures and record sanitized incident metadata without raw provider errors.      |
+
+Catch an exception only to translate it, add recovery/cleanup, expose an error,
+or handle deliberate cancellation. Do not silently substitute empty clinical
+data, pretend an unavailable service succeeded, or automatically retry a write
+that may already have committed.
+
+Some operations have explicit partial-success semantics: a password may change
+before other-session revocation fails; a document object may be removed before
+metadata deletion fails. Preserve that distinction in the user message and
+recovery instructions. `DataProvider.reload` reports errors through context;
+it does not throw them back as evidence that the earlier write failed.
+
+Keep logs privacy-safe. The server document boundary records an operation,
+record ID and incident ID, not file contents, storage paths, access tokens or
+raw provider/SQL responses. Do not add blanket `console.error(error)` logging
+to every layer or log passwords/form payloads. Expected field errors belong
+in UI feedback rather than duplicated infrastructure logs.
+
 ## Current verification commands
 
 ```sh
@@ -189,21 +257,22 @@ Unlogged calendar history remains a current-schedule projection, not evidence of
 missed or completed treatment. Do not take late or extra doses to change these
 record-keeping values; MediVault does not prescribe.
 
-## Rehearsing private favourites
+## Rehearsing important record marks
 
 In a fictional account, upload two generated documents and use each record's
 star button. Its pressed state reflects the saved flag; pending requests disable
-duplicate interaction. Reload to verify persistence. **Favourites only** combines
-with title/provider/file search, document type, record-date ordering and linked-record
+duplicate interaction. Reload to verify persistence. **Important!** combines
+with title/hospital/doctor/file search, document type, record-date ordering and linked-record
 scope; the result count reflects every active constraint.
 
 Open and close a preview: those discovery settings and trigger focus remain.
-Remove a favourite while filtering by favourites: focus returns to the persistent
+Remove an important mark while filtering by **Important!**: focus returns to the persistent
 result count when the row disappears. An unmatched search offers **Clear
 filters**, which also removes linked scope and resets newest-first ordering,
-without changing any saved favourite flags. A failed favourite request displays
+without changing any saved marks. A failed marking request displays
 an error and allows retry. JSON export retains the boolean flags; it does not
-include original document bytes. Use the normal authenticated API to mark favourites.
+include original document bytes. Use the normal authenticated API to mark records.
+The existing `is_favourite` field and `/favourite` endpoint remain unchanged.
 
 ## Rehearsing private activity summaries
 

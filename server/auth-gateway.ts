@@ -1,3 +1,8 @@
+/**
+ * Server authentication contract. Keeps Express routes independent of Supabase
+ * cookie mechanics and provider-specific responses.
+ */
+
 import type { Request, Response } from 'express'
 import type { z } from 'zod'
 import type { RegistrationResult, Session } from '../shared/contracts.ts'

@@ -1,3 +1,8 @@
+/**
+ * Styled Base UI dialog building blocks. Keep portal, overlay, focus and
+ * close-button composition consistent across application dialogs.
+ */
+
 'use client'
 
 import * as React from 'react'
@@ -39,6 +44,10 @@ function DialogOverlay({
   )
 }
 
+/**
+ * Compose the portal and backdrop around dialog content, with an optional
+ * accessible close control.
+ */
 function DialogContent({
   className,
   children,

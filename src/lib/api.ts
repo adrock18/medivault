@@ -1,3 +1,8 @@
+/**
+ * Browser-to-Express API boundary. Sends same-origin cookie requests, validates
+ * response contracts and preserves safe server error messages/codes.
+ */
+
 import { z } from 'zod'
 import {
   resultReviewRow,
@@ -37,6 +42,10 @@ import {
   passwordSchema,
 } from '@shared/schemas'
 
+/**
+ * Normalize an unknown caught value for user feedback without assuming it is an
+ * Error.
+ */
 export function errorMessage(error: unknown) {
   return error instanceof Error
     ? error.message
@@ -50,6 +59,10 @@ export class ApiError extends Error {
     this.code = code
   }
 }
+/**
+ * Send a guarded same-origin request and translate non-success responses into
+ * actionable API errors.
+ */
 async function response(path: string, options: RequestInit = {}) {
   const headers = new Headers(options.headers)
   headers.set('X-MediVault-Request', '1')
@@ -89,6 +102,10 @@ async function response(path: string, options: RequestInit = {}) {
   }
   return result
 }
+/**
+ * Require the expected JSON content type and runtime schema before exposing API
+ * data to the application.
+ */
 async function request<T>(
   path: string,
   schema: z.ZodType<T>,

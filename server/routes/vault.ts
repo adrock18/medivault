@@ -1,3 +1,8 @@
+/**
+ * Vault/export snapshots, reviewed results, profile writes and family management.
+ * Keep account identity separate from the selected managed profile.
+ */
+
 import { Router } from 'express'
 import {
   familyHealthProfileSchema,
@@ -18,6 +23,10 @@ import {
   type RouteContext,
 } from './context.ts'
 
+/**
+ * Derive compatibility text only when structured medical-background entries are
+ * supplied.
+ */
 function backgroundFields(entries: MedicalBackgroundEntry[] | undefined) {
   return entries === undefined
     ? {}
@@ -27,6 +36,10 @@ function backgroundFields(entries: MedicalBackgroundEntry[] | undefined) {
       }
 }
 
+/**
+ * Register account snapshots and profile/result writes through the authenticated
+ * client; family selection never supplies a different authenticated owner.
+ */
 export function vaultRoutes(context: RouteContext) {
   const router = Router()
 

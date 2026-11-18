@@ -1,3 +1,8 @@
+/**
+ * Styled native input primitive. Forward input attributes and refs so
+ * higher-level fields can own labeling, registration and validation.
+ */
+
 import * as React from 'react'
 import { Input as InputPrimitive } from '@base-ui/react/input'
 import { cn } from 'cn'

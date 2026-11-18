@@ -1,3 +1,8 @@
+/**
+ * Shared form and request validation. Normalize accepted user input and enforce
+ * calendar, schedule and linked-field rules before persistence.
+ */
+
 import { z } from 'zod'
 import { localDate } from './health.ts'
 import { medicationForms } from './database.types.ts'
@@ -19,6 +24,10 @@ const optionalPastDate = z.union([
   z.literal(''),
   date.refine((value) => value <= localDate(), 'Date cannot be in the future.'),
 ])
+/**
+ * Allow blank optional measurements while validating supplied numbers against the
+ * field bounds.
+ */
 const numberOrBlank = (min: number, max: number) =>
   z.union([
     z.literal(''),
@@ -68,6 +77,10 @@ const profileFieldsSchema = z.object({
       'Enter a valid phone number.',
     ),
 })
+/**
+ * Keep retained contact fields paired for compatibility, even though the current
+ * profile UI no longer edits them.
+ */
 const hasCompleteEmergencyContact = (value: {
   emergency_contact_name: string
   emergency_contact_phone: string
@@ -132,6 +145,10 @@ export const notificationPreferencesSchema = z
 export type NotificationPreferencesValues = z.infer<
   typeof notificationPreferencesSchema
 >
+const providerFields = {
+  hospital_name: z.string().trim().max(160, 'Use at most 160 characters.'),
+  doctor_name: z.string().trim().max(160, 'Use at most 160 characters.'),
+}
 export const recordSchema = z.object({
   family_member_id: z.uuid('Select a family profile.'),
   visit_id: z.union([z.literal(''), z.uuid('Select a valid visit.')]),
@@ -149,7 +166,7 @@ export const recordSchema = z.object({
     'insurance_claim',
     'other',
   ]),
-  provider: z.string().trim().max(160),
+  ...providerFields,
   record_date: date.refine(
     (value) => value <= localDate(),
     'Record date cannot be in the future.',
@@ -181,7 +198,7 @@ export const careVisitSchema = z
       'telehealth',
       'other',
     ]),
-    provider: z.string().trim().max(160),
+    ...providerFields,
     visit_date: date.refine(
       (value) => value <= localDate(),
       'Visit date cannot be in the future.',

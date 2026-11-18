@@ -1,3 +1,8 @@
+/**
+ * Validates server environment configuration before startup. Secrets stay
+ * server-side; production origins and cookies must use HTTPS.
+ */
+
 export const DEV_WEB_HOST = '127.0.0.1'
 export const DEV_WEB_PORT = 5187
 export const DEV_STARTUP_HEADER = 'X-MediVault-Dev-Startup'
@@ -17,12 +22,17 @@ export type SupabaseSettings = {
   appOrigin?: string
 }
 
+/**
+ * Recognize only the loopback hostnames allowed for insecure local-development
+ * URLs.
+ */
 function isLoopback(hostname: string) {
   return (
     hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '[::1]'
   )
 }
 
+/** Validate a bare service origin, allowing HTTP only for loopback development. */
 function parseServiceUrl(name: string, value: string, production: boolean) {
   let url: URL
   try {
@@ -45,6 +55,10 @@ function parseServiceUrl(name: string, value: string, production: boolean) {
   return url.origin
 }
 
+/**
+ * Resolve a trusted confirmation-redirect origin; reject production
+ * misconfiguration rather than trusting request hosts.
+ */
 function appOrigin(env: NodeJS.ProcessEnv, production: boolean) {
   const value = env.APP_ORIGIN?.trim()
   if (!value) {
@@ -78,6 +92,10 @@ function appOrigin(env: NodeJS.ProcessEnv, production: boolean) {
   return url.origin
 }
 
+/**
+ * Read required server credentials and storage settings, failing fast on invalid
+ * or unsafe configuration.
+ */
 export function supabaseSettings(
   env: NodeJS.ProcessEnv = process.env,
 ): SupabaseSettings {
@@ -129,6 +147,10 @@ export function supabaseSettings(
   }
 }
 
+/**
+ * Accept only an explicit bounded proxy-hop count so forwarding headers are not
+ * trusted indiscriminately.
+ */
 function trustProxyHops(value: string | undefined) {
   if (value === undefined || value === '') return undefined
   const hops = Number(value)
@@ -137,6 +159,10 @@ function trustProxyHops(value: string | undefined) {
   return hops
 }
 
+/**
+ * Resolve the API listener and optional integrations while enforcing production
+ * cookie requirements.
+ */
 export function apiConfig(env: NodeJS.ProcessEnv = process.env) {
   const port = Number(env.PORT ?? 3001)
   if (!Number.isInteger(port) || port < 1 || port > 65535)

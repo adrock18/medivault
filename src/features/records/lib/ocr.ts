@@ -1,3 +1,8 @@
+/**
+ * Local document-text extraction using self-hosted PDF.js and Tesseract assets.
+ * Bounds pages/pixels and releases workers on completion or cancellation.
+ */
+
 import { createWorker, OEM, type Worker } from 'tesseract.js'
 import { pdfjs } from './pdf'
 const MAX_PAGES = 10
@@ -17,6 +22,10 @@ export async function scanPrescription(
   const check = () => {
     signal.throwIfAborted()
   }
+  /**
+   * Reuse the local OCR worker, report progress and race recognition against
+   * cancellation.
+   */
   async function recognize(canvas: HTMLCanvasElement, label: string) {
     check()
     worker ??= await createWorker('eng', OEM.LSTM_ONLY, {
@@ -46,6 +55,10 @@ export async function scanPrescription(
       if (rejectAbort) signal.removeEventListener('abort', rejectAbort)
     }
   }
+  /**
+   * Allocate a white-backed canvas only within the scan pixel budget and reject
+   * unsupported canvas rendering.
+   */
   function canvasFor(width: number, height: number) {
     if (!width || !height || width * height > MAX_PIXELS)
       throw new Error(

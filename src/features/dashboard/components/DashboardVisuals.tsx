@@ -1,3 +1,8 @@
+/**
+ * Dashboard schedule and activity visualizations. Render supplied
+ * schedule/logging facts; these graphics are not clinical assessments.
+ */
+
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { format } from 'date-fns'
@@ -95,6 +100,10 @@ function MarkShape({
 
 const C = 100
 const R = 78
+/**
+ * Project a schedule angle onto the dial so marks and labels use the same
+ * geometry.
+ */
 function point(minutes: number, radius: number) {
   const angle = (minutes / 1440) * 2 * Math.PI
   return {
@@ -105,6 +114,10 @@ function point(minutes: number, radius: number) {
 const minutesOf = (time: string) =>
   Number(time.slice(0, 2)) * 60 + Number(time.slice(3, 5))
 
+/**
+ * Plot the supplied daily schedule around a local-time dial with a textual
+ * alternative.
+ */
 export function DayDial({
   doses,
   now,
@@ -286,6 +299,10 @@ export function DayDial({
   )
 }
 
+/**
+ * Visualize the supplied logged-outcome percentage without treating unlogged
+ * doses as recorded skips.
+ */
 export function AdherenceRing({
   value,
 }: {
@@ -343,6 +360,10 @@ export function AdherenceRing({
   )
 }
 
+/**
+ * Display distinct logged-day milestones as record-keeping progress, not
+ * treatment adherence claims.
+ */
 export function LoggingMilestones({
   value,
 }: {
@@ -388,6 +409,10 @@ export function LoggingMilestones({
 const dayText = (day: DayCounts) =>
   `${day.taken} taken, ${day.skipped} skipped, ${day.unlogged} not yet logged`
 
+/**
+ * Compare taken, skipped and unlogged daily counts using the shared schedule
+ * breakdown.
+ */
 export function WeekActivityChart({ days }: { days: DayCounts[] }) {
   const [selected, setSelected] = useState(days.length - 1)
   const max = Math.max(1, ...days.map((day) => day.total))
@@ -467,6 +492,10 @@ export function WeekActivityChart({ days }: { days: DayCounts[] }) {
   )
 }
 
+/**
+ * Display factual activity statements supplied by dashboard calculations, not
+ * generated treatment advice.
+ */
 export function DailyInsight({ statements }: { statements: string[] }) {
   return (
     <ul aria-label="Daily insight" className="space-y-1.5">

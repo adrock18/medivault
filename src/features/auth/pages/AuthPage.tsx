@@ -1,3 +1,7 @@
+/**
+ * Public authentication forms and confirmation-recovery UI.
+ * Input validation happens here; identity checks are delegated through AuthProvider.
+ */
 import { Link, Navigate, useLocation, useSearchParams } from 'react-router-dom'
 import { useState } from 'react'
 import { useForm } from 'react-hook-form'
@@ -20,6 +24,10 @@ import { ConfirmationResend } from '../components/ConfirmationResend'
 
 type ConfirmationHandler = (email: string | null) => void
 
+/**
+ * Collects credentials and delegates sign-in; only an unconfirmed-email response
+ * reveals recovery for the submitted address.
+ */
 function LoginForm({
   onConfirmationRequired,
 }: {
@@ -70,6 +78,10 @@ function LoginForm({
     </form>
   )
 }
+/**
+ * Collects the full name required by account initialization. A confirmation-pending
+ * response prompts verification; it does not establish an authenticated session.
+ */
 function RegisterForm({
   onConfirmationRequired,
 }: {
@@ -148,6 +160,10 @@ function RegisterForm({
     </form>
   )
 }
+/**
+ * Coordinates the public forms and contextual recovery. Callback error parameters
+ * provide guidance only; they are not proof that an account has been confirmed.
+ */
 export default function AuthPage({
   registration = false,
 }: {
@@ -162,6 +178,10 @@ export default function AuthPage({
   } | null>(null)
   const confirmationEmail =
     confirmation?.registration === registration ? confirmation.email : ''
+  /**
+   * Move a successful but unconfirmed signup into the email-confirmation guidance
+   * state.
+   */
   function onConfirmationRequired(email: string | null) {
     setConfirmation(email ? { email, registration } : null)
   }

@@ -1,5 +1,10 @@
+/**
+ * Validated care-track and visit dialogs. Associate each saved visit/track with
+ * the selected managed profile and expose mutation failures.
+ */
+
 import { zodResolver } from '@hookform/resolvers/zod'
-import { useForm, useWatch } from 'react-hook-form'
+import { Controller, useForm, useWatch } from 'react-hook-form'
 import { api } from '@/lib/api'
 import { useMutation } from '@/hooks/useMutation'
 import { useVault } from '@/contexts/DataContext'
@@ -20,7 +25,12 @@ import {
   TextField,
 } from '@/components/common'
 import { Button } from '@/components/ui/button'
+import { DateField } from '@/components/DateField'
 
+/**
+ * Choose the track or visit form while keeping their validation and persistence
+ * paths separate.
+ */
 export function CareDialog({
   kind,
   track,
@@ -50,7 +60,8 @@ export function CareDialog({
       title: visit?.title ?? '',
       reason: visit?.reason ?? '',
       setting: visit?.setting ?? 'primary_care',
-      provider: visit?.provider ?? '',
+      hospital_name: visit?.hospital_name ?? '',
+      doctor_name: visit?.doctor_name ?? '',
       visit_date: visit?.visit_date ?? localDate(),
       notes: visit?.notes ?? '',
     },
@@ -62,6 +73,10 @@ export function CareDialog({
     name: 'care_track_id',
   })
 
+  /**
+   * Create or update a care track and close only after a successful authenticated
+   * mutation.
+   */
   async function saveTrack(values: CareTrackValues) {
     if (
       await mutation.run(
@@ -76,6 +91,10 @@ export function CareDialog({
       onClose()
   }
 
+  /**
+   * Create or update a visit with explicit profile/track links and keep failed
+   * submissions editable.
+   */
   async function saveVisit(values: CareVisitValues) {
     if (
       await mutation.run(
@@ -183,20 +202,35 @@ export function CareDialog({
                   { value: 'other', label: 'Other' },
                 ]}
               />
-              <Field
-                label="Visit date"
-                type="date"
-                max={localDate()}
-                registration={visitForm.register('visit_date')}
-                error={visitForm.formState.errors.visit_date?.message}
+              <Controller
+                name="visit_date"
+                control={visitForm.control}
+                render={({ field }) => (
+                  <DateField
+                    label="Visit date"
+                    value={field.value}
+                    onChange={field.onChange}
+                    onBlur={field.onBlur}
+                    inputRef={field.ref}
+                    error={visitForm.formState.errors.visit_date?.message}
+                  />
+                )}
               />
             </div>
-            <Field
-              label="Provider or facility"
-              placeholder="Optional"
-              registration={visitForm.register('provider')}
-              error={visitForm.formState.errors.provider?.message}
-            />
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Field
+                label="Hospital"
+                placeholder="Hospital, clinic or laboratory"
+                registration={visitForm.register('hospital_name')}
+                error={visitForm.formState.errors.hospital_name?.message}
+              />
+              <Field
+                label="Doctor"
+                placeholder="Doctor's name"
+                registration={visitForm.register('doctor_name')}
+                error={visitForm.formState.errors.doctor_name?.message}
+              />
+            </div>
             <SelectField
               label="Care track"
               value={visitCareTrack}

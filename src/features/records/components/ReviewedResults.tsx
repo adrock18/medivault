@@ -1,3 +1,8 @@
+/**
+ * Reviewed-result history presentation. Groups only current user-reviewed
+ * snapshots and retains visible links or labels for their original sources.
+ */
+
 import { Link } from 'react-router-dom'
 import { ClipboardList } from 'lucide-react'
 import { useVault } from '@/contexts/DataContext'
@@ -25,6 +30,10 @@ function ResultSource({ review }: { review: ResultReview }) {
   )
 }
 
+/**
+ * Display reviewed observation histories without interpreting them as diagnoses
+ * or generating missing ranges.
+ */
 export function ReviewedResults({
   vitalsOnly = false,
   recordId,

@@ -1,3 +1,8 @@
+/**
+ * On-demand printable activity summary. Binds each generated snapshot to its
+ * owner, profile and options, then revalidates the session before printing.
+ */
+
 import { useEffect, useRef, useState } from 'react'
 import { subDays } from 'date-fns'
 import { Printer } from 'lucide-react'
@@ -30,6 +35,10 @@ type SummaryState = { ownerId: string; key: string } & (
     }
 )
 
+/**
+ * Manage summary dates, generation and printing without showing a stale result
+ * for changed selection options.
+ */
 export default function ActivitySummary({
   ownerId,
   familyMemberId,
@@ -54,6 +63,7 @@ export default function ActivitySummary({
     },
     [ownerId, familyMemberId],
   )
+  /** Discard the displayed snapshot and invalidate any generation still in flight. */
   function invalidate() {
     generation.current++
     setState(null)
@@ -67,6 +77,10 @@ export default function ActivitySummary({
     invalidate()
     onClose()
   }
+  /**
+   * Fetch a fresh vault snapshot and publish it only if the requested
+   * owner/profile/options are still current.
+   */
   async function generate() {
     if (!range.success) return
     const request = ++generation.current
@@ -92,6 +106,10 @@ export default function ActivitySummary({
         setState({ kind: 'error', ownerId, key, message: errorMessage(error) })
     }
   }
+  /**
+   * Recheck account identity before printing; keep print failures visible without
+   * replacing the generated snapshot.
+   */
   async function print() {
     if (!ready || ready.printing) return
     const request = generation.current
@@ -232,6 +250,10 @@ export default function ActivitySummary({
   )
 }
 
+/**
+ * Render the immutable generated snapshot rather than reading a moving workspace
+ * cache during printing.
+ */
 function SummaryPaper({ snapshot }: { snapshot: ActivitySnapshot }) {
   return (
     <article

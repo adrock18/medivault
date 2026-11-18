@@ -1,3 +1,8 @@
+/**
+ * Supabase client factories. Separate cookie-bound user access, privileged server
+ * operations and isolated password verification.
+ */
+
 import { createServerClient, type CookieMethodsServer } from '@supabase/ssr'
 import { createClient } from '@supabase/supabase-js'
 import type { SupabaseSettings } from './config.ts'
@@ -9,6 +14,10 @@ type UserClientSettings = Pick<
 >
 type AdminClientSettings = Pick<SupabaseSettings, 'url' | 'secretKey'>
 
+/**
+ * Apply a provider-request deadline while respecting cancellation from the
+ * original caller.
+ */
 const boundedFetch: typeof fetch = (input, init) =>
   fetch(input, {
     ...init,
@@ -18,6 +27,10 @@ const boundedFetch: typeof fetch = (input, init) =>
     ]),
   })
 
+/**
+ * Create a cookie-backed authenticated client whose ordinary database access
+ * remains subject to user RLS.
+ */
 export function createRequestSupabaseClient(
   settings: UserClientSettings,
   cookies: CookieMethodsServer,
@@ -34,6 +47,10 @@ export function createRequestSupabaseClient(
   })
 }
 
+/**
+ * Create the server-only privileged client reserved for explicitly controlled
+ * administrative operations.
+ */
 export function createAdminSupabaseClient(settings: AdminClientSettings) {
   return createClient<Database>(settings.url, settings.secretKey, {
     global: { fetch: boundedFetch },
@@ -45,6 +62,10 @@ export function createAdminSupabaseClient(settings: AdminClientSettings) {
   })
 }
 
+/**
+ * Create an isolated nonpersistent client so current-password checks do not
+ * replace the browser session.
+ */
 export function createVerificationSupabaseClient(settings: UserClientSettings) {
   return createClient<Database>(settings.url, settings.publishableKey, {
     global: { fetch: boundedFetch },

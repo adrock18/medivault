@@ -1,3 +1,8 @@
+/**
+ * Express composition root. Wires request safeguards, authentication, domain
+ * routers, production assets and the final error boundary.
+ */
+
 import express, { type ErrorRequestHandler } from 'express'
 import cookieParser from 'cookie-parser'
 import helmet from 'helmet'
@@ -47,7 +52,10 @@ export type AppOptions = {
   authGatewayFactory?: AuthGatewayFactory
 }
 
-/** Assemble middleware and API routes around one database/document-store instance. */
+/**
+ * Assemble middleware and routes around the configured auth and storage
+ * services; expose readiness separately for startup and health checks.
+ */
 export function createApp(options: AppOptions) {
   if (!options.supabaseSettings)
     throw new Error('Supabase configuration is required.')
@@ -160,11 +168,15 @@ export function createApp(options: AppOptions) {
     )
   }
 
+  /**
+   * Translate known failures into safe HTTP errors; log document incidents
+   * without raw provider data.
+   */
   const handleError: ErrorRequestHandler = (error: unknown, req, res, next) => {
     if (error instanceof DocumentOperationError) {
       const incidentId = randomUUID()
       if (!res.headersSent) res.set('X-MediVault-Incident', incidentId)
-      // Provider/SQLite errors can contain private paths, metadata or credentials.
+      // Raw provider errors can contain private paths, metadata or credentials.
       console.error('MediVault document operation failed.', {
         operation: error.operation,
         recordId: error.recordId ?? null,
@@ -213,10 +225,23 @@ export function createApp(options: AppOptions) {
     })
   }
   app.use(handleError)
+  /**
+   * Return a negative health result when the privileged schema-readiness check
+   * fails or cannot be reached.
+   */
   async function readiness() {
     try {
-      const { data, error } = await admin.rpc('check_app_readiness')
-      return !error && data === true
+      const [schema, records, visits] = await Promise.all([
+        admin.rpc('check_app_readiness'),
+        admin
+          .from('medical_records')
+          .select('hospital_name,doctor_name')
+          .limit(0),
+        admin.from('care_visits').select('hospital_name,doctor_name').limit(0),
+      ])
+      return (
+        !schema.error && schema.data === true && !records.error && !visits.error
+      )
     } catch {
       return false
     }

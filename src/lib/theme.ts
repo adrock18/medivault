@@ -1,3 +1,8 @@
+/**
+ * External appearance store shared with React. Applies semantic theme state,
+ * synchronizes system/cross-tab changes and respects reduced motion.
+ */
+
 import { useSyncExternalStore } from 'react'
 
 export type ThemePreference = 'light' | 'dark' | 'system'
@@ -11,12 +16,20 @@ const systemDark = () =>
 let glossTimer: ReturnType<typeof setTimeout> | undefined
 let themeFrame = 0
 
+/**
+ * Cancel the transient theme effect when navigation, authentication or motion
+ * preferences require immediate settling.
+ */
 export function cancelThemeTransition() {
   clearTimeout(glossTimer)
   glossTimer = undefined
   document.documentElement.removeAttribute('data-theme-transition')
 }
 
+/**
+ * Resolve the effective theme and notify subscribers after synchronizing document
+ * classes and native color scheme.
+ */
 function applyTheme() {
   const root = document.documentElement
   const dark =
@@ -33,6 +46,10 @@ function applyTheme() {
   listeners.forEach((listener) => listener())
 }
 
+/**
+ * Read a validated saved preference before mounting; report inaccessible storage
+ * and explicitly use system appearance.
+ */
 export function initializeTheme() {
   cancelThemeTransition()
   try {
@@ -48,6 +65,10 @@ export function initializeTheme() {
   applyTheme()
 }
 
+/**
+ * Apply the requested theme immediately and report persistence failure instead of
+ * claiming the preference was saved.
+ */
 export function setThemePreference(value: ThemePreference) {
   const root = document.documentElement
   const wasDark = root.classList.contains('dark')
@@ -74,6 +95,10 @@ export function setThemePreference(value: ThemePreference) {
   }
 }
 
+/**
+ * Observe system, motion and cross-tab preference changes; return cleanup for
+ * every installed listener.
+ */
 function subscribe(listener: () => void) {
   const media = window.matchMedia('(prefers-color-scheme: dark)')
   const reduced = window.matchMedia('(prefers-reduced-motion: reduce)')
@@ -99,6 +124,10 @@ function subscribe(listener: () => void) {
   }
 }
 
+/**
+ * Subscribe React to the external preference and resolved document theme without
+ * duplicating theme state per component.
+ */
 export function useTheme() {
   const snapshot = useSyncExternalStore(
     subscribe,

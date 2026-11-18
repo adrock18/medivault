@@ -1,3 +1,8 @@
+/**
+ * Browser bootstrap. Initialize appearance before mounting React so the
+ * application starts in the saved or system theme.
+ */
+
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import './index.css'

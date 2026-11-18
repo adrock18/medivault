@@ -1,3 +1,8 @@
+/**
+ * Authentication HTTP endpoints. Validate browser input, delegate identity work
+ * to the gateway and expose only public session summaries.
+ */
+
 import { Router } from 'express'
 import { rateLimit } from 'express-rate-limit'
 import {
@@ -8,6 +13,7 @@ import {
 } from '../../shared/schemas.ts'
 import { validate, type RouteContext } from './context.ts'
 
+/** Mounted before the private API session guard; mutations still validate and protect requests. */
 export function publicAuthRoutes(context: RouteContext) {
   const router = Router()
   const { auth, authLimit } = context
@@ -72,6 +78,10 @@ export function publicAuthRoutes(context: RouteContext) {
   return router
 }
 
+/**
+ * Register password changes behind session middleware. Account export belongs
+ * to the vault router, not this authentication router.
+ */
 export function accountRoutes(context: RouteContext) {
   const router = Router()
   router.post('/auth/password', context.authLimit, async (req, res) => {

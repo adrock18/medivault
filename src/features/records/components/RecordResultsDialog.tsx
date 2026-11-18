@@ -1,3 +1,8 @@
+/**
+ * Human-reviewed report-result capture. Keeps local OCR suggestions editable and
+ * requires review before saving an immutable source-linked snapshot.
+ */
+
 import { useEffect, useRef, useState } from 'react'
 import { useFieldArray, useForm, useWatch } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -23,6 +28,10 @@ import {
 } from '@shared/record-results'
 import { extractResultSuggestions } from '../lib/result-extraction'
 
+/**
+ * Choose a report belonging to the selected profile and remount its editor when
+ * the source changes.
+ */
 export function RecordResultsDialog({
   recordId = '',
   onClose,
@@ -73,6 +82,10 @@ export function RecordResultsDialog({
   )
 }
 
+/**
+ * Edit a report review with explicit provenance, measurement date and blood-group
+ * conflict confirmation.
+ */
 function ResultEditor({
   record,
   onClose,
@@ -131,6 +144,10 @@ function ResultEditor({
     incomingBlood !== health.blood_group
   const busy = mutation.pending || scanBusy
 
+  /**
+   * Extract report text locally with cancellation and visible progress/errors; do
+   * not persist suggestions automatically.
+   */
   async function scan() {
     const abort = new AbortController()
     controller.current = abort
@@ -156,6 +173,10 @@ function ResultEditor({
     }
   }
 
+  /**
+   * Replace draft rows only with recognized explicit results from the editable
+   * scan text.
+   */
   function fillDraft() {
     const suggestions = extractResultSuggestions(text)
     if (!suggestions.length) {
@@ -169,6 +190,10 @@ function ResultEditor({
     replace(suggestions)
   }
 
+  /**
+   * Require user review before saving validated results and close only after
+   * successful persistence.
+   */
   async function save(input: ReviewResultsValues) {
     if (!reviewed) {
       setScanError(

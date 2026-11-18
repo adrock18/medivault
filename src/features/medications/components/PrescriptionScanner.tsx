@@ -1,3 +1,8 @@
+/**
+ * Prescription-to-editable-draft workflow. Defaults to local OCR; external
+ * processing requires consent, and every suggestion needs user review.
+ */
+
 import { useEffect, useRef, useState } from 'react'
 import { ScanLine, Upload, Eye, Plus } from 'lucide-react'
 import { toast } from 'sonner'
@@ -20,6 +25,10 @@ import { Button } from '@/components/ui/button'
 import { UploadDialog } from '@/features/records/components/UploadDialog'
 import { MedicationForm } from './MedicationForm'
 
+/**
+ * Coordinate document selection, cancellable scanning and reviewed medication
+ * drafts without auto-saving OCR output.
+ */
 export function PrescriptionScanner({
   recordId = '',
   onClose,
@@ -28,6 +37,9 @@ export function PrescriptionScanner({
   onClose: () => void
 }) {
   const { records, selectedFamilyMemberId, features } = useVault()
+  const prescriptions = records.filter(
+    (item) => item.document_kind === 'prescription',
+  )
   const [selected, setSelected] = useState(recordId)
   const [uploading, setUploading] = useState(false)
   const [busy, setBusy] = useState(false)
@@ -38,17 +50,25 @@ export function PrescriptionScanner({
   const [draft, setDraft] = useState<Partial<MedicationValues> | null>(null)
   const [added, setAdded] = useState<Set<string>>(new Set())
   const controller = useRef<AbortController | null>(null)
-  const record = records.find((item) => item.id === selected)
+  const record = prescriptions.find((item) => item.id === selected)
+  const nonPrescription = records.some(
+    (item) => item.id === selected && item.document_kind !== 'prescription',
+  )
   const suggestions = prescriptionSuggestions(text)
   useEffect(() => () => controller.current?.abort(), [])
+  /** Cancel active scanning before dismissing the workflow. */
   function close() {
     controller.current?.abort()
     onClose()
   }
+  /**
+   * Read the selected private document locally or through the explicitly
+   * consented remote path; ignore cancelled results.
+   */
   async function scan() {
     if (busy) return
     if (!record) {
-      setError('Choose a saved document or upload a prescription first.')
+      setError('Choose a saved prescription or upload one first.')
       return
     }
     const abort = new AbortController()
@@ -87,6 +107,10 @@ export function PrescriptionScanner({
       if (!abort.signal.aborted) setBusy(false)
     }
   }
+  /**
+   * Prepare a source-linked editable draft from explicit text; do not infer
+   * missing dates or a regimen.
+   */
   function review(suggestion?: PrescriptionSuggestion) {
     if (!record) {
       setError('Select a medical record before adding a medication.')
@@ -120,7 +144,7 @@ export function PrescriptionScanner({
         open={!uploading && !draft}
         onClose={close}
         title="Add medications from a prescription"
-        description="Upload or choose a saved document, read its text, then review each medication before saving."
+        description="Upload or choose a prescription, read its text, then review each medication before saving. Lab reports and other records are not scanned for medications."
       >
         <ol
           aria-label="Prescription steps"
@@ -160,10 +184,16 @@ export function PrescriptionScanner({
               </span>
             </label>
           )}
-          {records.length > 0 && (
+          {nonPrescription && (
+            <p role="alert" className="text-sm text-destructive">
+              This document is not a prescription. Use Medical Records → Review
+              results for lab values, or choose a prescription below.
+            </p>
+          )}
+          {prescriptions.length > 0 && (
             <SelectField
-              label="Choose a saved prescription or record"
-              value={selected}
+              label="Choose a saved prescription"
+              value={record ? selected : ''}
               disabled={busy}
               onValueChange={(value) => {
                 setSelected(value)
@@ -173,8 +203,8 @@ export function PrescriptionScanner({
                 setAdded(new Set())
               }}
               options={[
-                { value: '', label: 'Choose a saved document' },
-                ...records.map((item) => ({
+                { value: '', label: 'Choose a saved prescription' },
+                ...prescriptions.map((item) => ({
                   value: item.id,
                   label: item.title,
                 })),
@@ -183,8 +213,8 @@ export function PrescriptionScanner({
           )}
           {!record && (
             <p className="text-sm text-muted-foreground">
-              {records.length
-                ? 'Choose a saved document above, or upload a new prescription below.'
+              {prescriptions.length
+                ? 'Choose a saved prescription above, or upload a new prescription below.'
                 : 'Start by uploading a PDF, JPG, or PNG prescription. It will be saved in your private vault.'}
             </p>
           )}

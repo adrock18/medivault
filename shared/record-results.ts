@@ -1,3 +1,8 @@
+/**
+ * Reviewed report-result contracts and history grouping. Keep user-confirmed
+ * observations and provenance separate from unreviewed OCR suggestions.
+ */
+
 import { z } from 'zod'
 import { calendarDateSchema } from './schemas.ts'
 
@@ -10,6 +15,10 @@ export const resultFields = [
   { name: 'Oxygen saturation', unit: '%' },
 ] as const
 
+/**
+ * Group a result by normalized test name, unit and context so unlike measurements
+ * are not merged.
+ */
 export function resultIdentity(result: {
   name: string
   unit: string
@@ -128,6 +137,10 @@ export type ResultReview = z.infer<typeof resultReviewRow>
 export type ReviewResultsValues = z.infer<typeof reviewResultsSchema>
 export type ResultObservation = ReviewedResult & { review: ResultReview }
 
+/**
+ * Select the latest immutable review per source record, using the review ID to
+ * break timestamp ties deterministically.
+ */
 export function currentResultReviews(reviews: ResultReview[]) {
   const latest = new Map<string, ResultReview>()
   for (const review of [...reviews].sort(
@@ -139,6 +152,10 @@ export function currentResultReviews(reviews: ResultReview[]) {
   return [...latest.values()]
 }
 
+/**
+ * Group current reviewed observations into newest-first histories without
+ * duplicating superseded reviews.
+ */
 export function resultHistories(reviews: ResultReview[]) {
   const groups = new Map<string, ResultObservation[]>()
   for (const review of currentResultReviews(reviews))

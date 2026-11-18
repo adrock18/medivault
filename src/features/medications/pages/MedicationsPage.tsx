@@ -1,3 +1,8 @@
+/**
+ * Medication workspace controller. Connects list/calendar views, route-driven
+ * add/scan workflows and confirmed medication deletion.
+ */
+
 import { useRef, useState } from 'react'
 import { Plus, Pill, CheckCheck, Clock3, Upload } from 'lucide-react'
 import { subDays } from 'date-fns'
@@ -31,6 +36,10 @@ import { MedicationReminder } from '../components/MedicationReminder'
 import { PrescriptionScanner } from '../components/PrescriptionScanner'
 import { MedicationCalendar } from '../components/MedicationCalendar'
 
+/**
+ * Coordinate selected-profile medications and functional create/edit/scan/delete
+ * dialogs.
+ */
 export default function MedicationsPage() {
   const { medications, logs, now, records } = useVault()
   const todaySchedule = useRef<HTMLDivElement>(null)
@@ -66,6 +75,10 @@ export default function MedicationsPage() {
     setEdit(null)
     updateParams({ action: null, source: null }, { replace: true })
   }
+  /**
+   * Delete only the explicitly selected medication and close confirmation after
+   * server success.
+   */
   async function confirmDelete() {
     if (!remove) return
     if (

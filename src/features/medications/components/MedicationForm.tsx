@@ -1,3 +1,8 @@
+/**
+ * Validated medication create/edit dialog. Records an existing prescription and
+ * requires explicit review when values came from scanning.
+ */
+
 import { useState } from 'react'
 import { Controller, useForm } from 'react-hook-form'
 import { Checkbox } from '@base-ui/react/checkbox'
@@ -5,7 +10,13 @@ import { Check } from 'lucide-react'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useMutation } from '@/hooks/useMutation'
 import { medicationSchema, type MedicationValues } from '@shared/schemas'
-import { displayDate, documentKinds, frequencies, localDate } from '@/lib/utils'
+import {
+  displayDate,
+  documentKinds,
+  frequencies,
+  localDate,
+  providerSummary,
+} from '@/lib/utils'
 import { api } from '@/lib/api'
 import type { Medication } from '@shared/database.types'
 import {
@@ -20,6 +31,10 @@ import { Button } from '@/components/ui/button'
 import { medicationForms } from '@shared/database.types'
 import { useVault } from '@/contexts/DataContext'
 
+/**
+ * Initialize editable prescription/schedule fields and keep validation, busy and
+ * review-confirmation states together.
+ */
 export function MedicationForm({
   medication,
   onClose,
@@ -67,6 +82,10 @@ export function MedicationForm({
           ...initialValues,
         },
   })
+  /**
+   * Enforce required human review before persisting a prescription; close only
+   * after the mutation succeeds.
+   */
   async function submit(values: MedicationValues) {
     if (reviewRequired && !reviewed) {
       setReviewError(
@@ -215,7 +234,7 @@ export function MedicationForm({
                   ...records.map((record) => ({
                     value: record.id,
                     label: record.title,
-                    description: `${documentKinds[record.document_kind]} · ${displayDate(record.record_date)}${record.provider ? ` · ${record.provider}` : ''}`,
+                    description: `${documentKinds[record.document_kind]} · ${displayDate(record.record_date)}${providerSummary(record) ? ` · ${providerSummary(record)}` : ''}`,
                   })),
                 ]}
                 error={errors.source_record_id?.message}

@@ -1,3 +1,8 @@
+/**
+ * Conservative report-text matching. Produce editable results only for recognized
+ * explicit labels/units; never invent missing values or ranges.
+ */
+
 import {
   reviewedResultSchema,
   type ReviewedResult,

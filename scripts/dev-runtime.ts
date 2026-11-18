@@ -1,3 +1,8 @@
+/**
+ * Owns the local API/frontend process lifecycle. Checks ports and
+ * invocation-specific readiness without stopping unrelated processes.
+ */
+
 import { randomUUID } from 'node:crypto'
 import { createServer } from 'node:net'
 import { setTimeout as delay } from 'node:timers/promises'
@@ -21,6 +26,10 @@ type DevelopmentOptions = {
   output?: Writable
 }
 
+/**
+ * Probe and release every required address; report conflicts without killing the
+ * process using a port.
+ */
 export async function checkAddresses(addresses: Address[]) {
   const failures = await Promise.all(
     addresses.map(
@@ -50,6 +59,10 @@ export async function checkAddresses(addresses: Address[]) {
   if (errors.length) throw new Error(errors.join('\n'))
 }
 
+/**
+ * Poll API and frontend-proxy health within a deadline; require both responses to
+ * belong to this startup.
+ */
 async function waitForReadiness(
   urls: string[],
   startupId: string,
@@ -115,6 +128,10 @@ async function waitForReadiness(
   )
 }
 
+/**
+ * Start and supervise the paired development services, then clean up owned
+ * children and signal listeners.
+ */
 export async function runDevelopment(options: DevelopmentOptions = {}) {
   const env = options.env ?? process.env
   const config = apiConfig(env)
@@ -135,6 +152,10 @@ export async function runDevelopment(options: DevelopmentOptions = {}) {
   const abort = new AbortController()
   let interrupted = false
   let stopping = false
+  /**
+   * Mark an intentional shutdown so cancellation does not become an
+   * unexpected-exit failure.
+   */
   const interrupt = () => {
     interrupted = true
     abort.abort()
@@ -174,6 +195,10 @@ export async function runDevelopment(options: DevelopmentOptions = {}) {
     process.off('SIGHUP', interrupt)
     throw error
   }
+  /**
+   * Terminate only supervised children, escalating if those children do not exit
+   * promptly.
+   */
   const stop = () => {
     if (stopping) return
     stopping = true
@@ -191,6 +216,10 @@ export async function runDevelopment(options: DevelopmentOptions = {}) {
     stop()
   }
   options.signal?.addEventListener('abort', externalInterrupt, { once: true })
+  /**
+   * Translate child completion into the supervisor exit status and cancel pending
+   * readiness checks.
+   */
   const finish = () => {
     abort.abort()
     if (!interrupted)
