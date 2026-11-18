@@ -5,8 +5,8 @@
 MediVault is a same-origin modular monolith: one React application and one Express
 process, with Supabase Auth, PostgreSQL and private Storage. The primary workflows organize
 existing prescriptions, explicitly record outcomes, and manage medical documents.
-The retired measurement UI is not a missing dashboard feature: compatibility APIs
-and JSON export retain earlier measurements.
+The former measurement tracker is retired: JSON export retains its archived
+measurement shape, but there is no active tracker UI or metrics API.
 
 The server validates Supabase sessions, then uses a request-scoped user client
 for ordinary PostgreSQL reads and writes. The server-only secret client handles
@@ -19,17 +19,17 @@ review and eligible latest profile measurements atomically. Measurement dates
 determine latest values; a newer review supersedes the same source's snapshot.
 The owner-isolated `get_reviewed_results` RPC supplies vault and export history.
 
-| Layer            | Technology and reason                                                                                                  |
-| ---------------- | ---------------------------------------------------------------------------------------------------------------------- |
-| Browser          | React, TypeScript, React Router and lazy pages: typed interactive workflows without loading OCR on sign-in.            |
-| Presentation     | Tailwind, shadcn/Base UI, Geist and Lucide: shared tokens, accessible primitives and consistent controls.              |
-| Forms/contracts  | React Hook Form and shared Zod schemas: client guidance plus authoritative server validation and validated responses.  |
-| Application      | Express on Node 24 LTS (minimum 22.18): serves API and production frontend together.                                   |
-| Database         | Supabase PostgreSQL with owner-scoped RLS, composite foreign keys and versioned migrations.                            |
-| Files            | Private Supabase Storage; bytes are delivered only through authenticated API requests.                                 |
-| Document reading | PDF.js and Tesseract run locally by default; optional OCR.Space processing is server-keyed and consent-gated per scan. |
-| Dose reminders   | Current-time status while the website is open; no medication email endpoint or settings UI.                            |
-| Verification     | Vitest, Testing Library, Supertest, startup/build checks; see [workflow](development.md) for what each proves.         |
+| Layer            | Technology and reason                                                                                                         |
+| ---------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| Browser          | React, TypeScript, React Router and lazy pages: typed interactive workflows without loading OCR on sign-in.                   |
+| Presentation     | Tailwind, shadcn/Base UI, Geist and Lucide: shared tokens, accessible primitives and consistent controls.                     |
+| Forms/contracts  | React Hook Form and shared Zod schemas: client guidance plus authoritative server validation and validated responses.         |
+| Application      | Express on Node 24 LTS (minimum 22.18): serves API and production frontend together.                                          |
+| Database         | Supabase PostgreSQL with owner-scoped RLS, composite foreign keys and versioned migrations.                                   |
+| Files            | Private Supabase Storage; bytes are delivered only through authenticated API requests.                                        |
+| Document reading | PDF.js and Tesseract run locally by default; optional OCR.Space processing is server-keyed and consent-gated per scan.        |
+| Dose reminders   | Current-time status while the website is open; no medication email endpoint or settings UI.                                   |
+| Verification     | Formatting, lint, TypeScript, build/resource checks, production audit and Docker compilation; see [workflow](development.md). |
 
 ```mermaid
 flowchart LR

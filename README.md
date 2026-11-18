@@ -197,11 +197,10 @@ for the exact verification boundary.
 - [Architecture and module map](docs/architecture.md)
 - [System integration and production runtime](docs/system-overview.md)
 - [Data contracts and API request flows](docs/flows.md)
-- [Product landscape and staged roadmap](docs/product-roadmap.md)
 - [Engineering decisions](docs/decisions.md)
 - [Development and release](docs/development.md)
 - [Operations and recovery](docs/operations.md)
 
-For private, beginner-oriented learning notes, see the locally ignored
-[`personal-learning/`](personal-learning/) folder. Its contents are not
-published to GitHub.
+Demo assets, personal learning notes, optional assistant tooling and historical
+OpenSpec planning are local-only, ignored by Git and excluded from Docker builds.
+They are not required to build or deploy the application.

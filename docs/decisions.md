@@ -213,8 +213,7 @@ documented choices, not claims of security or healthcare certification.
   Container runtime acceptance and hosted durability remain separate evidence.
 - **Where:** [release commands](../package.json),
   [CI](../.github/workflows/verify.yml),
-  [development guide](development.md),
-  [historical quality evidence](../openspec/changes/archive/2026-11-17-care-workspace-quality-upgrade/review.md).
+  [development guide](development.md).
 
 ## D12. Owner-managed family profiles, not shared accounts
 
@@ -241,24 +240,22 @@ documented choices, not claims of security or healthcare certification.
   [family selector](../src/components/Layout.tsx),
   [family assignment](../src/contexts/DataProvider.tsx).
 
-## D13. Generic opt-in reminders require an external scheduler
+## D13. Website medication status, not outgoing email
 
-- **Context:** A user may want an email nudge, but a sleeping/free web host
-  cannot promise precise background delivery.
-- **Decision:** Store explicit per-account opt-in and IANA time zone. An
-  external scheduler calls a bearer-secret-protected endpoint; Resend receives
-  generic messages with no medicine or family-member names. Unique
-  medication/date/time delivery rows and provider idempotency keys reduce
-  duplicates.
-- **Alternatives:** In-app-only messaging mislabeled as background alerts,
-  email by default, or introducing a continuously running worker/service.
-- **Consequences:** The operator must configure Resend and a scheduler. Email
-  remains best-effort, may be delayed or missed, and is not an emergency
-  service, dose outcome, or treatment instruction. Failed sends can be retried
-  by later scheduler calls.
-- **Where:** [reminder migration](../supabase/migrations/20261118050139_account_aggregates_reminder_worker.sql),
-  [notification routes](../server/routes/notifications.ts),
-  [settings](../src/features/settings/pages/SettingsPage.tsx).
+- **Context:** Background delivery and an external email service add operational
+  complexity beyond the final MVP scope.
+- **Decision:** Remove medication email settings and leave the old notification
+  routes unmounted. Show current-time due/pending and upcoming dose status while
+  the website is open; users explicitly record taken or skipped outcomes.
+- **Alternatives:** Retain the email provider and external scheduler, or imply
+  that an open-page reminder is a background notification.
+- **Consequences:** No outgoing medication emails, background delivery guarantee
+  or automatic dose outcomes. Legacy preference/delivery tables and worker SQL
+  remain for migration compatibility, not as enabled features. Supabase Auth
+  confirmation emails are separate from medication reminders.
+- **Where:** [route assembly](../server/app.ts),
+  [website reminder](../src/features/medications/components/MedicationReminder.tsx),
+  [operator guidance](operations.md).
 
 ## Decision template for future changes
 

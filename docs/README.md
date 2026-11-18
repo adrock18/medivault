@@ -12,7 +12,6 @@ original Supabase concept or a clinically certified system.
 | How do I set up, verify, review, and release a change safely?  | [Development and release guide](development.md)                 |
 | Why were the main engineering choices made?                    | [Decision records](decisions.md)                                |
 | How do I triage restore/storage failures or rehearse recovery? | [Operations and recovery](operations.md)                        |
-| What does MediVault do today, and what should it add next?     | [Product landscape and staged roadmap](product-roadmap.md)      |
 
 Health information belongs only in private runtime storage. Use fictional data
 for examples, tests, screenshots, and public demonstrations. Neither a passing

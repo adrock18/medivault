@@ -14,7 +14,7 @@ runtime-validated by the browser. Errors have `{ "error": "Helpful message" }`.
 | 401             | No valid session; private-client requests trigger workspace invalidation.                                                  |
 | 403             | Request-protection/origin failure.                                                                                         |
 | 404             | Unknown/unavailable owned entry or absent file; no other owner's metadata.                                                 |
-| 409             | Duplicate email, duplicate dose coordinate, or password-change race.                                                       |
+| 409             | Account/data conflict, such as a duplicate email or dose coordinate.                                                       |
 | 413             | Body/file size limit.                                                                                                      |
 | 422             | The optional OCR provider returned no readable text.                                                                       |
 | 429             | Authentication attempt limit.                                                                                              |
@@ -75,7 +75,7 @@ current password in an isolated non-persisted Auth client, revoke that temporary
 session, update the active account and revoke other sessions. The active browser
 keeps its session. Failure to revoke others after the update explicitly reports
 that the password changed rather than suggesting the entire operation rolled back.
-Optional medication reminders do not provide authentication or account recovery.
+Website medication reminders do not provide authentication or account recovery.
 
 Auth and data providers use request generations to ignore superseded results.
 Private-client 401 responses invalidate the authenticated workspace; background
@@ -311,10 +311,10 @@ authentication, request-protection and inaccessible-owner errors remain
 | -------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `GET /api/health`                            | Database probe -> `{status:"ok"}`; not backup or document readiness.                                                                                    |
 | `GET /api/auth/session`                      | Supabase `getUser()` and supported cookie refresh -> user session or null; outage is an explicit retryable error.                                       |
-| `POST /api/auth/register`                    | full_name/email/password/confirm_password -> session, 201, or explicit confirmation-required error.                                                     |
+| `POST /api/auth/register`                    | full_name/email/password/confirm_password -> 201 with a session or typed confirmation-required result.                                                  |
 | `POST /api/auth/login`                       | email/password -> session.                                                                                                                              |
 | `POST /api/auth/logout`                      | Supabase local-session sign-out -> 204.                                                                                                                 |
-| `POST /api/auth/password`                    | Temporarily unavailable during the account-security migration; current-password verification and session revocation are handled in task 3.3.            |
+| `POST /api/auth/password`                    | Verify current_password; set matching password/confirm_password and revoke other sessions -> 204, or explicit failure/partial-success error.            |
 | `GET /api/vault`                             | -> owned profile, family members, preferences, feature flags, owner and family health profiles, records, medications, logs, care tracks and visits.     |
 | `GET /api/account/export`                    | Full account export, including family health profiles and archived historical measurements.                                                             |
 | `PUT /api/health-profile`                    | Validated account-owner profile form -> saved health profile.                                                                                           |

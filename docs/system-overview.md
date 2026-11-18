@@ -58,8 +58,8 @@ application origin. Old accounts and data are not imported.
 - Authorized file requests return same-origin bytes, not public bucket links.
   Object/metadata failures use explicit compensation and retry paths.
 - Local OCR remains browser-side and review-only. Optional remote OCR requires
-  per-scan consent; optional email requires consent, credentials and a scheduler.
-  Neither is necessary to run the core website.
+  per-scan consent and server configuration. Medication email delivery is
+  disabled; current-time medication status is available while the website is open.
 
 ## Runtime and release
 

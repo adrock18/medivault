@@ -1,10 +1,14 @@
 .git
 .github
 .agents
+.mcp.json
+skills-lock.json
+personal-learning
 .vscode
 .env
 .env.*
 data
+Demo
 dist
 node_modules
 openspec

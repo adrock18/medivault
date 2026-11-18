@@ -9,6 +9,7 @@ lerna-debug.log*
 
 node_modules
 data/
+/Demo/
 *.sqlite
 *.sqlite-wal
 *.sqlite-shm
@@ -22,8 +23,11 @@ test-results/
 *.local
 /.local-verification/
 /personal-learning/
+/openspec/
 
-# Generated integrations
+# Local assistant tooling and generated integrations
+/.mcp.json
+/skills-lock.json
 /.agents/skills/
 
 # Editor directories and files

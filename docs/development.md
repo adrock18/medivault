@@ -56,29 +56,12 @@ required, MediVault explains the pending state without claiming that Supabase
 delivered an email. Check the configured sender and project Auth settings if a
 message does not arrive.
 
-For the ignored local-only Supabase integration harness, first select a new,
-empty test project and set its exact project reference in the current shell.
-Never point integration tests at a project containing data you need to retain.
-The harness uses fictional `@example.test` identities and refuses to run unless
-both explicit opt-in variables match the configured project:
-
-```powershell
-$env:MEDIVAULT_RUN_SUPABASE_TESTS = '1'
-$env:MEDIVAULT_SUPABASE_TEST_PROJECT_REF = '<isolated-project-ref>'
-node --env-file=.env .\node_modules\vitest\vitest.mjs run --config .local-verification\supabase.integration.config.ts
-```
-
-Missing settings, a project-reference mismatch, or an unreachable Data API fails
-the integration check; it is not reported as a skipped test. The initial check
-uses the server-only secret key for a read-only endpoint request and verifies
-connectivity only; it does not establish publishable-key access or RLS. The
-schema suite provisions two temporary, fictional, email-confirmed users through
-the Auth Admin API (no email is sent), then verifies bootstrap defaults, fresh
-empty state, owner isolation, owner-change rejection and denied ordinary-user
-operations through publishable-key clients. It deletes those users afterward
-and never resets the project. The public signup/confirmation journey is verified
-separately with the owner-controlled mail setup. Run the schema suite only
-against the isolated project selected by the explicit opt-in variables.
+Automated test suites and their toolchain are not distributed with this
+repository. Do not assume a clean checkout contains a runnable integration
+harness. Any privately maintained integration checks must target a separately
+authorized, isolated project with disposable fictional data, never a project
+containing data that must be retained. Verify signup/confirmation separately
+with an owner-controlled mailbox.
 
 Use a fictional account and Settings' explicit sample-data action for rehearsal.
 Do not use production accounts or the public demo as a test environment.
@@ -132,7 +115,7 @@ flowchart LR
   Observe --> Need
 ```
 
-1. Read the relevant module, schema and current/delta specs before editing.
+1. Read the relevant module, schema and documented behavior before editing.
 2. Record material behavior decisions and rejected alternatives. Reuse shared
    validation/helpers instead of duplicating them in pages or handlers.
 3. Implement a coherent slice, including acceptance evidence and related documentation.
@@ -173,22 +156,14 @@ durability. Hosted outcomes require an actual published run.
 
 At the owner's request, automated suites, fixtures, runners and test-only
 dependencies/configuration are not distributed. There is no published test or
-full-browser verification command. A fresh checkout cannot reproduce the earlier
-164 unit/API and 37 browser results; they remain
-[historical evidence](../openspec/changes/archive/2026-11-17-care-workspace-quality-upgrade/review.md),
-not current CI coverage. Build/audit gates are not substitutes for those checks.
-The predecessor's Linux visual references were never accepted.
+full-browser verification command. Historical local results are not current CI
+coverage. Build/audit gates are not substitutes for functional/browser checks.
 
-Local-only suites/configuration are preserved under the ignored
-`.local-verification/` folder and are not included in the repository. When the
-local Vitest toolchain is installed, run
-`npx vitest run --config .local-verification/vitest.config.ts`. A clean checkout
-does not contain these suites or their test-only dependencies, so source files
-alone do not guarantee a runnable test toolchain after dependency changes. Do
-not force-add them, embed executable suites in documentation, or upload private
-reports.
-Generated `.agents/skills/` integrations are also local; regenerate them with
-`openspec update` when using OpenSpec.
+Private suites/configuration may be retained under an ignored local folder,
+but their dependencies and continued compatibility are not guaranteed. Do not
+force-add them, embed executable suites in documentation, or upload private
+reports. Optional assistant tooling, personal learning notes, demo documents
+and OpenSpec planning history are also local-only; none is a build prerequisite.
 
 Before release, rehearse core workflows with an isolated fictional account,
 including invalid inputs, retry paths, private document access, reload
