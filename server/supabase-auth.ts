@@ -307,6 +307,7 @@ export function createSupabaseAuthGateway(
           throw new HttpError(
             400,
             'Confirm your email before signing in. Use Resend confirmation email if you need a new link.',
+            'email_not_confirmed',
           )
         if (isUnavailable(error)) throw unavailable()
         if (

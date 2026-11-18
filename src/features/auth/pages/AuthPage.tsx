@@ -12,13 +12,19 @@ import {
   DemoNotice,
 } from '@/components/common'
 import { loginSchema, registerSchema } from '@shared/schemas'
-import { errorMessage } from '@/lib/api'
+import { ApiError, errorMessage } from '@/lib/api'
 import { useAuth } from '@/contexts/AuthContext'
 import { ThemeSelect } from '@/components/ThemeSelect'
 import { MedicationShowcase } from '../components/MedicationShowcase'
 import { ConfirmationResend } from '../components/ConfirmationResend'
 
-function LoginForm() {
+type ConfirmationHandler = (email: string | null) => void
+
+function LoginForm({
+  onConfirmationRequired,
+}: {
+  onConfirmationRequired: ConfirmationHandler
+}) {
   const { signIn } = useAuth()
   const [error, setError] = useState<string | null>(null)
   const {
@@ -30,10 +36,13 @@ function LoginForm() {
   })
   async function submit(values: z.infer<typeof loginSchema>) {
     setError(null)
+    onConfirmationRequired(null)
     try {
       await signIn(values)
     } catch (err) {
       setError(errorMessage(err))
+      if (err instanceof ApiError && err.code === 'email_not_confirmed')
+        onConfirmationRequired(values.email)
     }
   }
   return (
@@ -64,7 +73,7 @@ function LoginForm() {
 function RegisterForm({
   onConfirmationRequired,
 }: {
-  onConfirmationRequired: (email: string) => void
+  onConfirmationRequired: ConfirmationHandler
 }) {
   const { signUp } = useAuth()
   const [error, setError] = useState<string | null>(null)
@@ -79,6 +88,7 @@ function RegisterForm({
   async function submit(values: z.infer<typeof registerSchema>) {
     setError(null)
     setNotice(null)
+    onConfirmationRequired(null)
     try {
       const result = await signUp(values)
       if ('confirmation_required' in result) {
@@ -146,7 +156,15 @@ export default function AuthPage({
   const { session } = useAuth()
   const [searchParams] = useSearchParams()
   const location = useLocation()
-  const [confirmationEmail, setConfirmationEmail] = useState('')
+  const [confirmation, setConfirmation] = useState<{
+    email: string
+    registration: boolean
+  } | null>(null)
+  const confirmationEmail =
+    confirmation?.registration === registration ? confirmation.email : ''
+  function onConfirmationRequired(email: string | null) {
+    setConfirmation(email ? { email, registration } : null)
+  }
   const [motionPaused, setMotionPaused] = useState(false)
   const hashParams = new URLSearchParams(location.hash.slice(1))
   const providerError =
@@ -238,14 +256,16 @@ export default function AuthPage({
               </div>
             )}
             {registration ? (
-              <RegisterForm onConfirmationRequired={setConfirmationEmail} />
+              <RegisterForm onConfirmationRequired={onConfirmationRequired} />
             ) : (
-              <LoginForm />
+              <LoginForm onConfirmationRequired={onConfirmationRequired} />
             )}
-            <ConfirmationResend
-              key={`${registration}-${confirmationEmail}`}
-              initialEmail={confirmationEmail}
-            />
+            {(confirmationEmail || callbackMessage) && (
+              <ConfirmationResend
+                key={`${registration}-${confirmationEmail}`}
+                initialEmail={confirmationEmail}
+              />
+            )}
             <p className="mt-6 text-center text-sm text-muted-foreground">
               {registration ? 'Already have an account?' : 'New to MediVault?'}{' '}
               <Link

@@ -42,6 +42,14 @@ export function errorMessage(error: unknown) {
     ? error.message
     : 'Something went wrong. Please try again.'
 }
+export class ApiError extends Error {
+  code?: string
+  constructor(message: string, code?: string) {
+    super(message)
+    this.name = 'ApiError'
+    this.code = code
+  }
+}
 async function response(path: string, options: RequestInit = {}) {
   const headers = new Headers(options.headers)
   headers.set('X-MediVault-Request', '1')
@@ -61,17 +69,23 @@ async function response(path: string, options: RequestInit = {}) {
   }
   if (!result.ok) {
     let message = `The server could not complete this request (${result.status}).`
+    let code: string | undefined
     if (result.headers.get('content-type')?.includes('application/json')) {
       const body: unknown = await result.json()
-      const parsed = z.object({ error: z.string() }).safeParse(body)
-      if (parsed.success) message = parsed.data.error
+      const parsed = z
+        .object({ error: z.string(), code: z.string().optional() })
+        .safeParse(body)
+      if (parsed.success) {
+        message = parsed.data.error
+        code = parsed.data.code
+      }
     }
     if (
       result.status === 401 &&
       !['/auth/session', '/auth/login', '/auth/register'].includes(path)
     )
       window.dispatchEvent(new Event('medivault:session-expired'))
-    throw new Error(message)
+    throw new ApiError(message, code)
   }
   return result
 }
