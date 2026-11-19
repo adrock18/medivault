@@ -122,7 +122,7 @@ export function Header({ onMenu }: { onMenu: () => void }) {
     }
   }
   return (
-    <header className="workspace-header flex min-h-20 flex-wrap items-center justify-between gap-3 px-4 py-3 sm:px-8">
+    <header className="workspace-header glass-surface mx-3 mt-3 flex min-h-20 flex-wrap items-center justify-between gap-3 rounded-[24px] px-4 py-3 sm:mx-4 sm:mt-4 sm:px-8">
       <div className="flex min-w-0 flex-1 basis-60 items-center gap-2">
         <Button
           variant="ghost"

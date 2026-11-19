@@ -649,9 +649,7 @@
 }
 
 .workspace-header {
-  background: color-mix(in srgb, var(--workspace) 76%, transparent);
-  backdrop-filter: blur(20px);
-  box-shadow: 0 1px 0 color-mix(in srgb, var(--glass-border) 50%, transparent);
+  --glass-base: var(--card);
 }
 
 .nav-item {
