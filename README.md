@@ -24,7 +24,7 @@ it.
   track, and dated visit. Mark key documents **Important!** for quick filtering.
   Visits and documents use one optional **Hospital / Doctor** field.
   New documents inherit the selected visit's provider as an editable
-  defaults. Visit and record dates support typed day/month/year entry.
+  default. Visit, record and medication dates support typed day/month/year entry.
 - **Family profiles:** organize each managed person's medical records and
   medication schedule under the account owner's login.
 - **Visit-centered timeline:** group related visits under owner-created care
@@ -111,6 +111,13 @@ serves the built frontend and API from the same Express application. See the
 [architecture and module map](docs/architecture.md),
 [end-to-end system guide](docs/system-overview.md), and
 [request-flow guide](docs/flows.md).
+
+For task-oriented navigation, use the [engineering handbook](docs/README.md).
+Exact implemented endpoints are listed in the [HTTP reference](docs/reference/api.md);
+the [data-model reference](docs/reference/data-model.md) separates active tables
+from retained compatibility structures. Read the
+[verification boundaries](docs/quality/verification.md) before treating the demo
+or a passing build as production-readiness evidence.
 
 New to the codebase? Start with the
 [workspace screen tour](docs/system-overview.md#workspace-screen-tour) for the

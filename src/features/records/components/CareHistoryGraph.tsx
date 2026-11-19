@@ -158,7 +158,7 @@ export function CareHistoryGraph({
         description="Explore saved care tracks, visits, documents and linked medication schedules for the selected profile, oldest to newest."
       />
       {hasCareHistory ? (
-        <div className="grid items-start gap-5 min-[1440px]:grid-cols-2">
+        <div className="grid grid-cols-1 gap-5">
           {tracks.map((track) => {
             const trackVisits = visits
               .filter((visit) => visit.care_track_id === track.id)

@@ -124,21 +124,16 @@ and the report's actual measurement date before saving.
 Use a fictional account and manually uploaded test documents for rehearsal.
 Do not use production accounts or the public demo as a test environment.
 
-### Source-attributed local demo examples
-
-The retained development fixtures use watermarked PDF examples based on the informative HL7 FHIR R4
-[CBC DiagnosticReport](https://hl7.org/fhir/R4/diagnosticreport-example.json.html)
-and [Azithromycin MedicationRequest](https://hl7.org/fhir/R4/medicationrequest0302.json.html)
-examples. The files are generated for readable upload/OCR rehearsal from the
-published example content; they are not original patient documents, valid
-prescriptions, diagnoses, or medical advice.
+### Fictional demo preparation
 
 Settings no longer exposes sample-data creation or the informational Privacy
-essentials panel. Existing records and privacy protections are unchanged, and
-the export warning remains visible. Create isolated test accounts through normal
-registration and add fictional profiles and documents manually; no reusable
-login credentials are seeded. Staged prescription instructions must not be
-reduced to one repeating schedule for a demo.
+essentials panel, and the unused sample-data generator has been removed.
+Existing records and privacy protections are unchanged, and the export warning
+remains visible. Create isolated test accounts through normal registration and
+add fictional profiles and source-attributed public documents manually; no
+reusable login credentials are seeded. Clearly label unrelated samples and
+preserve their printed values and units. Staged prescription instructions must
+not be reduced to one repeating schedule for a demo.
 
 ## Lightweight SDLC
 
@@ -287,7 +282,7 @@ can cause MIME/lazy-load failures. Stop only the owned preview first.
 
 ## Rehearsing logged-day behavior
 
-Use only a fictional account. After optional sample seeding, open Today and find
+Use only a fictional account with explicitly prepared sample schedules. Open Today and find
 the secondary **Lifetime logged days** section. Multiple outcomes for one original
 scheduled date count once; taken and skipped contribute equally. Milestones at
 3/7/30 are lifetime distinct-day counts, not consecutive runs or adherence scores.

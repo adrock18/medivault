@@ -40,9 +40,11 @@ documented choices, not claims of security or healthcare certification.
 - **Decision:** Keep owner-scoped private Supabase bytes and deliver through authenticated
   API checks; compensate if metadata creation fails after upload.
 - **Alternatives:** Public bucket, bearer/presigned links, database-stored files.
-- **Consequences:** The server streams every authorized request. Separate storage
-  systems are not atomic; partial failures need explicit errors and controlled
-  reconciliation, not success-shaped fallbacks.
+- **Consequences:** Every file request passes through the server. The current
+  Storage adapter buffers the object before exposing a readable response;
+  response pipelining is not end-to-end constant-memory streaming. Separate
+  storage systems are not atomic; partial failures need explicit errors and
+  controlled reconciliation, not success-shaped fallbacks.
 - **Where:** [document store](../server/document-store.ts),
   [document routes](../server/routes/records.ts), [flows](flows.md#documents).
 

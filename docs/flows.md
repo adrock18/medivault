@@ -223,7 +223,10 @@ Deletion confirmation explains that the origin's follow-up is removed.
 - **Medical history** (`/medical-history`) reuses the saved care visualization
   for the selected profile, with no copied records or inferred relationships.
   It shows tracks, chronological visits, standalone/unassigned context, linked
-  medications and read-only follow-up status. Document links open
+  medications and read-only follow-up status. Tracks, standalone visits and
+  unassigned records stack as full-width sections at every screen size, so
+  tracks with unequal visit counts do not leave empty grid columns.
+  Document links open
   `/medical-records?record=<id>`; visits use `?visit=<id>`, including empty visits;
   medication links open `/medications?record=<source-id>`.
 - **Health profile** retains demographic and personal health details. History
